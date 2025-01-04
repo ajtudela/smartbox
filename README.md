@@ -1,6 +1,8 @@
-# smartbox ![build](https://github.com/graham33/smartbox/workflows/Python%20package/badge.svg) [![PyPI version](https://badge.fury.io/py/smartbox.svg)](https://badge.fury.io/py/smartbox) [![codecov](https://codecov.io/gh/graham33/smartbox/branch/main/graph/badge.svg?token=BMCS2E9OC7)](https://codecov.io/gh/graham33/smartbox) [![PyPI license](https://img.shields.io/pypi/l/smartbox.svg)](https://pypi.python.org/pypi/smartbox/) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/smartbox.svg)](https://pypi.python.org/pypi/smartbox/)
+# smartbox ![build](https://github.com/ajtudela/smartbox/workflows/Python%20package/badge.svg) [![PyPI version](https://badge.fury.io/py/smartbox.svg)](https://badge.fury.io/py/smartbox) [![codecov](https://codecov.io/gh/ajtudela/smartbox/branch/main/graph/badge.svg?token=ghNZOGVzVv)](https://codecov.io/gh/ajtudela/smartbox) [![PyPI license](https://img.shields.io/pypi/l/smartbox.svg)](https://pypi.python.org/pypi/smartbox/) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/smartbox.svg)](https://pypi.python.org/pypi/smartbox/)
 
-Python API to control heating 'smart boxes'
+Python API to control heating Haverland 'smart boxes'
+
+**NOTE**: The initial version of this integration was made by [graham33](https://github.com/graham33) but it was not maintained. I have taken over the project and will try to keep it up to date.
 
 ## Installation
 
