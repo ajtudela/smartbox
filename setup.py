@@ -18,10 +18,11 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     install_requires=[
         "aiohttp",
         "Click",
+        "jq",
         # python-socketio major version needs to be synchronised with the
         # server socket.io version (socket.io has incompatible protocol
         # changes between major versions)
