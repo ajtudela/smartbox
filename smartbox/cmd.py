@@ -3,8 +3,8 @@ import click
 import json
 import logging
 
-from .session import Session
-from .socket import SocketSession
+from smartbox.session import Session
+from smartbox.socket import SocketSession
 
 _LOGGER = logging.getLogger(__name__)
 

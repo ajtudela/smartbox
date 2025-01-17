@@ -5,8 +5,8 @@ import logging
 import re
 from typing import Any, Callable, Dict, Iterable, List
 
-from .session import Session
-from .socket import SocketSession
+from smartbox.session import Session
+from smartbox.socket import SocketSession
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ import socketio
 from typing import Any, Callable, Dict, Optional
 import urllib
 
-from .session import Session
+from smartbox.session import Session
 
 _API_V2_NAMESPACE = "/api/v2/socket_io"
 # We most commonly get disconnected when the session

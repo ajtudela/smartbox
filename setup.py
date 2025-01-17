@@ -18,7 +18,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.12",
     install_requires=[
         "aiohttp",
         "Click",
@@ -29,6 +29,8 @@ setup(
         "python-socketio>=4.6.0,<5.0.0",
         "requests",
         "websocket_client",
+        "pydantic==2.10.4",
+        "jq",
     ],
     tests_require=[
         "freezegun",
@@ -37,6 +39,7 @@ setup(
         "pytest-mock",
         "pytest-randomly",
         "requests-mock",
+        "tox",
     ],
     entry_points="""
       [console_scripts]

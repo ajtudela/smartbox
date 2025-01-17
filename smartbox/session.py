@@ -6,7 +6,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from typing import Any, Dict, List
 
-from .error import SmartboxError
+from smartbox.error import SmartboxError
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
