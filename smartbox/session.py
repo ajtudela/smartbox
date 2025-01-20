@@ -3,9 +3,9 @@ import json
 import logging
 import requests
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util import Retry
 from typing import Any, Dict, List
-
+from warnings import warn
 from smartbox.error import SmartboxError
 
 _DEFAULT_RETRY_ATTEMPTS = 5
@@ -15,7 +15,7 @@ _MIN_TOKEN_LIFETIME = 60  # Minimum time left before expiry before we refresh (s
 _LOGGER = logging.getLogger(__name__)
 
 
-class Session(object):
+class SmartboxSession(object):
     def __init__(
         self,
         api_name: str,
@@ -97,8 +97,6 @@ class Session(object):
         return {
             "Authorization": f"Bearer {self._access_token}",
             "Content-Type": "application/json",
-            # TODO: generalise
-            "x-serialid": "5",
         }
 
     def _api_request(self, path: str) -> Any:
@@ -126,68 +124,58 @@ class Session(object):
             raise
         return response.json()
 
-    def get_api_name(self) -> str:
+    @property
+    def api_name(self) -> str:
         return self._api_name
 
-    def get_access_token(self) -> str:
+    @property
+    def access_token(self) -> str:
         return self._access_token
 
-    def get_refresh_token(self) -> str:
+    @property
+    def refresh_token(self) -> str:
         return self._refresh_token
 
-    def get_expiry_time(self) -> datetime.datetime:
+    @property
+    def expiry_time(self) -> datetime.datetime:
         return self._expires_at
+
+
+from smartbox.models import (
+    Devices,
+    Device,
+    Nodes,
+    Node,
+    Homes,
+    Home,
+    NodeStatus,
+    NodeSetup,
+)
+
+
+class Session(SmartboxSession):
 
     def get_devices(self) -> List[Dict[str, Any]]:
         response = self._api_request("devs")
-        return response["devs"]
+        devices = Devices.model_validate(response).devs
+        devices = [device.model_dump(mode="json") for device in devices]
+        return devices
 
-    def get_grouped_devices(self):
+    def get_homes(self) -> List[Dict[str, Any]]:
         response = self._api_request("grouped_devs")
-        return response
+        homes = Homes.model_validate(response)
+        return [home.model_dump(mode="json") for home in homes.root]
+
+    def get_grouped_devices(self) -> List[Dict[str, Any]]:
+        response = self._api_request("grouped_devs")
+        homes = Homes.model_validate(response).root
+        homes = [home.devs.model_dump(mode="json") for home in homes]
+        return homes
 
     def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
         response = self._api_request(f"devs/{device_id}/mgr/nodes")
-        return response["nodes"]
-
-    def get_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
-        return self._api_request(
-            f"devs/{device_id}/{node['type']}/{node['addr']}/status"
-        )
-
-    def set_status(
-        self,
-        device_id: str,
-        node: Dict[str, Any],
-        status_args: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        data = {k: v for k, v in status_args.items() if v is not None}
-        if "stemp" in data and "units" not in data:
-            raise ValueError("Must supply unit with temperature fields")
-        return self._api_post(
-            data=data, path=f"devs/{device_id}/{node['type']}/{node['addr']}/status"
-        )
-
-    def get_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
-        return self._api_request(
-            f"devs/{device_id}/{node['type']}/{node['addr']}/setup"
-        )
-
-    def set_setup(
-        self,
-        device_id: str,
-        node: Dict[str, Any],
-        setup_args: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        data = {k: v for k, v in setup_args.items() if v is not None}
-        # setup seems to require all settings to be re-posted, so get current
-        # values and update
-        setup_data = self.get_setup(device_id, node)
-        setup_data.update(data)
-        return self._api_post(
-            data=setup_data,
-            path=f"devs/{device_id}/{node['type']}/{node['addr']}/setup",
-        )
+        nodes = Nodes.model_validate(response).nodes
+        return [node.model_dump(mode="json") for node in nodes]
 
     def get_device_away_status(self, device_id: str) -> Dict[str, Any]:
         return self._api_request(f"devs/{device_id}/mgr/away_status")
@@ -205,3 +193,65 @@ class Session(object):
     def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
         data = {"power_limit": str(power_limit)}
         self._api_post(data=data, path=f"devs/{device_id}/htr_system/power_limit")
+
+    def get_node_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
+        node = Node.model_validate(node)
+        return NodeStatus.model_validate(
+            self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/tatus")
+        ).model_dump(mode="json")
+
+    def get_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
+        return self.get_node_status(device_id=device_id, node=node)
+
+    def set_node_status(
+        self,
+        device_id: str,
+        node: Dict[str, Any],
+        status_args: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        node = Node.model_validate(node)
+        data = {k: v for k, v in status_args.items() if v is not None}
+        if "stemp" in data and "units" not in data:
+            raise ValueError("Must supply unit with temperature fields")
+        return self._api_post(
+            data=data, path=f"devs/{device_id}/{node.type}/{node.addr}/status"
+        )
+
+    def set_status(
+        self, device_id: str, node: Dict[str, Any], status_args: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self.set_node_status(
+            device_id=device_id, node=node, status_args=status_args
+        )
+
+    def get_node_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
+        node = Node.model_validate(node)
+        return NodeSetup.model_validate(
+            self._session._api_request(
+                f"devs/{device_id}/{node.type}/{node.addr}/setup"
+            )
+        ).model_dump(mode="json")
+
+    def get_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
+        return self.get_node_setup(device_id=device_id, node=node)
+
+    def set_node_setup(
+        self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        node = Node.model_validate(node)
+        data = {k: v for k, v in setup_args.items() if v is not None}
+        # setup seems to require all settings to be re-posted, so get current
+        # values and update
+        setup_data = self.get_setup(device_id, node)
+        setup_data.update(data)
+        return self._api_post(
+            data=setup_data,
+            path=f"devs/{device_id}/{node.type}/{node.addr}/setup",
+        )
+
+    def set_setup(
+        self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self.set_node_status(
+            device_id=device_id, node=node, status_args=setup_args
+        )
