@@ -7,6 +7,14 @@ from urllib3.util import Retry
 from typing import Any, Dict, List
 from warnings import warn
 from smartbox.error import SmartboxError
+from aiohttp import (
+    ClientError,
+    ClientResponse,
+    ClientSession,
+    ClientTimeout,
+    ContentTypeError,
+)
+import asyncio
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
@@ -15,7 +23,17 @@ _MIN_TOKEN_LIFETIME = 60  # Minimum time left before expiry before we refresh (s
 _LOGGER = logging.getLogger(__name__)
 
 
-class SmartboxSession(object):
+from smartbox.models import (
+    Devices,
+    Nodes,
+    Node,
+    Homes,
+    NodeStatus,
+    NodeSetup,
+)
+
+
+class AsyncSession:
     def __init__(
         self,
         api_name: str,
@@ -24,39 +42,46 @@ class SmartboxSession(object):
         password: str,
         retry_attempts: int = _DEFAULT_RETRY_ATTEMPTS,
         backoff_factor: float = _DEFAULT_BACKOFF_FACTOR,
-    ) -> None:
+    ):
         self._api_name = api_name
         self._api_host = f"https://{self._api_name}.helki.com"
         self._basic_auth_credentials = basic_auth_credentials
+        self._retry_attempts = retry_attempts
+        self._backoff_factor = backoff_factor
+        self._usernama = username
+        self._password = password
+        self._access_token = None
 
-        self._requests = requests.Session()
-        retry_strategy = Retry(  # type: ignore
-            total=retry_attempts,
-            backoff_factor=backoff_factor,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET", "POST"],
-        )
-        http_adapter = HTTPAdapter(max_retries=retry_strategy)
-        self._requests.mount("http://", http_adapter)
-        self._requests.mount("https://", http_adapter)
+    @property
+    def api_name(self) -> str:
+        return self._api_name
 
-        self._auth(
-            {"grant_type": "password", "username": username, "password": password}
-        )
+    @property
+    def access_token(self) -> str:
+        return self._access_token
 
-    def _auth(self, credentials: Dict[str, str]) -> None:
+    @property
+    def refresh_token(self) -> str:
+        return self._refresh_token
+
+    @property
+    def expiry_time(self) -> datetime.datetime:
+        return self._expires_at
+
+    async def _authentication(self, credentials: Dict[str, str]):
         token_data = "&".join(f"{k}={v}" for k, v in credentials.items())
         token_headers = {
             "authorization": f"Basic {self._basic_auth_credentials}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
-
         token_url = f"{self._api_host}/client/token"
-        response = self._requests.post(
-            token_url, data=token_data, headers=token_headers
-        )
-        response.raise_for_status()
-        r = response.json()
+        async with ClientSession() as session:
+            response = await session.post(
+                url=token_url, headers=token_headers, data=token_data
+            )
+            response.raise_for_status()
+        r = await response.json()
+
         if "access_token" not in r or "refresh_token" not in r or "expires_in" not in r:
             _LOGGER.error(
                 f"Received invalid auth response, please check credentials: {r}"
@@ -78,19 +103,28 @@ class SmartboxSession(object):
         _LOGGER.debug(
             (
                 f"Authenticated session ({credentials['grant_type']}), "
-                f"access_token={self._access_token}, expires at {self._expires_at}"
+                f"access_token={self.access_token}, expires at {self.expiry_time}"
             )
         )
 
-    def _has_token_expired(self) -> bool:
-        return (self._expires_at - datetime.datetime.now()) < datetime.timedelta(
+    async def _check_refresh(self) -> None:
+        if self._access_token is None:
+            await self._authentication(
+                {
+                    "grant_type": "password",
+                    "username": self._usernama,
+                    "password": self._password,
+                }
+            )
+        expired = (self._expires_at - datetime.datetime.now()) < datetime.timedelta(
             seconds=_MIN_TOKEN_LIFETIME
         )
-
-    def _check_refresh(self) -> None:
-        if self._has_token_expired():
-            self._auth(
-                {"grant_type": "refresh_token", "refresh_token": self._refresh_token}
+        if expired:
+            await self._authentication(
+                {
+                    "grant_type": "refresh_token",
+                    "refresh_token": self._refresh_token,
+                }
             )
 
     def _get_headers(self) -> Dict[str, str]:
@@ -99,111 +133,91 @@ class SmartboxSession(object):
             "Content-Type": "application/json",
         }
 
-    def _api_request(self, path: str) -> Any:
-        self._check_refresh()
+    async def _api_request(self, path: str) -> Any:
+        await self._check_refresh()
         api_url = f"{self._api_host}/api/v2/{path}"
-        response = self._requests.get(api_url, headers=self._get_headers())
-        response.raise_for_status()
-        return response.json()
+        async with ClientSession() as session:
+            response = await session.get(api_url, headers=self._get_headers())
+            response.raise_for_status()
+        return await response.json()
 
-    def _api_post(self, data: Any, path: str) -> Any:
+    async def _api_post(self, data: Any, path: str) -> Any:
         self._check_refresh()
         api_url = f"{self._api_host}/api/v2/{path}"
         # TODO: json dump
         try:
             data_str = json.dumps(data)
             _LOGGER.debug(f"Posting {data_str} to {api_url}")
-            response = self._requests.post(
-                api_url, data=data_str, headers=self._get_headers()
-            )
-            response.raise_for_status()
+            async with ClientSession() as session:
+                response = await session.post(
+                    api_url, data=data_str, headers=self._get_headers()
+                )
+                response.raise_for_status()
         except requests.HTTPError as e:
             # TODO: logging
             _LOGGER.error(e)
             _LOGGER.error(e.response.json())
             raise
-        return response.json()
+        return await response.json()
 
-    @property
-    def api_name(self) -> str:
-        return self._api_name
-
-    @property
-    def access_token(self) -> str:
-        return self._access_token
-
-    @property
-    def refresh_token(self) -> str:
-        return self._refresh_token
-
-    @property
-    def expiry_time(self) -> datetime.datetime:
-        return self._expires_at
-
-
-from smartbox.models import (
-    Devices,
-    Device,
-    Nodes,
-    Node,
-    Homes,
-    Home,
-    NodeStatus,
-    NodeSetup,
-)
-
-
-class Session(SmartboxSession):
-
-    def get_devices(self) -> List[Dict[str, Any]]:
-        response = self._api_request("devs")
+    async def async_get_devices(self) -> List[Dict[str, Any]]:
+        response = await self._api_request("devs")
         devices = Devices.model_validate(response).devs
         devices = [device.model_dump(mode="json") for device in devices]
         return devices
 
-    def get_homes(self) -> List[Dict[str, Any]]:
-        response = self._api_request("grouped_devs")
+
+class AsyncSmartboxSession(AsyncSession):
+    async def async_get_devices(self) -> List[Dict[str, Any]]:
+        response = await self._api_request("devs")
+        devices = Devices.model_validate(response).devs
+        devices = [device.model_dump(mode="json") for device in devices]
+        return devices
+
+    async def async_get_homes(self) -> List[Dict[str, Any]]:
+        response = await self._api_request("grouped_devs")
         homes = Homes.model_validate(response)
         return [home.model_dump(mode="json") for home in homes.root]
 
-    def get_grouped_devices(self) -> List[Dict[str, Any]]:
-        response = self._api_request("grouped_devs")
+    async def async_get_grouped_devices(self) -> List[Dict[str, Any]]:
+        response = await self._api_request("grouped_devs")
         homes = Homes.model_validate(response).root
         homes = [home.devs.model_dump(mode="json") for home in homes]
         return homes
 
-    def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
-        response = self._api_request(f"devs/{device_id}/mgr/nodes")
+    async def async_get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
+        response = await self._api_request(f"devs/{device_id}/mgr/nodes")
         nodes = Nodes.model_validate(response).nodes
         return [node.model_dump(mode="json") for node in nodes]
 
-    def get_device_away_status(self, device_id: str) -> Dict[str, Any]:
-        return self._api_request(f"devs/{device_id}/mgr/away_status")
+    async def async_get_device_away_status(self, device_id: str) -> Dict[str, Any]:
+        return await self._api_request(f"devs/{device_id}/mgr/away_status")
 
-    def set_device_away_status(
+    async def async_set_device_away_status(
         self, device_id: str, status_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         data = {k: v for k, v in status_args.items() if v is not None}
         return self._api_post(data=data, path=f"devs/{device_id}/mgr/away_status")
 
-    def get_device_power_limit(self, device_id: str) -> int:
+    async def async_get_device_power_limit(self, device_id: str) -> int:
         resp = self._api_request(f"devs/{device_id}/htr_system/power_limit")
         return int(resp["power_limit"])
 
-    def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
+    async def async_set_device_power_limit(
+        self, device_id: str, power_limit: int
+    ) -> None:
         data = {"power_limit": str(power_limit)}
         self._api_post(data=data, path=f"devs/{device_id}/htr_system/power_limit")
 
-    def get_node_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
+    async def async_get_node_status(
+        self, device_id: str, node: Dict[str, Any]
+    ) -> Dict[str, str]:
         node = Node.model_validate(node)
         return NodeStatus.model_validate(
             self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/tatus")
         ).model_dump(mode="json")
 
-    def get_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
-        return self.get_node_status(device_id=device_id, node=node)
-
-    def set_node_status(
+    async def async_set_node_status(
         self,
         device_id: str,
         node: Dict[str, Any],
@@ -217,14 +231,9 @@ class Session(SmartboxSession):
             data=data, path=f"devs/{device_id}/{node.type}/{node.addr}/status"
         )
 
-    def set_status(
-        self, device_id: str, node: Dict[str, Any], status_args: Dict[str, Any]
+    async def async_get_node_setup(
+        self, device_id: str, node: Dict[str, Any]
     ) -> Dict[str, Any]:
-        return self.set_node_status(
-            device_id=device_id, node=node, status_args=status_args
-        )
-
-    def get_node_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
         node = Node.model_validate(node)
         return NodeSetup.model_validate(
             self._session._api_request(
@@ -232,10 +241,7 @@ class Session(SmartboxSession):
             )
         ).model_dump(mode="json")
 
-    def get_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
-        return self.get_node_setup(device_id=device_id, node=node)
-
-    def set_node_setup(
+    async def async_set_node_setup(
         self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         node = Node.model_validate(node)
@@ -249,9 +255,65 @@ class Session(SmartboxSession):
             path=f"devs/{device_id}/{node.type}/{node.addr}/setup",
         )
 
+
+class Session(AsyncSmartboxSession):
+
+    def get_devices(self) -> List[Dict[str, Any]]:
+        return asyncio.run(self.async_get_devices())
+
+    def get_homes(self) -> List[Dict[str, Any]]:
+        return asyncio.run(self.async_get_homes())
+
+    def get_grouped_devices(self) -> List[Dict[str, Any]]:
+        return asyncio.run(self.async_get_grouped_devices())
+
+    def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
+        return asyncio.run(self.async_get_nodes(device_id=device_id))
+
+    def get_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
+        return asyncio.run(self.async_get_node_status(device_id=device_id, node=node))
+
+    def set_status(
+        self, device_id: str, node: Dict[str, Any], status_args: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return asyncio.run(
+            self.async_set_node_status(
+                device_id=device_id, node=node, status_args=status_args
+            )
+        )
+
+    def get_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
+        return asyncio.run(self.async_get_node_setup(device_id=device_id, node=node))
+
     def set_setup(
         self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
     ) -> Dict[str, Any]:
-        return self.set_node_status(
-            device_id=device_id, node=node, status_args=setup_args
+        return asyncio.run(
+            self.async_set_node_setup(
+                device_id=device_id, node=node, setup_args=setup_args
+            )
+        )
+
+    def get_device_away_status(self, device_id: str) -> Dict[str, Any]:
+        return asyncio.run(self.async_get_device_away_status(device_id=device_id))
+
+    def set_device_away_status(
+        self, device_id: str, status_args: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return asyncio.run(
+            self.async_set_device_away_status(
+                device_id=device_id,
+                status_args=status_args,
+            )
+        )
+
+    def get_device_power_limit(self, device_id: str) -> int:
+        return asyncio.run(self.async_get_device_power_limit(device_id=device_id))
+
+    def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
+        return asyncio.run(
+            self.async_set_device_power_limit(
+                device_id=device_id,
+                power_limit=power_limit,
+            )
         )

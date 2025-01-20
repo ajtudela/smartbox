@@ -45,6 +45,14 @@ def devices(ctx):
     _pretty_print(devices)
 
 
+@smartbox.command(help="Show Homes")
+@click.pass_context
+def homes(ctx):
+    session = ctx.obj["session"]
+    devices = session.get_homes()
+    _pretty_print(devices)
+
+
 @smartbox.command(help="Show nodes")
 @click.pass_context
 def nodes(ctx):
