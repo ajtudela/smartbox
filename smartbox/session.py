@@ -8,11 +8,8 @@ from typing import Any, Dict, List
 from warnings import warn
 from smartbox.error import SmartboxError
 from aiohttp import (
-    ClientError,
     ClientResponse,
     ClientSession,
-    ClientTimeout,
-    ContentTypeError,
 )
 import asyncio
 
@@ -40,6 +37,7 @@ class AsyncSession:
         basic_auth_credentials: str,
         username: str,
         password: str,
+        websession: ClientSession | None = None,
         retry_attempts: int = _DEFAULT_RETRY_ATTEMPTS,
         backoff_factor: float = _DEFAULT_BACKOFF_FACTOR,
     ):
@@ -51,6 +49,7 @@ class AsyncSession:
         self._usernama = username
         self._password = password
         self._access_token = None
+        self._client_session: ClientSession | None = websession
 
     @property
     def api_name(self) -> str:
@@ -60,6 +59,9 @@ class AsyncSession:
     def access_token(self) -> str:
         return self._access_token
 
+    def get_access_token(self) -> str:
+        return self.access_token
+
     @property
     def refresh_token(self) -> str:
         return self._refresh_token
@@ -68,6 +70,13 @@ class AsyncSession:
     def expiry_time(self) -> datetime.datetime:
         return self._expires_at
 
+    @property
+    def client(self) -> ClientSession:
+        """Return the underlying http client."""
+        if not self._client_session:
+            return ClientSession()
+        return self._client_session
+
     async def _authentication(self, credentials: Dict[str, str]):
         token_data = "&".join(f"{k}={v}" for k, v in credentials.items())
         token_headers = {
@@ -75,7 +84,7 @@ class AsyncSession:
             "Content-Type": "application/x-www-form-urlencoded",
         }
         token_url = f"{self._api_host}/client/token"
-        async with ClientSession() as session:
+        async with self.client as session:
             response = await session.post(
                 url=token_url, headers=token_headers, data=token_data
             )
@@ -136,7 +145,7 @@ class AsyncSession:
     async def _api_request(self, path: str) -> Any:
         await self._check_refresh()
         api_url = f"{self._api_host}/api/v2/{path}"
-        async with ClientSession() as session:
+        async with self.client as session:
             response = await session.get(api_url, headers=self._get_headers())
             response.raise_for_status()
         return await response.json()
@@ -148,7 +157,7 @@ class AsyncSession:
         try:
             data_str = json.dumps(data)
             _LOGGER.debug(f"Posting {data_str} to {api_url}")
-            async with ClientSession() as session:
+            async with self.client as session:
                 response = await session.post(
                     api_url, data=data_str, headers=self._get_headers()
                 )
@@ -214,7 +223,7 @@ class AsyncSmartboxSession(AsyncSession):
     ) -> Dict[str, str]:
         node = Node.model_validate(node)
         return NodeStatus.model_validate(
-            self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/tatus")
+            await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/status")
         ).model_dump(mode="json")
 
     async def async_set_node_status(
@@ -236,9 +245,7 @@ class AsyncSmartboxSession(AsyncSession):
     ) -> Dict[str, Any]:
         node = Node.model_validate(node)
         return NodeSetup.model_validate(
-            self._session._api_request(
-                f"devs/{device_id}/{node.type}/{node.addr}/setup"
-            )
+            await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/setup")
         ).model_dump(mode="json")
 
     async def async_set_node_setup(
@@ -250,14 +257,13 @@ class AsyncSmartboxSession(AsyncSession):
         # values and update
         setup_data = self.get_setup(device_id, node)
         setup_data.update(data)
-        return self._api_post(
+        return await self._api_post(
             data=setup_data,
             path=f"devs/{device_id}/{node.type}/{node.addr}/setup",
         )
 
 
 class Session(AsyncSmartboxSession):
-
     def get_devices(self) -> List[Dict[str, Any]]:
         return asyncio.run(self.async_get_devices())
 
