@@ -169,56 +169,49 @@ class AsyncSession:
             raise
         return await response.json()
 
-    async def async_get_devices(self) -> List[Dict[str, Any]]:
-        response = await self._api_request("devs")
-        devices = Devices.model_validate(response).devs
-        devices = [device.model_dump(mode="json") for device in devices]
-        return devices
-
 
 class AsyncSmartboxSession(AsyncSession):
-    async def async_get_devices(self) -> List[Dict[str, Any]]:
+
+    async def get_devices(self) -> List[Dict[str, Any]]:
         response = await self._api_request("devs")
         devices = Devices.model_validate(response).devs
         devices = [device.model_dump(mode="json") for device in devices]
         return devices
 
-    async def async_get_homes(self) -> List[Dict[str, Any]]:
+    async def get_homes(self) -> List[Dict[str, Any]]:
         response = await self._api_request("grouped_devs")
         homes = Homes.model_validate(response)
         return [home.model_dump(mode="json") for home in homes.root]
 
-    async def async_get_grouped_devices(self) -> List[Dict[str, Any]]:
+    async def get_grouped_devices(self) -> List[Dict[str, Any]]:
         response = await self._api_request("grouped_devs")
         homes = Homes.model_validate(response).root
         homes = [home.devs.model_dump(mode="json") for home in homes]
         return homes
 
-    async def async_get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
+    async def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
         response = await self._api_request(f"devs/{device_id}/mgr/nodes")
         nodes = Nodes.model_validate(response).nodes
         return [node.model_dump(mode="json") for node in nodes]
 
-    async def async_get_device_away_status(self, device_id: str) -> Dict[str, Any]:
+    async def get_device_away_status(self, device_id: str) -> Dict[str, Any]:
         return await self._api_request(f"devs/{device_id}/mgr/away_status")
 
-    async def async_set_device_away_status(
+    async def set_device_away_status(
         self, device_id: str, status_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         data = {k: v for k, v in status_args.items() if v is not None}
         return self._api_post(data=data, path=f"devs/{device_id}/mgr/away_status")
 
-    async def async_get_device_power_limit(self, device_id: str) -> int:
+    async def get_device_power_limit(self, device_id: str) -> int:
         resp = self._api_request(f"devs/{device_id}/htr_system/power_limit")
         return int(resp["power_limit"])
 
-    async def async_set_device_power_limit(
-        self, device_id: str, power_limit: int
-    ) -> None:
+    async def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
         data = {"power_limit": str(power_limit)}
         self._api_post(data=data, path=f"devs/{device_id}/htr_system/power_limit")
 
-    async def async_get_node_status(
+    async def get_node_status(
         self, device_id: str, node: Dict[str, Any]
     ) -> Dict[str, str]:
         node = Node.model_validate(node)
@@ -226,7 +219,7 @@ class AsyncSmartboxSession(AsyncSession):
             await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/status")
         ).model_dump(mode="json")
 
-    async def async_set_node_status(
+    async def set_node_status(
         self,
         device_id: str,
         node: Dict[str, Any],
@@ -240,7 +233,7 @@ class AsyncSmartboxSession(AsyncSession):
             data=data, path=f"devs/{device_id}/{node.type}/{node.addr}/status"
         )
 
-    async def async_get_node_setup(
+    async def get_node_setup(
         self, device_id: str, node: Dict[str, Any]
     ) -> Dict[str, Any]:
         node = Node.model_validate(node)
@@ -248,7 +241,7 @@ class AsyncSmartboxSession(AsyncSession):
             await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/setup")
         ).model_dump(mode="json")
 
-    async def async_set_node_setup(
+    async def set_node_setup(
         self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         node = Node.model_validate(node)
@@ -263,33 +256,36 @@ class AsyncSmartboxSession(AsyncSession):
         )
 
 
-class Session(AsyncSmartboxSession):
+class Session:
+    def __init__(self, *args, **kwargs):
+        self._async = AsyncSmartboxSession(*args, **kwargs)
+
     def get_devices(self) -> List[Dict[str, Any]]:
-        return asyncio.run(self.async_get_devices())
+        return asyncio.run(self._async.get_devices())
 
     def get_homes(self) -> List[Dict[str, Any]]:
-        return asyncio.run(self.async_get_homes())
+        return asyncio.run(self._async.get_homes())
 
     def get_grouped_devices(self) -> List[Dict[str, Any]]:
-        return asyncio.run(self.async_get_grouped_devices())
+        return asyncio.run(self._async.get_grouped_devices())
 
     def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
-        return asyncio.run(self.async_get_nodes(device_id=device_id))
+        return asyncio.run(self._async.get_nodes(device_id=device_id))
 
     def get_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
-        return asyncio.run(self.async_get_node_status(device_id=device_id, node=node))
+        return asyncio.run(self._async.get_node_status(device_id=device_id, node=node))
 
     def set_status(
         self, device_id: str, node: Dict[str, Any], status_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         return asyncio.run(
-            self.async_set_node_status(
+            self._async.set_node_status(
                 device_id=device_id, node=node, status_args=status_args
             )
         )
 
     def get_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
-        return asyncio.run(self.async_get_node_setup(device_id=device_id, node=node))
+        return asyncio.run(self._async.get_node_setup(device_id=device_id, node=node))
 
     def set_setup(
         self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
@@ -301,24 +297,24 @@ class Session(AsyncSmartboxSession):
         )
 
     def get_device_away_status(self, device_id: str) -> Dict[str, Any]:
-        return asyncio.run(self.async_get_device_away_status(device_id=device_id))
+        return asyncio.run(self._async.get_device_away_status(device_id=device_id))
 
     def set_device_away_status(
         self, device_id: str, status_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         return asyncio.run(
-            self.async_set_device_away_status(
+            self._async.set_device_away_status(
                 device_id=device_id,
                 status_args=status_args,
             )
         )
 
     def get_device_power_limit(self, device_id: str) -> int:
-        return asyncio.run(self.async_get_device_power_limit(device_id=device_id))
+        return asyncio.run(self._async.get_device_power_limit(device_id=device_id))
 
     def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
         return asyncio.run(
-            self.async_set_device_power_limit(
+            self._async.set_device_power_limit(
                 device_id=device_id,
                 power_limit=power_limit,
             )
