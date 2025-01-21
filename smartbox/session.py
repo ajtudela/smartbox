@@ -73,6 +73,7 @@ class AsyncSession:
     @property
     def client(self) -> ClientSession:
         """Return the underlying http client."""
+
         if not self._client_session:
             return ClientSession()
         return self._client_session
@@ -84,11 +85,10 @@ class AsyncSession:
             "Content-Type": "application/x-www-form-urlencoded",
         }
         token_url = f"{self._api_host}/client/token"
-        async with self.client as session:
-            response = await session.post(
-                url=token_url, headers=token_headers, data=token_data
-            )
-            response.raise_for_status()
+        response = await self.client.post(
+            url=token_url, headers=token_headers, data=token_data
+        )
+        response.raise_for_status()
         r = await response.json()
 
         if "access_token" not in r or "refresh_token" not in r or "expires_in" not in r:
@@ -116,7 +116,7 @@ class AsyncSession:
             )
         )
 
-    async def _check_refresh(self) -> None:
+    async def check_refresh_auth(self) -> None:
         if self._access_token is None:
             await self._authentication(
                 {
@@ -143,25 +143,23 @@ class AsyncSession:
         }
 
     async def _api_request(self, path: str) -> Any:
-        await self._check_refresh()
+        await self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
-        async with self.client as session:
-            response = await session.get(api_url, headers=self._get_headers())
-            response.raise_for_status()
+        response = await self.client.get(api_url, headers=self._get_headers())
+        response.raise_for_status()
         return await response.json()
 
     async def _api_post(self, data: Any, path: str) -> Any:
-        self._check_refresh()
+        self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
         # TODO: json dump
         try:
             data_str = json.dumps(data)
             _LOGGER.debug(f"Posting {data_str} to {api_url}")
-            async with self.client as session:
-                response = await session.post(
-                    api_url, data=data_str, headers=self._get_headers()
-                )
-                response.raise_for_status()
+            response = await self.client.post(
+                api_url, data=data_str, headers=self._get_headers()
+            )
+            response.raise_for_status()
         except requests.HTTPError as e:
             # TODO: logging
             _LOGGER.error(e)
@@ -185,8 +183,8 @@ class AsyncSmartboxSession(AsyncSession):
 
     async def get_grouped_devices(self) -> List[Dict[str, Any]]:
         response = await self._api_request("grouped_devs")
-        homes = Homes.model_validate(response).root
-        homes = [home.devs.model_dump(mode="json") for home in homes]
+        homes: Homes = Homes.model_validate(response)
+        homes = [home.devs.model_dump(mode="json") for home in homes.root]
         return homes
 
     async def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
@@ -201,7 +199,7 @@ class AsyncSmartboxSession(AsyncSession):
         self, device_id: str, status_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         data = {k: v for k, v in status_args.items() if v is not None}
-        return self._api_post(data=data, path=f"devs/{device_id}/mgr/away_status")
+        return await self._api_post(data=data, path=f"devs/{device_id}/mgr/away_status")
 
     async def get_device_power_limit(self, device_id: str) -> int:
         resp = self._api_request(f"devs/{device_id}/htr_system/power_limit")
@@ -209,12 +207,12 @@ class AsyncSmartboxSession(AsyncSession):
 
     async def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
         data = {"power_limit": str(power_limit)}
-        self._api_post(data=data, path=f"devs/{device_id}/htr_system/power_limit")
+        await self._api_post(data=data, path=f"devs/{device_id}/htr_system/power_limit")
 
     async def get_node_status(
         self, device_id: str, node: Dict[str, Any]
     ) -> Dict[str, str]:
-        node = Node.model_validate(node)
+        node: Node = Node.model_validate(node)
         return NodeStatus.model_validate(
             await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/status")
         ).model_dump(mode="json")
@@ -225,18 +223,18 @@ class AsyncSmartboxSession(AsyncSession):
         node: Dict[str, Any],
         status_args: Dict[str, Any],
     ) -> Dict[str, Any]:
-        node = Node.model_validate(node)
+        node: Node = Node.model_validate(node)
         data = {k: v for k, v in status_args.items() if v is not None}
         if "stemp" in data and "units" not in data:
             raise ValueError("Must supply unit with temperature fields")
-        return self._api_post(
+        return await self._api_post(
             data=data, path=f"devs/{device_id}/{node.type}/{node.addr}/status"
         )
 
     async def get_node_setup(
         self, device_id: str, node: Dict[str, Any]
     ) -> Dict[str, Any]:
-        node = Node.model_validate(node)
+        node: Node = Node.model_validate(node)
         return NodeSetup.model_validate(
             await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/setup")
         ).model_dump(mode="json")
@@ -244,16 +242,25 @@ class AsyncSmartboxSession(AsyncSession):
     async def set_node_setup(
         self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
     ) -> Dict[str, Any]:
-        node = Node.model_validate(node)
+        node: Node = Node.model_validate(node)
         data = {k: v for k, v in setup_args.items() if v is not None}
         # setup seems to require all settings to be re-posted, so get current
         # values and update
-        setup_data = self.get_setup(device_id, node)
+        setup_data = await self.get_node_setup(device_id, node)
         setup_data.update(data)
         return await self._api_post(
             data=setup_data,
             path=f"devs/{device_id}/{node.type}/{node.addr}/setup",
         )
+
+
+# def call_async(coro):
+#     try:
+#         loop = asyncio.get_running_loop()
+#     except RuntimeError:
+#         return asyncio.run(coro)
+#     else:
+#         return loop.run_until_complete(coro)
 
 
 class Session:
