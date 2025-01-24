@@ -1,0 +1,8 @@
+# Codecov settings: https://docs.codecov.com/docs/common-recipe-list
+comment:
+  layout: " diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  hide_project_coverage: false

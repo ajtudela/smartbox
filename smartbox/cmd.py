@@ -1,10 +1,12 @@
 import asyncio
-import click
+import asyncclick as click
 import json
 import logging
+from aiohttp import ClientSession
 
-from smartbox.session import Session
+from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ def _pretty_print(data):
     "-v", "--verbose/--no-verbose", default=False, help="Enable verbose logging"
 )
 @click.pass_context
-def smartbox(ctx, api_name, basic_auth_creds, username, password, verbose):
+async def smartbox(ctx, api_name, basic_auth_creds, username, password, verbose):
     ctx.ensure_object(dict)
     logging.basicConfig(
         format="%(asctime)s %(levelname)-8s "
@@ -32,52 +34,54 @@ def smartbox(ctx, api_name, basic_auth_creds, username, password, verbose):
         level=logging.DEBUG if verbose else logging.INFO,
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    session = Session(api_name, basic_auth_creds, username, password)
+    session = AsyncSmartboxSession(
+        api_name, basic_auth_creds, username, password, websession=ClientSession()
+    )
     ctx.obj["session"] = session
     ctx.obj["verbose"] = verbose
 
 
 @smartbox.command(help="Show devices")
 @click.pass_context
-def devices(ctx):
+async def devices(ctx):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
     _pretty_print(devices)
 
 
 @smartbox.command(help="Show Homes")
 @click.pass_context
-def homes(ctx):
+async def homes(ctx):
     session = ctx.obj["session"]
-    devices = session.get_homes()
+    devices = await session.get_homes()
     _pretty_print(devices)
 
 
 @smartbox.command(help="Show nodes")
 @click.pass_context
-def nodes(ctx):
+async def nodes(ctx):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
 
     for device in devices:
         print(f"{device['name']} (dev_id: {device['dev_id']})")
-        nodes = session.get_nodes(device["dev_id"])
+        nodes = await session.get_nodes(device["dev_id"])
         _pretty_print(nodes)
 
 
 @smartbox.command(help="Show node status")
 @click.pass_context
-def status(ctx):
+async def status(ctx):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
 
     for device in devices:
         print(f"{device['name']} (dev_id: {device['dev_id']})")
-        nodes = session.get_nodes(device["dev_id"])
+        nodes = await session.get_nodes(device["dev_id"])
 
         for node in nodes:
             print(f"{node['name']} (addr: {node['addr']})")
-            status = session.get_status(device["dev_id"], node)
+            status = await session.get_node_status(device["dev_id"], node)
             _pretty_print(status)
 
 
@@ -98,29 +102,29 @@ def status(ctx):
 @click.option("--units")
 # TODO: other options
 @click.pass_context
-def set_status(ctx, device_id, node_addr, **kwargs):
+async def set_status(ctx, device_id, node_addr, **kwargs):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
     device = next(d for d in devices if d["dev_id"] == device_id)
-    nodes = session.get_nodes(device["dev_id"])
+    nodes = await session.get_nodes(device["dev_id"])
     node = next(n for n in nodes if n["addr"] == node_addr)
 
-    session.set_status(device["dev_id"], node, kwargs)
+    await session.set_node_status(device["dev_id"], node, kwargs)
 
 
 @smartbox.command(help="Show node setup")
 @click.pass_context
-def setup(ctx):
+async def setup(ctx):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
 
     for device in devices:
         print(f"{device['name']} (dev_id: {device['dev_id']})")
-        nodes = session.get_nodes(device["dev_id"])
+        nodes = await session.get_nodes(device["dev_id"])
 
         for node in nodes:
             print(f"{node['name']} (addr: {node['addr']})")
-            setup = session.get_setup(device["dev_id"], node)
+            setup = await session.get_node_setup(device["dev_id"], node)
             _pretty_print(setup)
 
 
@@ -138,27 +142,27 @@ def setup(ctx):
 @click.option("--units", type=str, default=None)
 @click.option("--window-mode-enabled", type=bool, default=None)
 @click.pass_context
-def set_setup(ctx, device_id, node_addr, **kwargs):
+async def set_setup(ctx, device_id, node_addr, **kwargs):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
     device = next(d for d in devices if d["dev_id"] == device_id)
-    nodes = session.get_nodes(device["dev_id"])
+    nodes = await session.get_nodes(device["dev_id"])
     node = next(n for n in nodes if n["addr"] == node_addr)
 
     # Only pass specified options
     setup_kwargs = {k: v for k, v in kwargs.items() if v is not None}
-    session.set_setup(device["dev_id"], node, setup_kwargs)
+    await session.set_node_setup(device["dev_id"], node, setup_kwargs)
 
 
 @smartbox.command(help="Show device away_status")
 @click.pass_context
-def device_away_status(ctx):
+async def device_away_status(ctx):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
 
     for device in devices:
         print(f"{device['name']} (dev_id: {device['dev_id']})")
-        device_away_status = session.get_device_away_status(device["dev_id"])
+        device_away_status = await session.get_device_away_status(device["dev_id"])
         _pretty_print(device_away_status)
 
 
@@ -172,23 +176,23 @@ def device_away_status(ctx):
 @click.option("--enabled", type=bool)
 @click.option("--forced", type=bool)
 @click.pass_context
-def set_device_away_status(ctx, device_id, **kwargs):
+async def set_device_away_status(ctx, device_id, **kwargs):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
     device = next(d for d in devices if d["dev_id"] == device_id)
 
-    session.set_device_away_status(device["dev_id"], kwargs)
+    await session.set_device_away_status(device["dev_id"], kwargs)
 
 
 @smartbox.command(help="Show device power_limit")
 @click.pass_context
-def device_power_limit(ctx):
+async def device_power_limit(ctx):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
 
     for device in devices:
         print(f"{device['name']} (dev_id: {device['dev_id']})")
-        device_power_limit = session.get_device_power_limit(device["dev_id"])
+        device_power_limit = await session.get_device_power_limit(device["dev_id"])
         _pretty_print(device_power_limit)
 
 
@@ -198,18 +202,18 @@ def device_power_limit(ctx):
 )
 @click.argument("power-limit", type=int)
 @click.pass_context
-def set_device_power_limit(ctx, device_id, power_limit):
+async def set_device_power_limit(ctx, device_id, power_limit):
     session = ctx.obj["session"]
-    devices = session.get_devices()
+    devices = await session.get_devices()
     device = next(d for d in devices if d["dev_id"] == device_id)
 
-    session.set_device_power_limit(device["dev_id"], power_limit)
+    await session.set_device_power_limit(device["dev_id"], power_limit)
 
 
 @smartbox.command(help="Open socket.io connection to device.")
 @click.option("-d", "--device-id", required=True, help="Device ID to open socket for")
 @click.pass_context
-def socket(ctx, device_id):
+async def socket(ctx, device_id):
     session = ctx.obj["session"]
     verbose = ctx.obj["verbose"]
 
@@ -221,13 +225,10 @@ def socket(ctx, device_id):
         _LOGGER.info("Received update:")
         _pretty_print(data)
 
-    event_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(event_loop)
     socket_session = SocketSession(
         session, device_id, on_dev_data, on_update, verbose, add_sigint_handler=True
     )
-    task = event_loop.create_task(socket_session.run())
-    event_loop.run_until_complete(task)
+    await socket_session.run()
 
 
 # For debuggging

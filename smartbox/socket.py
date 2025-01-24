@@ -5,7 +5,7 @@ import socketio
 from typing import Any, Callable, Dict, Optional
 import urllib
 
-from smartbox.session import Session
+from smartbox.session import AsyncSmartboxSession
 
 _API_V2_NAMESPACE = "/api/v2/socket_io"
 # We most commonly get disconnected when the session
@@ -17,9 +17,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
+
     def __init__(
         self,
-        session: Session,
+        session: AsyncSmartboxSession,
         namespace: str,
         dev_data_callback: Optional[Callable] = None,
         node_update_callback: Optional[Callable] = None,
@@ -74,7 +75,7 @@ class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
 class SocketSession(object):
     def __init__(
         self,
-        session: Session,
+        session: AsyncSmartboxSession,
         device_id: str,
         dev_data_callback: Optional[Callable] = None,
         node_update_callback: Optional[Callable] = None,
@@ -187,7 +188,16 @@ class SocketSession(object):
 
             # Refresh token
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self._session._check_refresh)
+            await self._session._check_refresh()
+
+            # Update the query string with the new access token
+            encoded_token = urllib.parse.quote(
+                self._session._access_token, safe="~()*!.'"
+            )
+            url = (
+                f"{self._session._api_host}"
+                + f"/?token={encoded_token}&dev_id={self._device_id}"
+            )
 
     async def cancel(self) -> None:
         _LOGGER.debug("Disconnecting and cancelling tasks")

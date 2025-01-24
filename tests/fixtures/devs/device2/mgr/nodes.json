@@ -1,0 +1,46 @@
+{
+  "nodes": [
+    {
+      "addr": 0,
+      "name": "Node 2 0",
+      "type": "htr_mod",
+      "installed": true,
+      "lost": false
+    },
+    {
+      "addr": 1,
+      "name": "Node 2 1",
+      "type": "htr_mod",
+      "installed": true,
+      "lost": false
+    },
+    {
+      "addr": 2,
+      "name": "Node 2 2",
+      "type": "htr_mod",
+      "installed": true,
+      "lost": false
+    },
+    {
+      "addr": 3,
+      "name": "Node 2 3",
+      "type": "htr_mod",
+      "installed": true,
+      "lost": false
+    },
+    {
+      "addr": 4,
+      "name": "Node 2 4",
+      "type": "htr_mod",
+      "installed": true,
+      "lost": false
+    },
+    {
+      "addr": 5,
+      "name": "Node 2 5",
+      "type": "htr_mod",
+      "installed": true,
+      "lost": false
+    }
+  ]
+}

@@ -1,191 +1,228 @@
-import datetime
-from freezegun import freeze_time
 import pytest
-import smartbox
-
-_MOCK_API_NAME = 'myapi'
-_MOCK_BASIC_AUTH_CREDS = 'sldjfls93r2lkj'
-_MOCK_USERNAME = 'xxxxx'
-_MOCK_PASSWORD = 'yyyyy'
-_MOCK_TOKEN_TYPE = 'bearer'
-_MOCK_ACCESS_TOKEN = 'sj32oj2lkwjf'
-_MOCK_REFRESH_TOKEN = '23ij2oij324j3423'
-_MOCK_EXPIRES_IN = 14400
-_MOCK_DEV_ID = '2o3jo2jkj'
-_MOCK_DEV_NAME = 'My device'
+from unittest.mock import AsyncMock, patch
+from tests.common import fake_get_request
 
 
-@pytest.fixture
-def session(requests_mock):
-    requests_mock.post(f"https://api-{_MOCK_API_NAME}.helki.com/client/token",
-                       json={
-                           'token_type': _MOCK_TOKEN_TYPE,
-                           'access_token': _MOCK_ACCESS_TOKEN,
-                           'expires_in': _MOCK_EXPIRES_IN,
-                           'refresh_token': _MOCK_REFRESH_TOKEN,
-                       })
-    return smartbox.Session(_MOCK_API_NAME, _MOCK_BASIC_AUTH_CREDS, _MOCK_USERNAME, _MOCK_PASSWORD)
+@pytest.mark.asyncio
+async def test_get_homes(async_smartbox_session):
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        url = "grouped_devs"
+        mock_api_request.return_value = await fake_get_request(mock_api_request, url)
+        homes = await async_smartbox_session.get_homes()
+        assert homes == mock_api_request.return_value
+        mock_api_request.assert_called_once_with(url)
 
 
-def test_auth(requests_mock, session):
-    '''Test initial token request'''
-    assert requests_mock.last_request.text == f'grant_type=password&username={_MOCK_USERNAME}&password={_MOCK_PASSWORD}'
-    assert requests_mock.last_request.headers['authorization'] == f"Basic {_MOCK_BASIC_AUTH_CREDS}"
-    assert session.get_api_name() == _MOCK_API_NAME
+@pytest.mark.asyncio
+async def test_get_grouped_devices(async_smartbox_session):
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        url = "grouped_devs"
+        mock_api_request.return_value = await fake_get_request(mock_api_request, url)
+        grouped_devices = await async_smartbox_session.get_grouped_devices()
+        assert grouped_devices == mock_api_request.return_value
+        mock_api_request.assert_called_once_with(url)
 
 
-def test_get_devices(requests_mock, session):
-    requests_mock.get(f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs",
-                      json={'devs': [{
-                          'dev_id': _MOCK_DEV_ID,
-                          'name': _MOCK_DEV_NAME,
-                      }]})
-    resp = session.get_devices()
-    assert len(resp) == 1
-    assert resp[0]['dev_id'] == _MOCK_DEV_ID
-    assert resp[0]['name'] == _MOCK_DEV_NAME
+@pytest.mark.asyncio
+async def test_get_nodes(async_smartbox_session):
+    for mock_device in await async_smartbox_session.get_devices():
+        with patch.object(
+            async_smartbox_session, "_api_request", new_callable=AsyncMock
+        ) as mock_api_request:
+            url = f"devs/{mock_device['dev_id']}/mgr/nodes"
+            mock_api_request.return_value = await fake_get_request(
+                mock_api_request, url
+            )
+            nodes = await async_smartbox_session.get_nodes(
+                device_id=mock_device["dev_id"]
+            )
+            assert nodes == mock_api_request.return_value["nodes"]
+            mock_api_request.assert_called_with(url)
 
 
-def test_get_nodes(requests_mock, session):
-    node_1 = {'addr': 1, 'name': 'My heater', 'type': 'htr'}
-    node_2 = {'addr': 2, 'name': 'My other heater', 'type': 'htr'}
-    requests_mock.get(f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs/{_MOCK_DEV_ID}/mgr/nodes",
-                      json={'nodes': [node_1, node_2]})
-    resp = session.get_nodes(_MOCK_DEV_ID)
-    assert len(resp) == 2
-    assert resp[0] == node_1
-    assert resp[1] == node_2
+@pytest.mark.asyncio
+async def test_get_node_status(async_smartbox_session):
+    for mock_device in await async_smartbox_session.get_devices():
+        for mock_node in await async_smartbox_session.get_nodes(mock_device["dev_id"]):
+            with patch.object(
+                async_smartbox_session, "_api_request", new_callable=AsyncMock
+            ) as mock_api_request:
+                url = f'devs/{mock_device["dev_id"]}/{mock_node["type"]}/{mock_node["addr"]}/status'
+                mock_api_request.return_value = await fake_get_request(
+                    mock_api_request, url
+                )
+                status = await async_smartbox_session.get_node_status(
+                    mock_device["dev_id"], mock_node
+                )
+                assert status == mock_api_request.return_value
+                mock_api_request.assert_called_with(url)
 
 
-def test_status(requests_mock, session):
-    node_1 = {'addr': 1, 'name': 'My heater', 'type': 'htr'}
-
-    requests_mock.get(
-        f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs/{_MOCK_DEV_ID}/{node_1['type']}/{node_1['addr']}/status",
-        json={
-            'mode': 'auto',
-            'stemp': '16.0',
-            'mtemp': '19.2'
-        })
-    resp = session.get_status(_MOCK_DEV_ID, node_1)
-    assert resp['mode'] == 'auto'
-    assert resp['stemp'] == '16.0'
-    assert resp['mtemp'] == '19.2'
-
-    with pytest.raises(ValueError):
-        resp = session.set_status(_MOCK_DEV_ID, node_1, {'stemp': '17.0'})
-
-    requests_mock.post(
-        f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs/{_MOCK_DEV_ID}/{node_1['type']}/{node_1['addr']}/status",
-        json={
-            'mode': 'auto',
-            'stemp': '17.0',
-            'mtemp': '19.2'
-        })
-    resp = session.set_status(_MOCK_DEV_ID, node_1, {'stemp': '17.0', 'units': 'C'})
-    assert requests_mock.last_request.json() == {'stemp': '17.0', 'units': 'C'}
+@pytest.mark.asyncio
+async def test_get_device_away_status(async_smartbox_session):
+    for mock_device in await async_smartbox_session.get_devices():
+        with patch.object(
+            async_smartbox_session, "_api_request", new_callable=AsyncMock
+        ) as mock_api_request:
+            url = f"devs/{mock_device['dev_id']}/mgr/away_status"
+            mock_api_request.return_value = await fake_get_request(
+                mock_api_request, url
+            )
+            nodes = await async_smartbox_session.get_device_away_status(
+                device_id=mock_device["dev_id"]
+            )
+            assert nodes == mock_api_request.return_value
+            mock_api_request.assert_called_with(url)
 
 
-def test_setup(requests_mock, session):
-    node_2 = {'addr': 2, 'name': 'My other heater', 'type': 'htr'}
+@pytest.mark.asyncio
+async def test_set_device_away_status(async_smartbox_session):
+    with patch.object(
+        async_smartbox_session, "_api_post", new_callable=AsyncMock
+    ) as mock_api_post:
 
-    requests_mock.get(
-        f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs/{_MOCK_DEV_ID}/{node_2['type']}/{node_2['addr']}/setup",
-        json={
-            'away_mode': 0,
-            'units': 'C'
-        })
-    resp = session.get_setup(_MOCK_DEV_ID, node_2)
-    assert resp['away_mode'] == 0
-    assert resp['units'] == 'C'
-
-    requests_mock.post(
-        f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs/{_MOCK_DEV_ID}/{node_2['type']}/{node_2['addr']}/setup",
-        json={
-            'away_mode': 0,
-            'units': 'F'
-        })
-    resp = session.set_setup(_MOCK_DEV_ID, node_2, {'units': 'F'})
-    assert requests_mock.last_request.json() == {'away_mode': 0, 'units': 'F'}
+        mock_api_post.return_value = {}
+        status_args = {"status": "away"}
+        result = await async_smartbox_session.set_device_away_status(
+            device_id="test_device", status_args=status_args
+        )
+        assert result == {}
+        mock_api_post.assert_called_once_with(
+            data=status_args, path="devs/test_device/mgr/away_status"
+        )
 
 
-def test_device_away_status(requests_mock, session):
-    # away_status
-    requests_mock.get(f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs/{_MOCK_DEV_ID}/mgr/away_status",
-                      json={
-                          'away': False,
-                          'enabled': True
-                      })
-    resp = session.get_device_away_status(_MOCK_DEV_ID)
-    assert not resp['away']
-    assert resp['enabled']
-
-    requests_mock.post(f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs/{_MOCK_DEV_ID}/mgr/away_status",
-                       json={
-                           'away': True,
-                           'enabled': True
-                       })
-    resp = session.set_device_away_status(_MOCK_DEV_ID, {'away': True})
-    assert requests_mock.last_request.json() == {'away': True}
-    assert resp['away']
-    assert resp['enabled']
+@pytest.mark.asyncio
+async def test_get_device_power_limit(async_smartbox_session):
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = {"power_limit": "100"}
+        power_limit = await async_smartbox_session.get_device_power_limit(
+            device_id="test_device"
+        )
+        assert power_limit == 100
+        mock_api_request.assert_called_once_with(
+            "devs/test_device/htr_system/power_limit"
+        )
 
 
-def test_refresh(requests_mock):
-    def token_request_matcher(request, grant_type):
-        return f"grant_type={grant_type}" in request.text.split('&')
+@pytest.mark.asyncio
+async def test_set_device_power_limit(async_smartbox_session):
+    with patch.object(
+        async_smartbox_session, "_api_post", new_callable=AsyncMock
+    ) as mock_api_post:
+        mock_api_post.return_value = {}
+        power_limit = 100
+        await async_smartbox_session.set_device_power_limit(
+            device_id="test_device", power_limit=power_limit
+        )
+        mock_api_post.assert_called_once_with(
+            data={"power_limit": str(power_limit)},
+            path="devs/test_device/htr_system/power_limit",
+        )
 
-    # login response
-    requests_mock.post(f"https://api-{_MOCK_API_NAME}.helki.com/client/token",
-                       json={
-                           'token_type': _MOCK_TOKEN_TYPE,
-                           'access_token': _MOCK_ACCESS_TOKEN,
-                           'expires_in': _MOCK_EXPIRES_IN,
-                           'refresh_token': _MOCK_REFRESH_TOKEN,
-                       },
-                       additional_matcher=lambda request: token_request_matcher(request, "password"))
 
-    # refresh response
-    new_access_token = 'sf8s9f09dfsj'
-    new_refresh_token = 'oij09j43rj434f'
-    requests_mock.post(f"https://api-{_MOCK_API_NAME}.helki.com/client/token",
-                       json={
-                           'token_type': _MOCK_TOKEN_TYPE,
-                           'access_token': new_access_token,
-                           'expires_in': _MOCK_EXPIRES_IN,
-                           'refresh_token': new_refresh_token,
-                       },
-                       additional_matcher=lambda request: token_request_matcher(request, "refresh_token"))
+def test_session_get_homes(session):
+    with patch.object(
+        session._async, "get_homes", new_callable=AsyncMock
+    ) as mock_get_homes:
+        mock_get_homes.return_value = []
+        homes = session.get_homes()
+        assert homes == []
+        mock_get_homes.assert_called_once()
 
-    requests_mock.get(f"https://api-{_MOCK_API_NAME}.helki.com/api/v2/devs",
-                      json={'devs': [{
-                          'dev_id': _MOCK_DEV_ID,
-                          'name': _MOCK_DEV_NAME,
-                      }]})
 
-    with freeze_time("2021-01-15 23:23:45") as frozen_datetime:
-        session = smartbox.Session(_MOCK_API_NAME, _MOCK_BASIC_AUTH_CREDS, _MOCK_USERNAME, _MOCK_PASSWORD)
-        assert session.get_expiry_time() == (frozen_datetime() + datetime.timedelta(seconds=_MOCK_EXPIRES_IN))
-        assert token_request_matcher(requests_mock.last_request, "password")
-        assert session.get_access_token() == _MOCK_ACCESS_TOKEN
-        assert session.get_refresh_token() == _MOCK_REFRESH_TOKEN
+def test_session_get_grouped_devices(session):
+    with patch.object(
+        session._async, "get_grouped_devices", new_callable=AsyncMock
+    ) as mock_get_grouped_devices:
+        mock_get_grouped_devices.return_value = []
+        grouped_devices = session.get_grouped_devices()
+        assert grouped_devices == []
+        mock_get_grouped_devices.assert_called_once()
 
-        # initial API call, no refresh needed
-        session.get_devices()
 
-        # move to 60s before expiry, no refresh should occur
-        frozen_datetime.move_to(session.get_expiry_time() - datetime.timedelta(seconds=60))
-        session.get_devices()
+def test_session_get_nodes(session):
+    with patch.object(
+        session._async, "get_nodes", new_callable=AsyncMock
+    ) as mock_get_nodes:
+        mock_get_nodes.return_value = []
+        nodes = session.get_nodes(device_id="test_device")
+        assert nodes == []
+        mock_get_nodes.assert_called_once_with(device_id="test_device")
 
-        # move to 5s before expiry, refresh should occur
-        frozen_datetime.move_to(session.get_expiry_time() - datetime.timedelta(seconds=5))
-        session.get_devices()
-        assert token_request_matcher(requests_mock.request_history[-2], "refresh_token")
-        assert session.get_expiry_time() == (frozen_datetime() + datetime.timedelta(seconds=_MOCK_EXPIRES_IN))
-        assert session.get_access_token() == new_access_token
-        assert session.get_refresh_token() == new_refresh_token
 
-        # no refresh on next request
-        requests_mock.reset_mock()
-        session.get_devices()
-        assert requests_mock.call_count == 1 and requests_mock.last_request.method == 'GET'
+def test_session_get_device_away_status(session):
+    with patch.object(
+        session._async, "get_device_away_status", new_callable=AsyncMock
+    ) as mock_get_device_away_status:
+        mock_get_device_away_status.return_value = {}
+        away_status = session.get_device_away_status(device_id="test_device")
+        assert away_status == {}
+        mock_get_device_away_status.assert_called_once_with(device_id="test_device")
+
+
+def test_session_set_device_away_status(session):
+    with patch.object(
+        session._async, "set_device_away_status", new_callable=AsyncMock
+    ) as mock_set_device_away_status:
+        mock_set_device_away_status.return_value = {}
+        status_args = {"status": "away"}
+        result = session.set_device_away_status(
+            device_id="test_device", status_args=status_args
+        )
+        assert result == {}
+        mock_set_device_away_status.assert_called_once_with(
+            device_id="test_device", status_args=status_args
+        )
+
+
+def test_session_get_device_power_limit(session):
+    with patch.object(
+        session._async, "get_device_power_limit", new_callable=AsyncMock
+    ) as mock_get_device_power_limit:
+        mock_get_device_power_limit.return_value = 100
+        power_limit = session.get_device_power_limit(device_id="test_device")
+        assert power_limit == 100
+        mock_get_device_power_limit.assert_called_once_with(device_id="test_device")
+
+
+def test_session_set_device_power_limit(session):
+    with patch.object(
+        session._async, "set_device_power_limit", new_callable=AsyncMock
+    ) as mock_set_device_power_limit:
+        mock_set_device_power_limit.return_value = None
+        power_limit = 100
+        session.set_device_power_limit(device_id="test_device", power_limit=power_limit)
+        mock_set_device_power_limit.assert_called_once_with(
+            device_id="test_device", power_limit=power_limit
+        )
+
+
+def test_session_get_devices(session):
+    with patch.object(
+        session._async, "get_devices", new_callable=AsyncMock
+    ) as mock_get_devices:
+        mock_get_devices.return_value = []
+        devices = session.get_devices()
+        assert devices == []
+        mock_get_devices.assert_called_once()
+
+    with patch.object(
+        session._async, "get_devices", new_callable=AsyncMock
+    ) as mock_get_devices:
+        mock_get_devices.return_value = [
+            {"id": "device1", "name": "Device 1"},
+            {"id": "device2", "name": "Device 2"},
+        ]
+        devices = session.get_devices()
+        assert devices == [
+            {"id": "device1", "name": "Device 1"},
+            {"id": "device2", "name": "Device 2"},
+        ]
+        mock_get_devices.assert_called_once()

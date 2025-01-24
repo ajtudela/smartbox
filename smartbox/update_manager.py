@@ -5,7 +5,7 @@ import logging
 import re
 from typing import Any, Callable, Dict, Iterable, List
 
-from smartbox.session import Session
+from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class UpdateSubscription(object):
 class UpdateManager(object):
     """Manages subscription callbacks to receive updates from a Smartbox socket."""
 
-    def __init__(self, session: Session, device_id: str, **kwargs):
+    def __init__(self, session: AsyncSmartboxSession, device_id: str, **kwargs):
         """Create an UpdateManager for a smartbox socket."""
         self._socket_session = SocketSession(
             session, device_id, self._dev_data_cb, self._update_cb, **kwargs

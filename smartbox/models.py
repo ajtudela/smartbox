@@ -49,18 +49,8 @@ class NodeSetup(BaseModel):
 
 
 class NodeStatus(BaseModel):
-    sync_status: str
-    mode: str
-    active: bool
-    ice_temp: str
     eco_temp: str
     comf_temp: str
-    units: str
-    stemp: str
-    mtemp: str
-    power: str
-    locked: int
-    duty: int
     act_duty: int
     pcb_temp: str
     power_pcb_temp: str
@@ -71,6 +61,16 @@ class NodeStatus(BaseModel):
     boost_end_min: int
     boost_end_day: int
     error_code: str
+    stemp: str
+    power: str
+    duty: int
+    mtemp: str
+    ice_temp: str
+    units: str
+    sync_status: str
+    locked: int
+    active: bool
+    mode: str
 
 
 class Node(BaseModel):
@@ -79,8 +79,6 @@ class Node(BaseModel):
     type: str
     installed: bool
     lost: bool
-    status: Optional[NodeStatus] = None
-    setup: Optional[NodeSetup] = None
 
 
 class Nodes(BaseModel):
@@ -99,7 +97,6 @@ class Device(BaseModel):
     product_id: str
     fw_version: str
     serial_id: str
-    nodes: Optional[list[Node]] = None
 
 
 class Devices(BaseModel):
@@ -114,5 +111,5 @@ class Home(BaseModel):
     owner: bool
 
 
-class Homes(RootModel):
+class Homes(RootModel[list[Home]]):
     root: list[Home]

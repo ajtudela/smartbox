@@ -150,7 +150,7 @@ class AsyncSession:
         return await response.json()
 
     async def _api_post(self, data: Any, path: str) -> Any:
-        self.check_refresh_auth()
+        await self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
         # TODO: json dump
         try:
@@ -184,7 +184,7 @@ class AsyncSmartboxSession(AsyncSession):
     async def get_grouped_devices(self) -> List[Dict[str, Any]]:
         response = await self._api_request("grouped_devs")
         homes: Homes = Homes.model_validate(response)
-        homes = [home.devs.model_dump(mode="json") for home in homes.root]
+        homes = [home.model_dump(mode="json") for home in homes.root]
         return homes
 
     async def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
@@ -202,12 +202,15 @@ class AsyncSmartboxSession(AsyncSession):
         return await self._api_post(data=data, path=f"devs/{device_id}/mgr/away_status")
 
     async def get_device_power_limit(self, device_id: str) -> int:
-        resp = self._api_request(f"devs/{device_id}/htr_system/power_limit")
+        resp = await self._api_request(f"devs/{device_id}/htr_system/power_limit")
         return int(resp["power_limit"])
 
     async def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
         data = {"power_limit": str(power_limit)}
-        await self._api_post(data=data, path=f"devs/{device_id}/htr_system/power_limit")
+        a = await self._api_post(
+            data=data, path=f"devs/{device_id}/htr_system/power_limit"
+        )
+        print(a)
 
     async def get_node_status(
         self, device_id: str, node: Dict[str, Any]
@@ -248,19 +251,12 @@ class AsyncSmartboxSession(AsyncSession):
         # values and update
         setup_data = await self.get_node_setup(device_id, node)
         setup_data.update(data)
-        return await self._api_post(
+        a = await self._api_post(
             data=setup_data,
             path=f"devs/{device_id}/{node.type}/{node.addr}/setup",
         )
-
-
-# def call_async(coro):
-#     try:
-#         loop = asyncio.get_running_loop()
-#     except RuntimeError:
-#         return asyncio.run(coro)
-#     else:
-#         return loop.run_until_complete(coro)
+        print(a)
+        return a
 
 
 class Session:
@@ -298,7 +294,7 @@ class Session:
         self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
     ) -> Dict[str, Any]:
         return asyncio.run(
-            self.async_set_node_setup(
+            self._async.set_node_setup(
                 device_id=device_id, node=node, setup_args=setup_args
             )
         )

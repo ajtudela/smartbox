@@ -1,0 +1,40 @@
+{
+  "away_mode": 0,
+  "away_offset": "0.0",
+  "control_mode": 4,
+  "extra_options": {
+    "boost_temp": "24.0",
+    "boost_time": 60
+  },
+  "factory_options": {
+    "backlight_time": 15,
+    "bbc_available": true,
+    "bbc_value": 50,
+    "boost_config": 2,
+    "button_boost_code": 32,
+    "button_double_press": false,
+    "button_down_code": 1,
+    "button_mode_code": 4,
+    "button_off_code": 16,
+    "button_prog_code": 8,
+    "button_up_code": 2,
+    "duty_limit": 0,
+    "fil_pilote_available": true,
+    "lst_available": true,
+    "lst_value": 70,
+    "prog_resolution": 0,
+    "splash_screen_type": 0,
+    "temp_compensation_enabled": false,
+    "true_radiant_available": true,
+    "window_mode_available": true
+  },
+  "flash_version": "1.1",
+  "modified_auto_span": 0,
+  "offset": "0.8",
+  "power": "2011.5",
+  "sync_status": "ok",
+  "true_radiant_enabled": true,
+  "units": "C",
+  "user_duty_factor": 0,
+  "window_mode_enabled": false
+}

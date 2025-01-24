@@ -21,7 +21,7 @@ setup(
     python_requires=">=3.12",
     install_requires=[
         "aiohttp",
-        "Click",
+        "asyncclick",
         "jq",
         # python-socketio major version needs to be synchronised with the
         # server socket.io version (socket.io has incompatible protocol
@@ -40,6 +40,7 @@ setup(
         "pytest-randomly",
         "requests-mock",
         "tox",
+        "pytest-cov",
     ],
     entry_points="""
       [console_scripts]
