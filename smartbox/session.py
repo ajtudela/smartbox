@@ -203,9 +203,13 @@ class AsyncSmartboxSession(AsyncSession):
         self,
         device_id: str,
         node: Dict[str, Any],
-        start_time: int = int(time.time() - 3600),
-        end_time: int = int(time.time() + 3600),
+        start_time: int | None = int(time.time() - 3600),
+        end_time: int | None = int(time.time() + 3600),
     ) -> Dict[str, Any]:
+        if start_time is None:
+            start_time = int(time.time() - 3600)
+        if end_time is None:
+            end_time = int(time.time() + 3600)
         _LOGGER.debug(
             f"Get_Device_Samples_Node: from {datetime.datetime.fromtimestamp(start_time)} to {datetime.datetime.fromtimestamp(end_time)}"
         )
