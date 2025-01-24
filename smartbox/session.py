@@ -2,13 +2,9 @@ import datetime
 import json
 import logging
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
 from typing import Any, Dict, List
-from warnings import warn
 from smartbox.error import SmartboxError
 from aiohttp import (
-    ClientResponse,
     ClientSession,
 )
 import asyncio

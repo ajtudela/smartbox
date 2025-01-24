@@ -1,19 +1,8 @@
 import asyncio
 import pytest
-from asyncclick.testing import CliRunner
+
 from smartbox.cmd import smartbox
 from unittest.mock import patch, AsyncMock
-
-
-@pytest.fixture
-def runner():
-    return CliRunner(mix_stderr=False)
-
-
-@pytest.fixture
-def mock_session(mocker):
-
-    return mocker.patch("smartbox.cmd.AsyncSmartboxSession")
 
 
 DEFAULT_ARGS = [
@@ -131,8 +120,7 @@ async def test_device_power_limit(runner, async_smartbox_session):
 
 
 @pytest.mark.asyncio
-async def test_socket(runner, mocker):
-    mock_session = mocker.patch("smartbox.cmd.AsyncSmartboxSession")
+async def test_socket(runner, mocker, mock_session):
     mock_socket_session = mocker.patch("smartbox.cmd.SocketSession")
     mock_socket_session.return_value.run.return_value = asyncio.Future()
     mock_socket_session.return_value.run.return_value.set_result(None)

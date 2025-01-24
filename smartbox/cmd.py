@@ -1,4 +1,3 @@
-import asyncio
 import asyncclick as click
 import json
 import logging

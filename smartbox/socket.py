@@ -187,8 +187,8 @@ class SocketSession(object):
                     break
 
             # Refresh token
-            loop = asyncio.get_event_loop()
-            await self._session._check_refresh()
+            # loop = asyncio.get_event_loop()
+            await self._session.check_refresh_auth()
 
             # Update the query string with the new access token
             encoded_token = urllib.parse.quote(

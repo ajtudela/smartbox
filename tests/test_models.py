@@ -1,7 +1,5 @@
-import pytest
 import json
 from tests.common import load_fixture
-from pydantic import ValidationError
 from smartbox.models import (
     NodeFactoryOptions,
     NodeExtraOptions,
@@ -40,7 +38,7 @@ def test_node_factory_options():
         "splash_screen_type": 1,
     }
     options = NodeFactoryOptions(**data)
-    assert options.temp_compensation_enabled == True
+    assert options.temp_compensation_enabled
     assert options.duty_limit == 10
 
 

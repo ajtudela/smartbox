@@ -1,8 +1,19 @@
 import pytest
 from smartbox.session import AsyncSmartboxSession, Session
 from smartbox.update_manager import UpdateManager
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import patch
 from tests.common import fake_get_request
+from asyncclick.testing import CliRunner
+
+
+@pytest.fixture
+def runner():
+    return CliRunner(mix_stderr=False)
+
+
+@pytest.fixture
+def mock_session(mocker):
+    return mocker.patch("smartbox.cmd.AsyncSmartboxSession")
 
 
 @pytest.fixture
