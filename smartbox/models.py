@@ -112,3 +112,13 @@ class Home(BaseModel):
 
 class Homes(RootModel[list[Home]]):
     root: list[Home]
+
+
+class Sample(BaseModel):
+    t: int
+    temp: str
+    counter: int
+
+
+class Samples(BaseModel):
+    samples: list[Sample]

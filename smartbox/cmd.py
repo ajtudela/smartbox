@@ -84,6 +84,43 @@ async def status(ctx):
             _pretty_print(status)
 
 
+@smartbox.command(help="Show node power and temperature records (aka samples)")
+@click.option(
+    "-d", "--device-id", required=True, help="Device ID for node to set status on"
+)
+@click.option(
+    "-n",
+    "--node-addr",
+    type=int,
+    required=True,
+    help="Address of node to set status on",
+)
+@click.option(
+    "-s",
+    "--start-time",
+    type=int,
+    required=False,
+    help="Default now - 1 hour",
+)
+@click.option(
+    "-e",
+    "--end-time",
+    type=int,
+    required=False,
+    help="Default now + 1 hour",
+)
+@click.pass_context
+async def node_samples(ctx, device_id, node_addr, start_time, end_time):
+    session = ctx.obj["session"]
+    devices = await session.get_devices()
+    device = next(d for d in devices if d["dev_id"] == device_id)
+    nodes = await session.get_nodes(device["dev_id"])
+    node = next(n for n in nodes if n["addr"] == node_addr)
+
+    node_samples = await session.get_node_samples(device_id, node, start_time, end_time)
+    _pretty_print(node_samples)
+
+
 @smartbox.command(help="Set node status (pass settings as extra args, e.g. mode=auto)")
 @click.option(
     "-d", "--device-id", required=True, help="Device ID for node to set status on"

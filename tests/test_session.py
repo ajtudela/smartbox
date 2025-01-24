@@ -63,6 +63,32 @@ async def test_get_node_status(async_smartbox_session):
 
 
 @pytest.mark.asyncio
+async def test_get_node_samples(async_smartbox_session):
+    for mock_device in await async_smartbox_session.get_devices():
+        for mock_node in await async_smartbox_session.get_nodes(mock_device["dev_id"]):
+            with patch.object(
+                async_smartbox_session, "_api_request", new_callable=AsyncMock
+            ) as mock_api_request:
+                start_time = 1737722209
+                end_time = 1737729409
+                url = f'devs/{mock_device["dev_id"]}/{mock_node["type"]}/{mock_node["addr"]}/samples'
+
+                mock_api_request.return_value = await fake_get_request(
+                    mock_api_request, url
+                )
+                samples = await async_smartbox_session.get_node_samples(
+                    mock_device["dev_id"],
+                    mock_node,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                assert samples == mock_api_request.return_value
+                mock_api_request.assert_called_with(
+                    f"{url}?start={start_time}&end={end_time}"
+                )
+
+
+@pytest.mark.asyncio
 async def test_get_device_away_status(async_smartbox_session):
     for mock_device in await async_smartbox_session.get_devices():
         with patch.object(

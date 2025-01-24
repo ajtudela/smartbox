@@ -11,6 +11,8 @@ from smartbox.models import (
     Devices,
     Home,
     Homes,
+    Sample,
+    Samples,
 )
 
 
@@ -268,3 +270,28 @@ def test_homes():
     assert len(homes.root) == 2
     assert homes.root[0].id == "home1"
     assert homes.root[1].id == "home2"
+
+
+def test_sample():
+    data = {"t": 1234567890, "temp": "22.5", "counter": 1}
+    sample = Sample(**data)
+    assert sample.t == 1234567890
+    assert sample.temp == "22.5"
+    assert sample.counter == 1
+
+
+def test_samples():
+    data = {
+        "samples": [
+            {"t": 1234567890, "temp": "22.5", "counter": 1},
+            {"t": 1234567891, "temp": "23.0", "counter": 2},
+        ]
+    }
+    samples = Samples(**data)
+    assert len(samples.samples) == 2
+    assert samples.samples[0].t == 1234567890
+    assert samples.samples[0].temp == "22.5"
+    assert samples.samples[0].counter == 1
+    assert samples.samples[1].t == 1234567891
+    assert samples.samples[1].temp == "23.0"
+    assert samples.samples[1].counter == 2

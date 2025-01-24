@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import requests
+import time
 from typing import Any, Dict, List
 from smartbox.error import SmartboxError
 from aiohttp import (
@@ -16,14 +17,7 @@ _MIN_TOKEN_LIFETIME = 60  # Minimum time left before expiry before we refresh (s
 _LOGGER = logging.getLogger(__name__)
 
 
-from smartbox.models import (
-    Devices,
-    Nodes,
-    Node,
-    Homes,
-    NodeStatus,
-    NodeSetup,
-)
+from smartbox.models import Devices, Nodes, Node, Homes, NodeStatus, NodeSetup, Samples
 
 
 class AsyncSession:
@@ -203,10 +197,28 @@ class AsyncSmartboxSession(AsyncSession):
 
     async def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
         data = {"power_limit": str(power_limit)}
-        a = await self._api_post(
-            data=data, path=f"devs/{device_id}/htr_system/power_limit"
+        await self._api_post(data=data, path=f"devs/{device_id}/htr_system/power_limit")
+
+    async def get_node_samples(
+        self,
+        device_id: str,
+        node: Dict[str, Any],
+        start_time: int = int(time.time() - 3600),
+        end_time: int = int(time.time() + 3600),
+    ) -> Dict[str, Any]:
+        _LOGGER.debug(
+            f"Get_Device_Samples_Node: from {datetime.datetime.fromtimestamp(start_time)} to {datetime.datetime.fromtimestamp(end_time)}"
         )
-        print(a)
+        print(
+            f"Get_Device_Samples_Node: from {datetime.datetime.fromtimestamp(start_time)} to {datetime.datetime.fromtimestamp(end_time)}"
+        )
+        node: Node = Node.model_validate(node)
+        samples = Samples.model_validate(
+            await self._api_request(
+                f"devs/{device_id}/{node.type}/{node.addr}/samples?start={start_time}&end={end_time}"
+            )
+        )
+        return samples.model_dump(mode="json")
 
     async def get_node_status(
         self, device_id: str, node: Dict[str, Any]

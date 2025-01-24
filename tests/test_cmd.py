@@ -68,48 +68,6 @@ async def test_device_away_status(runner, async_smartbox_session):
 
 
 @pytest.mark.asyncio
-async def test_set_device_away_status(async_smartbox_session):
-    with patch.object(
-        async_smartbox_session, "_api_post", new_callable=AsyncMock
-    ) as mock_api_post:
-        mock_api_post.return_value = {}
-        status_args = {"status": "away"}
-        result = await async_smartbox_session.set_device_away_status(
-            device_id="test_device", status_args=status_args
-        )
-        assert result == {}
-        mock_api_post.assert_called_once_with(
-            data=status_args, path="devs/test_device/mgr/away_status"
-        )
-
-    with patch.object(
-        async_smartbox_session, "_api_post", new_callable=AsyncMock
-    ) as mock_api_post:
-        mock_api_post.return_value = {"status": "home"}
-        status_args = {"status": "home"}
-        result = await async_smartbox_session.set_device_away_status(
-            device_id="test_device", status_args=status_args
-        )
-        assert result == {"status": "home"}
-        mock_api_post.assert_called_once_with(
-            data=status_args, path="devs/test_device/mgr/away_status"
-        )
-
-    with patch.object(
-        async_smartbox_session, "_api_post", new_callable=AsyncMock
-    ) as mock_api_post:
-        mock_api_post.return_value = {"status": "away"}
-        status_args = {"status": "away", "extra": None}
-        result = await async_smartbox_session.set_device_away_status(
-            device_id="test_device", status_args=status_args
-        )
-        assert result == {"status": "away"}
-        mock_api_post.assert_called_once_with(
-            data={"status": "away"}, path="devs/test_device/mgr/away_status"
-        )
-
-
-@pytest.mark.asyncio
 async def test_device_power_limit(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,
@@ -243,3 +201,76 @@ async def test_set_device_power_limit(runner, mock_session):
     )
     assert result.exit_code == 0
     mock_session.return_value.set_device_power_limit.assert_called_once_with("1", 100)
+
+
+@pytest.mark.asyncio
+async def test_set_device_away_status(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    set_away_status_future = asyncio.Future()
+    set_away_status_future.set_result({})
+    mock_session.return_value.set_device_away_status.return_value = (
+        set_away_status_future
+    )
+
+    result = await runner.invoke(
+        smartbox,
+        [
+            *DEFAULT_ARGS,
+            "set-device-away-status",
+            "-d",
+            "1",
+            "--away",
+            "true",
+            "--enabled",
+            "true",
+            "--forced",
+            "false",
+        ],
+    )
+    assert result.exit_code == 0
+    mock_session.return_value.set_device_away_status.assert_called_once_with(
+        "1",
+        {"away": True, "enabled": True, "forced": False},
+    )
+
+
+@pytest.mark.asyncio
+async def test_node_samples(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    nodes_future = asyncio.Future()
+    nodes_future.set_result([{"name": "Node1", "addr": 1}])
+    mock_session.return_value.get_nodes.return_value = nodes_future
+
+    node_samples_future = asyncio.Future()
+    node_samples_future.set_result([{"sample": "data"}])
+    mock_session.return_value.get_node_samples.return_value = node_samples_future
+
+    result = await runner.invoke(
+        smartbox,
+        [
+            *DEFAULT_ARGS,
+            "node-samples",
+            "-d",
+            "1",
+            "-n",
+            "1",
+            "-s",
+            "1609459200",
+            "-e",
+            "1609462800",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "sample" in result.output
+    mock_session.return_value.get_node_samples.assert_called_once_with(
+        "1",
+        {"name": "Node1", "addr": 1},
+        1609459200,
+        1609462800,
+    )
