@@ -1,5 +1,16 @@
-import pytest
+import datetime
 from unittest.mock import AsyncMock, patch
+
+import aiohttp
+import pytest
+from aiohttp import ClientSession
+
+from smartbox.error import InvalidAuth, SmartboxError
+from smartbox.session import (
+    _DEFAULT_BACKOFF_FACTOR,
+    _DEFAULT_RETRY_ATTEMPTS,
+    AsyncSession,
+)
 from tests.common import fake_get_request
 
 
@@ -51,7 +62,7 @@ async def test_get_node_status(async_smartbox_session):
             with patch.object(
                 async_smartbox_session, "_api_request", new_callable=AsyncMock
             ) as mock_api_request:
-                url = f'devs/{mock_device["dev_id"]}/{mock_node["type"]}/{mock_node["addr"]}/status'
+                url = f"devs/{mock_device['dev_id']}/{mock_node['type']}/{mock_node['addr']}/status"
                 mock_api_request.return_value = await fake_get_request(
                     mock_api_request, url
                 )
@@ -71,7 +82,7 @@ async def test_get_node_samples(async_smartbox_session):
             ) as mock_api_request:
                 start_time = 1737722209
                 end_time = 1737729409
-                url = f'devs/{mock_device["dev_id"]}/{mock_node["type"]}/{mock_node["addr"]}/samples'
+                url = f"devs/{mock_device['dev_id']}/{mock_node['type']}/{mock_node['addr']}/samples"
 
                 mock_api_request.return_value = await fake_get_request(
                     mock_api_request, url
@@ -110,7 +121,6 @@ async def test_set_device_away_status(async_smartbox_session):
     with patch.object(
         async_smartbox_session, "_api_post", new_callable=AsyncMock
     ) as mock_api_post:
-
         mock_api_post.return_value = {}
         status_args = {"status": "away"}
         result = await async_smartbox_session.set_device_away_status(
@@ -252,3 +262,340 @@ def test_session_get_devices(session):
             {"id": "device2", "name": "Device 2"},
         ]
         mock_get_devices.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_set_node_status(async_smartbox_session):
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "thermostat",
+        "installed": True,
+        "lost": False,
+    }
+    status_args = {"status": "active"}
+
+    with patch.object(
+        async_smartbox_session, "_api_post", new_callable=AsyncMock
+    ) as mock_api_post:
+        mock_api_post.return_value = {"status": "active"}
+        result = await async_smartbox_session.set_node_status(
+            device_id=mock_device_id, node=mock_node, status_args=status_args
+        )
+        assert result == {"status": "active"}
+        mock_api_post.assert_called_once_with(
+            data=status_args,
+            path=f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/status",
+        )
+
+    # Test with temperature field without units
+    status_args = {"stemp": 25}
+    with pytest.raises(ValueError, match="Must supply unit with temperature fields"):
+        await async_smartbox_session.set_node_status(
+            device_id=mock_device_id, node=mock_node, status_args=status_args
+        )
+
+
+def test_session_set_node_status(session):
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "thermostat",
+        "installed": True,
+        "lost": False,
+    }
+    status_args = {"status": "active"}
+
+    with patch.object(
+        session._async, "set_node_status", new_callable=AsyncMock
+    ) as mock_set_node_status:
+        mock_set_node_status.return_value = {}
+        result = session.set_status(
+            device_id=mock_device_id, node=mock_node, status_args=status_args
+        )
+        assert result == {}
+        mock_set_node_status.assert_called_once_with(
+            device_id=mock_device_id, node=mock_node, status_args=status_args
+        )
+
+    # Test with temperature field without units
+    status_args = {"stemp": 25}
+    with patch.object(
+        session._async, "set_node_status", new_callable=AsyncMock
+    ) as mock_set_node_status:
+        mock_set_node_status.side_effect = ValueError(
+            "Must supply unit with temperature fields"
+        )
+        with pytest.raises(
+            ValueError, match="Must supply unit with temperature fields"
+        ):
+            session.set_status(
+                device_id=mock_device_id, node=mock_node, status_args=status_args
+            )
+
+
+def test_session_get_setup(session):
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "thermostat",
+        "installed": True,
+        "lost": False,
+    }
+
+    with patch.object(
+        session._async, "get_node_setup", new_callable=AsyncMock
+    ) as mock_get_node_setup:
+        mock_get_node_setup.return_value = {}
+        setup = session.get_setup(device_id=mock_device_id, node=mock_node)
+        assert setup == {}
+        mock_get_node_setup.assert_called_once_with(
+            device_id=mock_device_id, node=mock_node
+        )
+
+
+def test_session_set_status(session):
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "thermostat",
+        "installed": True,
+        "lost": False,
+    }
+    status_args = {"status": "active"}
+
+    with patch.object(
+        session._async, "set_node_status", new_callable=AsyncMock
+    ) as mock_set_node_status:
+        mock_set_node_status.return_value = {"status": "active"}
+        result = session.set_status(
+            device_id=mock_device_id, node=mock_node, status_args=status_args
+        )
+        assert result == {"status": "active"}
+        mock_set_node_status.assert_called_once_with(
+            device_id=mock_device_id, node=mock_node, status_args=status_args
+        )
+
+    # Test with temperature field without units
+    status_args = {"stemp": 25}
+    with patch.object(
+        session._async, "set_node_status", new_callable=AsyncMock
+    ) as mock_set_node_status:
+        mock_set_node_status.side_effect = ValueError(
+            "Must supply unit with temperature fields"
+        )
+        with pytest.raises(
+            ValueError, match="Must supply unit with temperature fields"
+        ):
+            session.set_status(
+                device_id=mock_device_id, node=mock_node, status_args=status_args
+            )
+
+
+@pytest.mark.asyncio
+async def test_set_node_setup(async_smartbox_session):
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "thermostat",
+        "installed": True,
+        "lost": False,
+    }
+    setup_args = {"setting1": "value1"}
+
+    with (
+        patch.object(
+            async_smartbox_session, "get_node_setup", new_callable=AsyncMock
+        ) as mock_get_node_setup,
+        patch.object(
+            async_smartbox_session, "_api_post", new_callable=AsyncMock
+        ) as mock_api_post,
+    ):
+        mock_get_node_setup.return_value = {"setting2": "value2"}
+        mock_api_post.return_value = {"setting1": "value1", "setting2": "value2"}
+
+        result = await async_smartbox_session.set_node_setup(
+            device_id=mock_device_id, node=mock_node, setup_args=setup_args
+        )
+
+        assert result == {"setting1": "value1", "setting2": "value2"}
+        mock_api_post.assert_called_once_with(
+            data={"setting1": "value1", "setting2": "value2"},
+            path=f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/setup",
+        )
+
+
+def test_session_set_node_setup(session):
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "thermostat",
+        "installed": True,
+        "lost": False,
+    }
+    setup_args = {"setting1": "value1"}
+
+    with patch.object(
+        session._async, "set_node_setup", new_callable=AsyncMock
+    ) as mock_set_node_setup:
+        mock_set_node_setup.return_value = {"setting1": "value1", "setting2": "value2"}
+        result = session.set_setup(
+            device_id=mock_device_id, node=mock_node, setup_args=setup_args
+        )
+        assert result == {"setting1": "value1", "setting2": "value2"}
+        mock_set_node_setup.assert_called_once_with(
+            device_id=mock_device_id, node=mock_node, setup_args=setup_args
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_session_init():
+    api_name = "test_api"
+    basic_auth_credentials = "test_credentials"
+    username = "test_user"
+    password = "test_password"
+    retry_attempts = 3
+    backoff_factor = 0.2
+    websession = ClientSession()
+
+    session = AsyncSession(
+        api_name=api_name,
+        basic_auth_credentials=basic_auth_credentials,
+        username=username,
+        password=password,
+        websession=websession,
+        retry_attempts=retry_attempts,
+        backoff_factor=backoff_factor,
+    )
+
+    assert session._api_name == api_name
+    assert session._api_host == f"https://{api_name}.helki.com"
+    assert session._basic_auth_credentials == basic_auth_credentials
+    assert session._retry_attempts == retry_attempts
+    assert session._backoff_factor == backoff_factor
+    assert session._username == username
+    assert session._password == password
+    assert session._access_token is None
+    assert session._client_session == websession
+
+
+@pytest.mark.asyncio
+async def test_async_session_init_defaults():
+    api_name = "test_api"
+    basic_auth_credentials = "test_credentials"
+    username = "test_user"
+    password = "test_password"
+
+    session = AsyncSession(
+        api_name=api_name,
+        basic_auth_credentials=basic_auth_credentials,
+        username=username,
+        password=password,
+    )
+
+    assert session._api_name == api_name
+    assert session._api_host == f"https://{api_name}.helki.com"
+    assert session._basic_auth_credentials == basic_auth_credentials
+    assert session._retry_attempts == _DEFAULT_RETRY_ATTEMPTS
+    assert session._backoff_factor == _DEFAULT_BACKOFF_FACTOR
+    assert session._username == username
+    assert session._password == password
+    assert session._access_token is None
+    assert session._client_session is None
+
+
+@pytest.mark.asyncio
+async def test_authentication_success(async_session):
+    credentials = {
+        "grant_type": "password",
+        "username": "test_user",
+        "password": "test_password",
+    }
+    token_response = {
+        "access_token": "test_access_token",
+        "refresh_token": "test_refresh_token",
+        "expires_in": 3600,
+    }
+
+    with patch.object(
+        async_session.client, "post", new_callable=AsyncMock
+    ) as mock_post:
+        mock_post.return_value.json = AsyncMock(return_value=token_response)
+        mock_post.return_value.raise_for_status = AsyncMock()
+
+        await async_session._authentication(credentials)
+
+        assert async_session._access_token == "test_access_token"
+        assert async_session._refresh_token == "test_refresh_token"
+        assert async_session._expires_at > datetime.datetime.now()
+
+        mock_post.assert_called_once_with(
+            url=f"{async_session._api_host}/client/token",
+            headers={
+                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data="grant_type=password&username=test_user&password=test_password",
+        )
+
+
+@pytest.mark.asyncio
+async def test_authentication_invalid_response(async_session):
+    credentials = {
+        "grant_type": "password",
+        "username": "test_user",
+        "password": "test_password",
+    }
+    invalid_response = {"invalid_key": "invalid_value"}
+
+    with patch.object(
+        async_session.client, "post", new_callable=AsyncMock
+    ) as mock_post:
+        mock_post.return_value.json = AsyncMock(return_value=invalid_response)
+        mock_post.return_value.raise_for_status = AsyncMock()
+
+        with pytest.raises(SmartboxError, match="Received invalid auth response"):
+            await async_session._authentication(credentials)
+
+        mock_post.assert_called_once_with(
+            url=f"{async_session._api_host}/client/token",
+            headers={
+                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data="grant_type=password&username=test_user&password=test_password",
+        )
+
+
+@pytest.mark.asyncio
+async def test_authentication_client_response_error(async_session):
+    credentials = {
+        "grant_type": "password",
+        "username": "test_user",
+        "password": "test_password",
+    }
+
+    with patch.object(
+        async_session.client, "post", new_callable=AsyncMock
+    ) as mock_post:
+        mock_post.side_effect = aiohttp.ClientResponseError(
+            request_info=None, history=None, status=401, message="Unauthorized"
+        )
+
+        with pytest.raises(InvalidAuth):
+            await async_session._authentication(credentials)
+
+        mock_post.assert_called_once_with(
+            url=f"{async_session._api_host}/client/token",
+            headers={
+                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data="grant_type=password&username=test_user&password=test_password",
+        )

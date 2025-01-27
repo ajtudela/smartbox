@@ -1,9 +1,10 @@
 import asyncio
 import logging
 import signal
-import socketio
-from typing import Any, Callable, Dict, Optional
 import urllib
+from typing import Any, Callable, Dict, Optional
+
+import socketio
 
 from smartbox.session import AsyncSmartboxSession
 
@@ -17,7 +18,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
-
     def __init__(
         self,
         session: AsyncSmartboxSession,

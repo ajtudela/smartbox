@@ -1,9 +1,10 @@
 """Smartbox socket update manager."""
 
-import jq
 import logging
 import re
 from typing import Any, Callable, Dict, Iterable, List
+
+import jq
 
 from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
@@ -156,14 +157,14 @@ class UpdateManager(object):
         """Subscribe to node status updates."""
 
         def dev_data_wrapper(data: Dict[str, Any]) -> None:
-            callback(data["type"], int(data["addr"]), data["status"]),
+            (callback(data["type"], int(data["addr"]), data["status"]),)
 
         self.subscribe_to_dev_data(
             "(.nodes[] | {addr, type, status})?", dev_data_wrapper
         )
 
         def update_wrapper(data: Dict[str, Any], node_type: str, addr: str) -> None:
-            callback(node_type, int(addr), data),
+            (callback(node_type, int(addr), data),)
 
         self.subscribe_to_updates(
             r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/status",
@@ -177,14 +178,14 @@ class UpdateManager(object):
         """Subscribe to node setup updates."""
 
         def dev_data_wrapper(data: Dict[str, Any]) -> None:
-            callback(data["type"], int(data["addr"]), data["setup"]),
+            (callback(data["type"], int(data["addr"]), data["setup"]),)
 
         self.subscribe_to_dev_data(
             "(.nodes[] | {addr, type, setup})?", dev_data_wrapper
         )
 
         def update_wrapper(data: Dict[str, Any], node_type: str, addr: str) -> None:
-            callback(node_type, int(addr), data),
+            (callback(node_type, int(addr), data),)
 
         self.subscribe_to_updates(
             r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/setup",

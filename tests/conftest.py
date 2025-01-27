@@ -1,9 +1,11 @@
-import pytest
-from smartbox.session import AsyncSmartboxSession, Session
-from smartbox.update_manager import UpdateManager
 from unittest.mock import patch
-from tests.common import fake_get_request
+
+import pytest
 from asyncclick.testing import CliRunner
+
+from smartbox.session import AsyncSession, AsyncSmartboxSession, Session
+from smartbox.update_manager import UpdateManager
+from tests.common import fake_get_request
 
 
 @pytest.fixture
@@ -22,7 +24,7 @@ def update_manager(mock_session):
 
 
 @pytest.fixture
-def async_smartbox_session():
+def async_smartbox_session(mocker):
     async_smartbox_session = AsyncSmartboxSession(
         api_name="test_api",
         basic_auth_credentials="test_credentials",
@@ -50,3 +52,24 @@ def session():
         username="test_user",
         password="test_password",
     )
+
+
+@pytest.fixture
+def async_session():
+    api_name = "test_api"
+    basic_auth_credentials = "test_credentials"
+    username = "test_user"
+    password = "test_password"
+
+    session = AsyncSession(
+        api_name=api_name,
+        basic_auth_credentials=basic_auth_credentials,
+        username=username,
+        password=password,
+    )
+    with patch(
+        "smartbox.session.AsyncSession.client",
+        autospec=True,
+        side_effect=fake_get_request,
+    ):
+        yield session

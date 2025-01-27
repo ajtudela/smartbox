@@ -1,11 +1,12 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
-
 from smartbox.update_manager import (
-    OptimisedJQMatcher,
     DevDataSubscription,
+    OptimisedJQMatcher,
     UpdateSubscription,
 )
 

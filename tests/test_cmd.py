@@ -1,9 +1,8 @@
 import asyncio
+
 import pytest
 
 from smartbox.cmd import smartbox
-from unittest.mock import patch, AsyncMock
-
 
 DEFAULT_ARGS = [
     "-a",
@@ -15,6 +14,16 @@ DEFAULT_ARGS = [
     "-p",
     "pass",
 ]
+
+
+@pytest.mark.asyncio
+async def test_health_check(runner, async_smartbox_session):
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "health-check"],
+    )
+    assert result.exit_code == 0
+    assert "" in result.output
 
 
 @pytest.mark.asyncio

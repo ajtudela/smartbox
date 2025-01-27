@@ -1,5 +1,6 @@
-from pydantic import BaseModel, RootModel
 from typing import Optional
+
+from pydantic import BaseModel, RootModel
 
 
 class NodeFactoryOptions(BaseModel):

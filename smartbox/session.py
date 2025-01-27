@@ -1,23 +1,21 @@
+import asyncio
 import datetime
 import json
 import logging
-import requests
 import time
 from typing import Any
-from smartbox.error import SmartboxError, InvalidAuth, APIUnavailable
-from aiohttp import (
-    ClientSession,
-)
-import asyncio
+
+import aiohttp
+from aiohttp import ClientSession
+
+from smartbox.error import APIUnavailable, InvalidAuth, SmartboxError
+from smartbox.models import Devices, Homes, Node, Nodes, NodeSetup, NodeStatus, Samples
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
 _MIN_TOKEN_LIFETIME = 60  # Minimum time left before expiry before we refresh (seconds)
 
 _LOGGER = logging.getLogger(__name__)
-
-
-from smartbox.models import Devices, Nodes, Node, Homes, NodeStatus, NodeSetup, Samples
 
 
 class AsyncSession:
@@ -36,7 +34,7 @@ class AsyncSession:
         self._basic_auth_credentials = basic_auth_credentials
         self._retry_attempts = retry_attempts
         self._backoff_factor = backoff_factor
-        self._usernama = username
+        self._username = username
         self._password = password
         self._access_token = None
         self._client_session: ClientSession | None = websession
@@ -73,7 +71,7 @@ class AsyncSession:
         try:
             response = await self.client.get(api_url, headers=self._get_headers())
             response.raise_for_status()
-        except requests.HTTPError as e:
+        except aiohttp.ClientConnectionError as e:
             raise APIUnavailable from e
         return await response.json()
 
@@ -89,7 +87,10 @@ class AsyncSession:
                 url=token_url, headers=token_headers, data=token_data
             )
             response.raise_for_status()
-        except requests.HTTPError as e:
+        except (
+            aiohttp.ClientResponseError,
+            aiohttp.client_exceptions.ClientResponseError,
+        ) as e:
             raise InvalidAuth from e
         r = await response.json()
 
@@ -123,7 +124,7 @@ class AsyncSession:
             await self._authentication(
                 {
                     "grant_type": "password",
-                    "username": self._usernama,
+                    "username": self._username,
                     "password": self._password,
                 }
             )
@@ -150,7 +151,7 @@ class AsyncSession:
         try:
             response = await self.client.get(api_url, headers=self._get_headers())
             response.raise_for_status()
-        except requests.HTTPError as e:
+        except aiohttp.ClientResponseError as e:
             _LOGGER.error(e)
             _LOGGER.error(e.response.json())
             raise SmartboxError from e
@@ -166,7 +167,7 @@ class AsyncSession:
                 api_url, data=data_str, headers=self._get_headers()
             )
             response.raise_for_status()
-        except requests.HTTPError as e:
+        except aiohttp.ClientResponseError as e:
             _LOGGER.error(e)
             _LOGGER.error(e.response.json())
             raise SmartboxError from e
@@ -174,7 +175,6 @@ class AsyncSession:
 
 
 class AsyncSmartboxSession(AsyncSession):
-
     async def get_devices(self) -> list[dict[str, Any]]:
         response = await self._api_request("devs")
         devices = Devices.model_validate(response).devs

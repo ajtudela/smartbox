@@ -1,5 +1,5 @@
-from .error import SmartboxError, InvalidAuth, APIUnavailable  # noqa: F401
-from .session import Session, AsyncSmartboxSession  # noqa: F401
+from .error import APIUnavailable, InvalidAuth, SmartboxError  # noqa: F401
+from .session import AsyncSmartboxSession, Session  # noqa: F401
 from .socket import SocketSession  # noqa: F401
 from .update_manager import UpdateManager  # noqa: F401
 

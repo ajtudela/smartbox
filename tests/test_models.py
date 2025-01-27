@@ -1,19 +1,20 @@
 import json
-from tests.common import load_fixture
+
 from smartbox.models import (
-    NodeFactoryOptions,
-    NodeExtraOptions,
-    NodeSetup,
-    NodeStatus,
-    Node,
-    Nodes,
     Device,
     Devices,
     Home,
     Homes,
+    Node,
+    NodeExtraOptions,
+    NodeFactoryOptions,
+    Nodes,
+    NodeSetup,
+    NodeStatus,
     Sample,
     Samples,
 )
+from tests.common import load_fixture
 
 
 def test_node_factory_options():

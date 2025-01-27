@@ -1,11 +1,11 @@
-import asyncclick as click
 import json
 import logging
+
+import asyncclick as click
 from aiohttp import ClientSession
 
 from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
-
 
 _LOGGER = logging.getLogger(__name__)
 
