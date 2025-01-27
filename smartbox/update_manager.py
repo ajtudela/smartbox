@@ -98,6 +98,8 @@ class UpdateSubscription(object):
 class UpdateManager(object):
     """Manages subscription callbacks to receive updates from a Smartbox socket."""
 
+    BODY_PATH = ".body"
+
     def __init__(self, session: AsyncSmartboxSession, device_id: str, **kwargs):
         """Create an UpdateManager for a smartbox socket."""
         self._socket_session = SocketSession(
@@ -135,7 +137,7 @@ class UpdateManager(object):
     ) -> None:
         """Subscribe to device away status updates."""
         self.subscribe_to_dev_data(".away_status", callback)
-        self.subscribe_to_updates(r"^/mgr/away_status", ".body", callback)
+        self.subscribe_to_updates(r"^/mgr/away_status", self.BODY_PATH, callback)
 
     def subscribe_to_device_power_limit(self, callback: Callable[[int], None]) -> None:
         """Subscribe to device power limit updates."""
@@ -144,7 +146,7 @@ class UpdateManager(object):
         )
         self.subscribe_to_updates(
             r"^/htr_system/(setup|power_limit)",
-            ".body.power_limit",
+            f"{self.BODY_PATH}.power_limit",
             lambda p: callback(int(p)),
         )
 
@@ -164,7 +166,9 @@ class UpdateManager(object):
             callback(node_type, int(addr), data),
 
         self.subscribe_to_updates(
-            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/status", ".body", update_wrapper
+            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/status",
+            self.BODY_PATH,
+            update_wrapper,
         )
 
     def subscribe_to_node_setup(
@@ -183,7 +187,9 @@ class UpdateManager(object):
             callback(node_type, int(addr), data),
 
         self.subscribe_to_updates(
-            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/setup", ".body", update_wrapper
+            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/setup",
+            self.BODY_PATH,
+            update_wrapper,
         )
 
     def _dev_data_cb(self, data: Dict[str, Any]) -> None:

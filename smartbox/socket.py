@@ -141,7 +141,6 @@ class SocketSession(object):
 
         _LOGGER.debug("Starting main loop")
         while not self._loop_should_exit:
-            # TODO: accessors in session
             encoded_token = urllib.parse.quote(
                 self._session._access_token, safe="~()*!.'"
             )

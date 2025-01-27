@@ -3,8 +3,8 @@ import json
 import logging
 import requests
 import time
-from typing import Any, Dict, List
-from smartbox.error import SmartboxError
+from typing import Any
+from smartbox.error import SmartboxError, InvalidAuth, APIUnavailable
 from aiohttp import (
     ClientSession,
 )
@@ -68,17 +68,29 @@ class AsyncSession:
             return ClientSession()
         return self._client_session
 
-    async def _authentication(self, credentials: Dict[str, str]):
+    async def health_check(self) -> dict[str, Any]:
+        api_url = f"{self._api_host}/health_check"
+        try:
+            response = await self.client.get(api_url, headers=self._get_headers())
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            raise APIUnavailable from e
+        return await response.json()
+
+    async def _authentication(self, credentials: dict[str, str]):
         token_data = "&".join(f"{k}={v}" for k, v in credentials.items())
         token_headers = {
             "authorization": f"Basic {self._basic_auth_credentials}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
         token_url = f"{self._api_host}/client/token"
-        response = await self.client.post(
-            url=token_url, headers=token_headers, data=token_data
-        )
-        response.raise_for_status()
+        try:
+            response = await self.client.post(
+                url=token_url, headers=token_headers, data=token_data
+            )
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            raise InvalidAuth from e
         r = await response.json()
 
         if "access_token" not in r or "refresh_token" not in r or "expires_in" not in r:
@@ -126,7 +138,7 @@ class AsyncSession:
                 }
             )
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         return {
             "Authorization": f"Bearer {self._access_token}",
             "Content-Type": "application/json",
@@ -135,14 +147,18 @@ class AsyncSession:
     async def _api_request(self, path: str) -> Any:
         await self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
-        response = await self.client.get(api_url, headers=self._get_headers())
-        response.raise_for_status()
+        try:
+            response = await self.client.get(api_url, headers=self._get_headers())
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            _LOGGER.error(e)
+            _LOGGER.error(e.response.json())
+            raise SmartboxError from e
         return await response.json()
 
     async def _api_post(self, data: Any, path: str) -> Any:
         await self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
-        # TODO: json dump
         try:
             data_str = json.dumps(data)
             _LOGGER.debug(f"Posting {data_str} to {api_url}")
@@ -151,43 +167,42 @@ class AsyncSession:
             )
             response.raise_for_status()
         except requests.HTTPError as e:
-            # TODO: logging
             _LOGGER.error(e)
             _LOGGER.error(e.response.json())
-            raise
+            raise SmartboxError from e
         return await response.json()
 
 
 class AsyncSmartboxSession(AsyncSession):
 
-    async def get_devices(self) -> List[Dict[str, Any]]:
+    async def get_devices(self) -> list[dict[str, Any]]:
         response = await self._api_request("devs")
         devices = Devices.model_validate(response).devs
         devices = [device.model_dump(mode="json") for device in devices]
         return devices
 
-    async def get_homes(self) -> List[Dict[str, Any]]:
+    async def get_homes(self) -> list[dict[str, Any]]:
         response = await self._api_request("grouped_devs")
         homes = Homes.model_validate(response)
         return [home.model_dump(mode="json") for home in homes.root]
 
-    async def get_grouped_devices(self) -> List[Dict[str, Any]]:
+    async def get_grouped_devices(self) -> list[dict[str, Any]]:
         response = await self._api_request("grouped_devs")
         homes: Homes = Homes.model_validate(response)
         homes = [home.model_dump(mode="json") for home in homes.root]
         return homes
 
-    async def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
+    async def get_nodes(self, device_id: str) -> list[dict[str, Any]]:
         response = await self._api_request(f"devs/{device_id}/mgr/nodes")
         nodes = Nodes.model_validate(response).nodes
         return [node.model_dump(mode="json") for node in nodes]
 
-    async def get_device_away_status(self, device_id: str) -> Dict[str, Any]:
+    async def get_device_away_status(self, device_id: str) -> dict[str, Any]:
         return await self._api_request(f"devs/{device_id}/mgr/away_status")
 
     async def set_device_away_status(
-        self, device_id: str, status_args: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, device_id: str, status_args: dict[str, Any]
+    ) -> dict[str, Any]:
         data = {k: v for k, v in status_args.items() if v is not None}
         return await self._api_post(data=data, path=f"devs/{device_id}/mgr/away_status")
 
@@ -202,18 +217,15 @@ class AsyncSmartboxSession(AsyncSession):
     async def get_node_samples(
         self,
         device_id: str,
-        node: Dict[str, Any],
+        node: dict[str, Any],
         start_time: int | None = int(time.time() - 3600),
         end_time: int | None = int(time.time() + 3600),
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if start_time is None:
             start_time = int(time.time() - 3600)
         if end_time is None:
             end_time = int(time.time() + 3600)
         _LOGGER.debug(
-            f"Get_Device_Samples_Node: from {datetime.datetime.fromtimestamp(start_time)} to {datetime.datetime.fromtimestamp(end_time)}"
-        )
-        print(
             f"Get_Device_Samples_Node: from {datetime.datetime.fromtimestamp(start_time)} to {datetime.datetime.fromtimestamp(end_time)}"
         )
         node: Node = Node.model_validate(node)
@@ -225,8 +237,8 @@ class AsyncSmartboxSession(AsyncSession):
         return samples.model_dump(mode="json")
 
     async def get_node_status(
-        self, device_id: str, node: Dict[str, Any]
-    ) -> Dict[str, str]:
+        self, device_id: str, node: dict[str, Any]
+    ) -> dict[str, str]:
         node: Node = Node.model_validate(node)
         return NodeStatus.model_validate(
             await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/status")
@@ -235,9 +247,9 @@ class AsyncSmartboxSession(AsyncSession):
     async def set_node_status(
         self,
         device_id: str,
-        node: Dict[str, Any],
-        status_args: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        node: dict[str, Any],
+        status_args: dict[str, Any],
+    ) -> dict[str, Any]:
         node: Node = Node.model_validate(node)
         data = {k: v for k, v in status_args.items() if v is not None}
         if "stemp" in data and "units" not in data:
@@ -247,76 +259,74 @@ class AsyncSmartboxSession(AsyncSession):
         )
 
     async def get_node_setup(
-        self, device_id: str, node: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, device_id: str, node: dict[str, Any]
+    ) -> dict[str, Any]:
         node: Node = Node.model_validate(node)
         return NodeSetup.model_validate(
             await self._api_request(f"devs/{device_id}/{node.type}/{node.addr}/setup")
         ).model_dump(mode="json")
 
     async def set_node_setup(
-        self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, device_id: str, node: dict[str, Any], setup_args: dict[str, Any]
+    ) -> dict[str, Any]:
         node: Node = Node.model_validate(node)
         data = {k: v for k, v in setup_args.items() if v is not None}
         # setup seems to require all settings to be re-posted, so get current
         # values and update
         setup_data = await self.get_node_setup(device_id, node)
         setup_data.update(data)
-        a = await self._api_post(
+        return await self._api_post(
             data=setup_data,
             path=f"devs/{device_id}/{node.type}/{node.addr}/setup",
         )
-        print(a)
-        return a
 
 
 class Session:
     def __init__(self, *args, **kwargs):
         self._async = AsyncSmartboxSession(*args, **kwargs)
 
-    def get_devices(self) -> List[Dict[str, Any]]:
+    def get_devices(self) -> list[dict[str, Any]]:
         return asyncio.run(self._async.get_devices())
 
-    def get_homes(self) -> List[Dict[str, Any]]:
+    def get_homes(self) -> list[dict[str, Any]]:
         return asyncio.run(self._async.get_homes())
 
-    def get_grouped_devices(self) -> List[Dict[str, Any]]:
+    def get_grouped_devices(self) -> list[dict[str, Any]]:
         return asyncio.run(self._async.get_grouped_devices())
 
-    def get_nodes(self, device_id: str) -> List[Dict[str, Any]]:
+    def get_nodes(self, device_id: str) -> list[dict[str, Any]]:
         return asyncio.run(self._async.get_nodes(device_id=device_id))
 
-    def get_status(self, device_id: str, node: Dict[str, Any]) -> Dict[str, str]:
+    def get_status(self, device_id: str, node: dict[str, Any]) -> dict[str, str]:
         return asyncio.run(self._async.get_node_status(device_id=device_id, node=node))
 
     def set_status(
-        self, device_id: str, node: Dict[str, Any], status_args: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, device_id: str, node: dict[str, Any], status_args: dict[str, Any]
+    ) -> dict[str, Any]:
         return asyncio.run(
             self._async.set_node_status(
                 device_id=device_id, node=node, status_args=status_args
             )
         )
 
-    def get_setup(self, device_id: str, node: Dict[str, Any]) -> Dict[str, Any]:
+    def get_setup(self, device_id: str, node: dict[str, Any]) -> dict[str, Any]:
         return asyncio.run(self._async.get_node_setup(device_id=device_id, node=node))
 
     def set_setup(
-        self, device_id: str, node: Dict[str, Any], setup_args: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, device_id: str, node: dict[str, Any], setup_args: dict[str, Any]
+    ) -> dict[str, Any]:
         return asyncio.run(
             self._async.set_node_setup(
                 device_id=device_id, node=node, setup_args=setup_args
             )
         )
 
-    def get_device_away_status(self, device_id: str) -> Dict[str, Any]:
+    def get_device_away_status(self, device_id: str) -> dict[str, Any]:
         return asyncio.run(self._async.get_device_away_status(device_id=device_id))
 
     def set_device_away_status(
-        self, device_id: str, status_args: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, device_id: str, status_args: dict[str, Any]
+    ) -> dict[str, Any]:
         return asyncio.run(
             self._async.set_device_away_status(
                 device_id=device_id,

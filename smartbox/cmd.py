@@ -136,7 +136,6 @@ async def node_samples(ctx, device_id, node_addr, start_time, end_time):
 @click.option("--mode")
 @click.option("--stemp")
 @click.option("--units")
-# TODO: other options
 @click.pass_context
 async def set_status(ctx, device_id, node_addr, **kwargs):
     session = ctx.obj["session"]
@@ -265,6 +264,13 @@ async def socket(ctx, device_id):
         session, device_id, on_dev_data, on_update, verbose, add_sigint_handler=True
     )
     await socket_session.run()
+
+
+@smartbox.command(help="Get status of the API")
+@click.pass_context
+async def health_check(ctx):
+    session = ctx.obj["session"]
+    await session.health_check()
 
 
 # For debuggging
