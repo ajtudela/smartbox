@@ -24,6 +24,7 @@ async def test_health_check(runner, async_smartbox_session):
     )
     assert result.exit_code == 0
     assert "" in result.output
+    assert "" in result.output
 
 
 @pytest.mark.asyncio

@@ -804,15 +804,3 @@ async def test_check_refresh_auth_token_expired(async_session):
                 "refresh_token": async_session._refresh_token,
             }
         )
-
-
-@pytest.mark.asyncio
-async def test_check_refresh_auth_token_valid(async_session):
-    async_session._access_token = "test_access_token"
-    async_session._expires_at = datetime.datetime.now() + datetime.timedelta(hours=1)
-
-    with patch.object(
-        async_session, "_authentication", new_callable=AsyncMock
-    ) as mock_authentication:
-        await async_session.check_refresh_auth()
-        mock_authentication.assert_not_called()

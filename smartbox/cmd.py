@@ -270,7 +270,8 @@ async def socket(ctx, device_id):
 @click.pass_context
 async def health_check(ctx):
     session = ctx.obj["session"]
-    await session.health_check()
+    health = await session.health_check()
+    _pretty_print(health)
 
 
 # For debuggging
