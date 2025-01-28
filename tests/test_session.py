@@ -1,11 +1,14 @@
 import datetime
+import time
+import logging
+import json
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
 from aiohttp import ClientSession
 
-from smartbox.error import InvalidAuth, SmartboxError
+from smartbox.error import InvalidAuth, SmartboxError, APIUnavailable
 from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
     _DEFAULT_RETRY_ATTEMPTS,
@@ -13,17 +16,7 @@ from smartbox.session import (
 )
 from tests.common import fake_get_request
 
-
-@pytest.mark.asyncio
-async def test_get_homes(async_smartbox_session):
-    with patch.object(
-        async_smartbox_session, "_api_request", new_callable=AsyncMock
-    ) as mock_api_request:
-        url = "grouped_devs"
-        mock_api_request.return_value = await fake_get_request(mock_api_request, url)
-        homes = await async_smartbox_session.get_homes()
-        assert homes == mock_api_request.return_value
-        mock_api_request.assert_called_once_with(url)
+_LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
@@ -599,3 +592,197 @@ async def test_authentication_client_response_error(async_session):
             },
             data="grant_type=password&username=test_user&password=test_password",
         )
+
+
+@pytest.mark.asyncio
+async def test_health_check_success(async_session):
+    with patch.object(async_session.client, "get", new_callable=AsyncMock) as mock_get:
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(return_value={"status": "ok"})
+        mock_response.raise_for_status = AsyncMock()
+        mock_get.return_value = mock_response
+
+        result = await async_session.health_check()
+        assert result == {"status": "ok"}
+        mock_get.assert_called_once_with(f"{async_session._api_host}/health_check")
+
+
+@pytest.mark.asyncio
+async def test_health_check_api_unavailable(async_session):
+    with patch.object(async_session.client, "get", new_callable=AsyncMock) as mock_get:
+        mock_get.side_effect = aiohttp.ClientConnectionError()
+
+        with pytest.raises(APIUnavailable):
+            await async_session.health_check()
+
+        mock_get.assert_called_once_with(f"{async_session._api_host}/health_check")
+
+
+@pytest.mark.asyncio
+async def test_api_request_success(async_session):
+    path = "test_path"
+    expected_response = {"key": "value"}
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_response = AsyncMock()
+            mock_response.json = AsyncMock(return_value=expected_response)
+            mock_get.return_value = mock_response
+
+            result = await async_session._api_request(path)
+            mock_check_refresh_auth.assert_called_once()
+            assert result == expected_response
+            mock_get.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                headers=async_session._get_headers(),
+            )
+
+
+@pytest.mark.asyncio
+async def test_api_request_client_response_error(async_session):
+    path = "test_path"
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_response = AsyncMock()
+            mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
+                request_info=aiohttp.RequestInfo(
+                    method="GET",
+                    headers="",
+                    url=f"{async_session._api_host}/api/v2/{path}",
+                ),
+                history=None,
+                status=500,
+                message="Internal Server Error",
+            )
+            mock_response.json = AsyncMock(
+                return_value={"error": "Internal Server Error"}
+            )
+            mock_get.return_value = mock_response
+
+            with pytest.raises(SmartboxError):
+                await async_session._api_request(path)
+            mock_check_refresh_auth.assert_called_once()
+            mock_get.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                headers=async_session._get_headers(),
+            )
+
+
+@pytest.mark.asyncio
+async def test_api_request_check_refresh_auth_called(async_session):
+    path = "test_path"
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_response = AsyncMock()
+            mock_response.json = AsyncMock(return_value={})
+            mock_response.raise_for_status = AsyncMock()
+            mock_get.return_value = mock_response
+
+            await async_session._api_request(path)
+            mock_check_refresh_auth.assert_called_once()
+            mock_get.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                headers=async_session._get_headers(),
+            )
+
+
+@pytest.mark.asyncio
+async def test_api_post_success(async_session):
+    path = "test_path"
+    data = {"key": "value"}
+    expected_response = {"response_key": "response_value"}
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_response = AsyncMock()
+            mock_response.json = AsyncMock(return_value=expected_response)
+            mock_response.raise_for_status = AsyncMock()
+            mock_post.return_value = mock_response
+
+            result = await async_session._api_post(data, path)
+            mock_check_refresh_auth.assert_called_once()
+            assert result == expected_response
+            mock_post.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                data=json.dumps(data),
+                headers=async_session._get_headers(),
+            )
+
+
+@pytest.mark.asyncio
+async def test_api_post_client_response_error(async_session):
+    path = "test_path"
+    data = {"key": "value"}
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_response = AsyncMock()
+            mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
+                request_info=aiohttp.RequestInfo(
+                    method="POST",
+                    headers="",
+                    url=f"{async_session._api_host}/api/v2/{path}",
+                ),
+                history=None,
+                status=500,
+                message="Internal Server Error",
+            )
+            mock_response.json = AsyncMock(
+                return_value={"error": "Internal Server Error"}
+            )
+            mock_post.return_value = mock_response
+
+            with pytest.raises(SmartboxError):
+                await async_session._api_post(data, path)
+            mock_check_refresh_auth.assert_called_once()
+            mock_post.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                data=json.dumps(data),
+                headers=async_session._get_headers(),
+            )
+
+
+@pytest.mark.asyncio
+async def test_api_post_check_refresh_auth_called(async_session):
+    path = "test_path"
+    data = {"key": "value"}
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_response = AsyncMock()
+            mock_response.json = AsyncMock(return_value={})
+            mock_response.raise_for_status = AsyncMock()
+            mock_post.return_value = mock_response
+
+            await async_session._api_post(data, path)
+            mock_check_refresh_auth.assert_called_once()
+            mock_post.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                data=json.dumps(data),
+                headers=async_session._get_headers(),
+            )

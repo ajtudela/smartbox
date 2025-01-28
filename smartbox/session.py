@@ -69,7 +69,7 @@ class AsyncSession:
     async def health_check(self) -> dict[str, Any]:
         api_url = f"{self._api_host}/health_check"
         try:
-            response = await self.client.get(api_url, headers=self._get_headers())
+            response = await self.client.get(api_url)
             response.raise_for_status()
         except aiohttp.ClientConnectionError as e:
             raise APIUnavailable from e
@@ -86,7 +86,7 @@ class AsyncSession:
             response = await self.client.post(
                 url=token_url, headers=token_headers, data=token_data
             )
-            response.raise_for_status()
+            await response.raise_for_status()
         except (
             aiohttp.ClientResponseError,
             aiohttp.client_exceptions.ClientResponseError,
@@ -150,10 +150,11 @@ class AsyncSession:
         api_url = f"{self._api_host}/api/v2/{path}"
         try:
             response = await self.client.get(api_url, headers=self._get_headers())
-            response.raise_for_status()
+            await response.raise_for_status()
         except aiohttp.ClientResponseError as e:
-            _LOGGER.error(e)
-            _LOGGER.error(e.response.json())
+            _LOGGER.error(
+                f"ClientResponseError: {e.message}, status: {e.status}, url: {e.request_info.url}"
+            )
             raise SmartboxError from e
         return await response.json()
 
@@ -166,10 +167,11 @@ class AsyncSession:
             response = await self.client.post(
                 api_url, data=data_str, headers=self._get_headers()
             )
-            response.raise_for_status()
+            await response.raise_for_status()
         except aiohttp.ClientResponseError as e:
-            _LOGGER.error(e)
-            _LOGGER.error(e.response.json())
+            _LOGGER.error(
+                f"ClientResponseError: {e.message}, status: {e.status}, url: {e.request_info.url}"
+            )
             raise SmartboxError from e
         return await response.json()
 
