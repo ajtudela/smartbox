@@ -6,12 +6,12 @@ with open("README.md", "r") as fh:
 setup(
     name="smartbox",
     version="2.1.0-beta.1",
-    author="Graham Bennett",
-    author_email="graham@grahambennett.org",
+    author="Delmael",
+    author_email="delmael@outlook.com",
     description="Python API to control heating 'smart boxes'",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/graham33/smartbox",
+    url="https://github.com/ajtudela/smartbox",
     packages=["smartbox"],
     classifiers=[
         "Programming Language :: Python :: 3",

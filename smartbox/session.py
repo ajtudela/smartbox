@@ -128,10 +128,9 @@ class AsyncSession:
                     "password": self._password,
                 }
             )
-        expired = (self._expires_at - datetime.datetime.now()) < datetime.timedelta(
+        elif (self._expires_at - datetime.datetime.now()) < datetime.timedelta(
             seconds=_MIN_TOKEN_LIFETIME
-        )
-        if expired:
+        ):
             await self._authentication(
                 {
                     "grant_type": "refresh_token",

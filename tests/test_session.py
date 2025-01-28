@@ -1,6 +1,4 @@
 import datetime
-import time
-import logging
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -8,15 +6,13 @@ import aiohttp
 import pytest
 from aiohttp import ClientSession
 
-from smartbox.error import InvalidAuth, SmartboxError, APIUnavailable
+from smartbox.error import APIUnavailable, InvalidAuth, SmartboxError
 from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
     _DEFAULT_RETRY_ATTEMPTS,
     AsyncSession,
 )
 from tests.common import fake_get_request
-
-_LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
@@ -468,6 +464,7 @@ async def test_async_session_init():
     )
 
     assert session._api_name == api_name
+    assert session.api_name == api_name
     assert session._api_host == f"https://{api_name}.helki.com"
     assert session._basic_auth_credentials == basic_auth_credentials
     assert session._retry_attempts == retry_attempts
@@ -475,6 +472,7 @@ async def test_async_session_init():
     assert session._username == username
     assert session._password == password
     assert session._access_token is None
+    assert session.get_access_token() is None
     assert session._client_session == websession
 
 
@@ -525,7 +523,9 @@ async def test_authentication_success(async_session):
         await async_session._authentication(credentials)
 
         assert async_session._access_token == "test_access_token"
+        assert async_session.get_access_token() == "test_access_token"
         assert async_session._refresh_token == "test_refresh_token"
+        assert async_session.refresh_token == "test_refresh_token"
         assert async_session._expires_at > datetime.datetime.now()
 
         mock_post.assert_called_once_with(
@@ -786,3 +786,33 @@ async def test_api_post_check_refresh_auth_called(async_session):
                 data=json.dumps(data),
                 headers=async_session._get_headers(),
             )
+
+
+@pytest.mark.asyncio
+async def test_check_refresh_auth_token_expired(async_session):
+    async_session._access_token = "test_access_token"
+    async_session._expires_at = datetime.datetime.now() - datetime.timedelta(seconds=10)
+    async_session._refresh_token = "test_refresh_token"
+
+    with patch.object(
+        async_session, "_authentication", new_callable=AsyncMock
+    ) as mock_authentication:
+        await async_session.check_refresh_auth()
+        mock_authentication.assert_called_once_with(
+            {
+                "grant_type": "refresh_token",
+                "refresh_token": async_session._refresh_token,
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_check_refresh_auth_token_valid(async_session):
+    async_session._access_token = "test_access_token"
+    async_session._expires_at = datetime.datetime.now() + datetime.timedelta(hours=1)
+
+    with patch.object(
+        async_session, "_authentication", new_callable=AsyncMock
+    ) as mock_authentication:
+        await async_session.check_refresh_auth()
+        mock_authentication.assert_not_called()
