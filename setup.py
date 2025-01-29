@@ -11,7 +11,7 @@ setup(
     description="Python API to control heating 'smart boxes'",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/ajtudela/smartbox",
+    url="https://github.com/delmael/smartbox",
     packages=["smartbox"],
     classifiers=[
         "Programming Language :: Python :: 3",
