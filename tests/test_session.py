@@ -37,11 +37,17 @@ async def test_get_nodes(async_smartbox_session):
             mock_api_request.return_value = await fake_get_request(
                 mock_api_request, url
             )
+            async_smartbox_session.raw_response = True
             nodes = await async_smartbox_session.get_nodes(
                 device_id=mock_device["dev_id"]
             )
             assert nodes == mock_api_request.return_value["nodes"]
             mock_api_request.assert_called_with(url)
+            async_smartbox_session.raw_response = False
+            nodes_model = await async_smartbox_session.get_nodes(
+                device_id=mock_device["dev_id"]
+            )
+            assert nodes_model[0].addr == nodes[0]["addr"]
 
 
 @pytest.mark.asyncio
@@ -60,6 +66,13 @@ async def test_get_node_status(async_smartbox_session):
                 )
                 assert status == mock_api_request.return_value
                 mock_api_request.assert_called_with(url)
+
+                async_smartbox_session.raw_response = False
+                status_model = await async_smartbox_session.get_node_status(
+                    mock_device["dev_id"], mock_node
+                )
+                assert status_model.act_duty == status["act_duty"]
+                async_smartbox_session.raw_response = True
 
 
 @pytest.mark.asyncio
@@ -87,6 +100,18 @@ async def test_get_node_samples(async_smartbox_session):
                     f"{url}?start={start_time}&end={end_time}"
                 )
 
+                async_smartbox_session.raw_response = False
+                samples_model = await async_smartbox_session.get_node_samples(
+                    mock_device["dev_id"],
+                    mock_node,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                assert (
+                    samples_model.samples[0].counter == samples["samples"][0]["counter"]
+                )
+                async_smartbox_session.raw_response = True
+
 
 @pytest.mark.asyncio
 async def test_get_device_away_status(async_smartbox_session):
@@ -103,6 +128,13 @@ async def test_get_device_away_status(async_smartbox_session):
             )
             assert nodes == mock_api_request.return_value
             mock_api_request.assert_called_with(url)
+
+            async_smartbox_session.raw_response = False
+            nodes_model = await async_smartbox_session.get_device_away_status(
+                device_id=mock_device["dev_id"]
+            )
+            assert nodes_model.away == nodes["away"]
+            async_smartbox_session.raw_response = True
 
 
 @pytest.mark.asyncio
@@ -451,6 +483,8 @@ async def test_async_session_init():
     password = "test_password"
     retry_attempts = 3
     backoff_factor = 0.2
+    serial_id = 10
+    referer = "http"
     websession = ClientSession()
 
     session = AsyncSession(
@@ -461,6 +495,8 @@ async def test_async_session_init():
         websession=websession,
         retry_attempts=retry_attempts,
         backoff_factor=backoff_factor,
+        x_serial_id=serial_id,
+        x_referer=referer,
     )
 
     assert session._api_name == api_name
@@ -473,6 +509,8 @@ async def test_async_session_init():
     assert session._password == password
     assert session._access_token is None
     assert session._client_session == websession
+    assert session._headers["x-serialid"] == str(serial_id)
+    assert session._headers["x-referer"] == referer
 
 
 @pytest.mark.asyncio
@@ -582,6 +620,32 @@ async def test_authentication_client_response_error(async_session):
         )
 
         with pytest.raises(InvalidAuth):
+            await async_session._authentication(credentials)
+
+        mock_post.assert_called_once_with(
+            url=f"{async_session._api_host}/client/token",
+            headers={
+                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data="grant_type=password&username=test_user&password=test_password",
+        )
+
+
+@pytest.mark.asyncio
+async def test_authentication_client_response_unavailable(async_session):
+    credentials = {
+        "grant_type": "password",
+        "username": "test_user",
+        "password": "test_password",
+    }
+
+    with patch.object(
+        async_session.client, "post", new_callable=AsyncMock
+    ) as mock_post:
+        mock_post.side_effect = aiohttp.ClientConnectionError()
+
+        with pytest.raises(APIUnavailable):
             await async_session._authentication(credentials)
 
         mock_post.assert_called_once_with(
@@ -733,3 +797,34 @@ async def test_check_refresh_auth_token_expired(async_session):
                 "refresh_token": async_session._refresh_token,
             }
         )
+
+
+@pytest.mark.asyncio
+async def test_get_devices_raw_response_false(async_smartbox_session):
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = {
+            "invited_to": [],
+            "devs": [
+                {
+                    "dev_id": "device1",
+                    "name": "Device 1",
+                    "product_id": "prod123",
+                    "fw_version": "1.0.0",
+                    "serial_id": "serial123",
+                },
+                {
+                    "dev_id": "device2",
+                    "name": "Device 2",
+                    "product_id": "prod123",
+                    "fw_version": "1.0.0",
+                    "serial_id": "serial123",
+                },
+            ],
+        }
+        async_smartbox_session.raw_response = False
+        devices = await async_smartbox_session.get_devices()
+        assert devices.devs[0].dev_id == "device1"
+        assert devices.devs[1].dev_id == "device2"
+        mock_api_request.assert_called_once_with("devs")
