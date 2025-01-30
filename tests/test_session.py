@@ -25,6 +25,9 @@ async def test_get_grouped_devices(async_smartbox_session):
         grouped_devices = await async_smartbox_session.get_grouped_devices()
         assert grouped_devices == mock_api_request.return_value
         mock_api_request.assert_called_once_with(url)
+        async_smartbox_session.raw_response = False
+        grouped_devices_model = await async_smartbox_session.get_grouped_devices()
+        assert grouped_devices_model.root[0].name == grouped_devices[0]["name"]
 
 
 @pytest.mark.asyncio
@@ -730,6 +733,55 @@ async def test_api_request_check_refresh_auth_called(async_session):
 
 
 @pytest.mark.asyncio
+async def test_api_request_client_connection_error(async_session):
+    path = "test_path"
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.side_effect = aiohttp.ClientConnectionError()
+
+            with pytest.raises(APIUnavailable):
+                await async_session._api_request(path)
+
+            mock_check_refresh_auth.assert_called_once()
+            mock_get.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                headers=async_session._headers,
+            )
+
+
+@pytest.mark.asyncio
+async def test_api_request_client_response_error(async_session):
+    path = "test_path"
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.side_effect = aiohttp.ClientResponseError(
+                request_info=None,
+                history=None,
+                status=500,
+                message="Internal Server Error",
+            )
+
+            with pytest.raises(SmartboxError):
+                await async_session._api_request(path)
+
+            mock_check_refresh_auth.assert_called_once()
+            mock_get.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                headers=async_session._headers,
+            )
+
+
+@pytest.mark.asyncio
 async def test_api_post_success(async_session):
     path = "test_path"
     data = {"key": "value"}
@@ -828,3 +880,56 @@ async def test_get_devices_raw_response_false(async_smartbox_session):
         assert devices.devs[0].dev_id == "device1"
         assert devices.devs[1].dev_id == "device2"
         mock_api_request.assert_called_once_with("devs")
+
+
+@pytest.mark.asyncio
+async def test_api_post_client_connection_error(async_session):
+    path = "test_path"
+    data = {"key": "value"}
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_post.side_effect = aiohttp.ClientConnectionError()
+
+            with pytest.raises(APIUnavailable):
+                await async_session._api_post(data, path)
+
+            mock_check_refresh_auth.assert_called_once()
+            mock_post.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                data=json.dumps(data),
+                headers=async_session._headers,
+            )
+
+
+@pytest.mark.asyncio
+async def test_api_post_client_response_error(async_session):
+    path = "test_path"
+    data = {"key": "value"}
+
+    with patch.object(
+        async_session, "check_refresh_auth", new_callable=AsyncMock
+    ) as mock_check_refresh_auth:
+        with patch.object(
+            async_session.client, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_post.side_effect = aiohttp.ClientResponseError(
+                request_info=None,
+                history=None,
+                status=500,
+                message="Internal Server Error",
+            )
+
+            with pytest.raises(SmartboxError):
+                await async_session._api_post(data, path)
+
+            mock_check_refresh_auth.assert_called_once()
+            mock_post.assert_called_once_with(
+                f"{async_session._api_host}/api/v2/{path}",
+                data=json.dumps(data),
+                headers=async_session._headers,
+            )

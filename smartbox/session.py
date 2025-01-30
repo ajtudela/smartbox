@@ -168,9 +168,7 @@ class AsyncSession:
         except aiohttp.ClientConnectionError as e:
             raise APIUnavailable from e
         except aiohttp.ClientResponseError as e:
-            _LOGGER.error(
-                f"ClientResponseError: {e.message}, status: {e.status}, url: {e.request_info.url}"
-            )
+            _LOGGER.error(f"ClientResponseError: {e.message}, status: {e.status}")
             raise SmartboxError from e
         return await response.json()
 
@@ -186,9 +184,6 @@ class AsyncSession:
         except aiohttp.ClientConnectionError as e:
             raise APIUnavailable from e
         except aiohttp.ClientResponseError as e:
-            _LOGGER.error(
-                f"ClientResponseError: {e.message}, status: {e.status}, url: {e.request_info.url}"
-            )
             raise SmartboxError from e
         return await response.json()
 
