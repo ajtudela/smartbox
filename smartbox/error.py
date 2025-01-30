@@ -14,3 +14,9 @@ class APIUnavailable(Exception):
     """API is unavailable"""
 
     pass
+
+
+class ResailerNotExist(Exception):
+    """Resailer is not known."""
+
+    pass

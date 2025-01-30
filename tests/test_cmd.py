@@ -6,9 +6,9 @@ from smartbox.cmd import smartbox
 
 DEFAULT_ARGS = [
     "-a",
-    "api",
-    "-b",
-    "creds",
+    "test_api",
+    # "-b",
+    # "creds",
     "-u",
     "user",
     "-p",
@@ -17,13 +17,16 @@ DEFAULT_ARGS = [
 
 
 @pytest.mark.asyncio
-async def test_health_check(runner, async_smartbox_session):
+async def test_health_check(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result("")
+    mock_session.return_value.health_check.return_value = devices_future
+
     result = await runner.invoke(
         smartbox,
         [*DEFAULT_ARGS, "health-check"],
     )
     assert result.exit_code == 0
-    assert "" in result.output
     assert "" in result.output
 
 

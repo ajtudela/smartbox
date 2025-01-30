@@ -15,15 +15,16 @@ def _pretty_print(data):
 
 
 @click.group(chain=True)
-@click.option("-a", "--api-name", required=True, help="API name")
+@click.option("-a", "--api-name", required=False, help="API name")
 @click.option(
-    "-b", "--basic-auth-creds", required=True, help="API basic auth credentials"
+    "-b", "--basic-auth-creds", required=False, help="API basic auth credentials"
 )
 @click.option("-u", "--username", required=True, help="API username")
 @click.option("-p", "--password", required=True, help="API password")
 @click.option(
     "-v", "--verbose/--no-verbose", default=False, help="Enable verbose logging"
 )
+# TODO ici il faut ajouter de pouvoir mettre le serial_id et le x_referer
 @click.pass_context
 async def smartbox(ctx, api_name, basic_auth_creds, username, password, verbose):
     ctx.ensure_object(dict)
@@ -34,7 +35,11 @@ async def smartbox(ctx, api_name, basic_auth_creds, username, password, verbose)
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     session = AsyncSmartboxSession(
-        api_name, basic_auth_creds, username, password, websession=ClientSession()
+        api_name=api_name,
+        basic_auth_credentials=basic_auth_creds,
+        username=username,
+        password=password,
+        websession=ClientSession(),
     )
     ctx.obj["session"] = session
     ctx.obj["verbose"] = verbose

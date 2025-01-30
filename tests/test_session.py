@@ -13,6 +13,14 @@ from smartbox.session import (
     AsyncSession,
 )
 from tests.common import fake_get_request
+import pytest
+from aiohttp import ClientSession
+from smartbox.session import (
+    AsyncSession,
+    _DEFAULT_BACKOFF_FACTOR,
+    _DEFAULT_RETRY_ATTEMPTS,
+)
+from smartbox.resailer import AvailableResailers
 
 
 @pytest.mark.asyncio
@@ -502,7 +510,6 @@ async def test_async_session_init():
         x_referer=referer,
     )
 
-    assert session._api_name == api_name
     assert session.api_name == api_name
     assert session._api_host == f"https://{api_name}.helki.com"
     assert session._basic_auth_credentials == basic_auth_credentials
@@ -517,28 +524,27 @@ async def test_async_session_init():
 
 
 @pytest.mark.asyncio
-async def test_async_session_init_defaults():
+async def test_async_session_init_defaults(resailer):
     api_name = "test_api"
-    basic_auth_credentials = "test_credentials"
     username = "test_user"
     password = "test_password"
 
     session = AsyncSession(
         api_name=api_name,
-        basic_auth_credentials=basic_auth_credentials,
         username=username,
         password=password,
     )
 
-    assert session._api_name == api_name
+    assert session.api_name == api_name
     assert session._api_host == f"https://{api_name}.helki.com"
-    assert session._basic_auth_credentials == basic_auth_credentials
     assert session._retry_attempts == _DEFAULT_RETRY_ATTEMPTS
     assert session._backoff_factor == _DEFAULT_BACKOFF_FACTOR
     assert session._username == username
     assert session._password == password
     assert session._access_token is None
     assert session._client_session is None
+    assert "x-serialid" in session._headers
+    assert "x-referer" in session._headers
 
 
 @pytest.mark.asyncio
@@ -572,8 +578,10 @@ async def test_authentication_success(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "authorization": f"Basic {async_session.resailer.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
+                "x-referer": "http",
+                "x-serialid": "10",
             },
             data="grant_type=password&username=test_user&password=test_password",
         )
@@ -600,8 +608,10 @@ async def test_authentication_invalid_response(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "authorization": f"Basic {async_session.resailer.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
+                "x-serialid": f"{async_session.resailer.serial_id}",
+                "x-referer": f"{async_session.resailer.web_url}",
             },
             data="grant_type=password&username=test_user&password=test_password",
         )
@@ -628,8 +638,10 @@ async def test_authentication_client_response_error(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "authorization": f"Basic {async_session.resailer.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
+                "x-serialid": f"{async_session.resailer.serial_id}",
+                "x-referer": f"{async_session.resailer.web_url}",
             },
             data="grant_type=password&username=test_user&password=test_password",
         )
@@ -654,8 +666,10 @@ async def test_authentication_client_response_unavailable(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session._basic_auth_credentials}",
+                "authorization": f"Basic {async_session.resailer.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
+                "x-serialid": f"{async_session.resailer.serial_id}",
+                "x-referer": f"{async_session.resailer.web_url}",
             },
             data="grant_type=password&username=test_user&password=test_password",
         )

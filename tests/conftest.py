@@ -5,6 +5,7 @@ from asyncclick.testing import CliRunner
 
 from smartbox.session import AsyncSession, AsyncSmartboxSession, Session
 from smartbox.update_manager import UpdateManager
+from smartbox.resailer import SmartboxResailer
 from tests.common import fake_get_request
 
 
@@ -24,10 +25,9 @@ def update_manager(mock_session):
 
 
 @pytest.fixture
-def async_smartbox_session(mocker):
+def async_smartbox_session(mocker, resailer):
     async_smartbox_session = AsyncSmartboxSession(
         api_name="test_api",
-        basic_auth_credentials="test_credentials",
         username="test_user",
         password="test_password",
     )
@@ -45,25 +45,22 @@ def async_smartbox_session(mocker):
 
 
 @pytest.fixture
-def session():
+def session(resailer):
     return Session(
         api_name="test_api",
-        basic_auth_credentials="test_credentials",
         username="test_user",
         password="test_password",
     )
 
 
 @pytest.fixture
-def async_session():
+def async_session(resailer):
     api_name = "test_api"
-    basic_auth_credentials = "test_credentials"
     username = "test_user"
     password = "test_password"
 
     session = AsyncSession(
         api_name=api_name,
-        basic_auth_credentials=basic_auth_credentials,
         username=username,
         password=password,
     )
@@ -73,3 +70,32 @@ def async_session():
         side_effect=fake_get_request,
     ):
         yield session
+
+
+@pytest.fixture
+def person():
+    return SmartboxResailer(
+        name="test",
+        api_url="test_api",
+        basic_auth="test_credentials",
+        serial_id=10,
+        web_url="http",
+    )
+
+
+@pytest.fixture
+def resailer(mocker):
+    mock = mocker.patch(
+        "smartbox.resailer.AvailableResailers._resailers",
+        new_callable=mocker.PropertyMock,
+        return_value={
+            "test_api": SmartboxResailer(
+                name="test",
+                api_url="test_api",
+                basic_auth="test_credentials",
+                serial_id=10,
+                web_url="http",
+            )
+        },
+    )
+    yield mock

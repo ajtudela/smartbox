@@ -22,6 +22,7 @@ from smartbox.models import (
     DeviceAwayStatus,
     Token,
 )
+from smartbox.resailer import AvailableResailers, SmartboxResailer
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
@@ -33,19 +34,24 @@ _LOGGER = logging.getLogger(__name__)
 class AsyncSession:
     def __init__(
         self,
-        api_name: str,
-        basic_auth_credentials: str,
         username: str,
         password: str,
         websession: ClientSession | None = None,
         retry_attempts: int = _DEFAULT_RETRY_ATTEMPTS,
         backoff_factor: float = _DEFAULT_BACKOFF_FACTOR,
         raw_response: bool = True,
+        api_name: str | None = "api",
+        basic_auth_credentials: str | None = None,
         x_serial_id: int | None = None,
         x_referer: str | None = None,
     ):
-        self._api_name: str = api_name
-        self._api_host: str = f"https://{self._api_name}.helki.com"
+        self._resailer = AvailableResailers(
+            api_url=api_name,
+            basic_auth=basic_auth_credentials,
+            serial_id=x_serial_id,
+            web_url=x_referer,
+        ).resailer
+        self._api_host: str = f"https://{self.resailer.api_url}.helki.com"
         self._basic_auth_credentials: str = basic_auth_credentials
         self._retry_attempts: int = retry_attempts
         self._backoff_factor: float = backoff_factor
@@ -58,14 +64,18 @@ class AsyncSession:
             "Authorization": f"Bearer {self._access_token}",
             "Content-Type": "application/json",
         }
-        if x_serial_id:
-            self._headers["x-serialid"] = str(x_serial_id)
-        if x_referer:
-            self._headers["x-referer"] = x_referer
+        if self.resailer.serial_id:
+            self._headers.update({"x-serialid": str(self.resailer.serial_id)})
+        if self.resailer.web_url:
+            self._headers.update({"x-referer": self.resailer.web_url})
+
+    @property
+    def resailer(self) -> SmartboxResailer:
+        return self._resailer
 
     @property
     def api_name(self) -> str:
-        return self._api_name
+        return self.resailer.api_url
 
     @property
     def access_token(self) -> str:
@@ -101,7 +111,7 @@ class AsyncSession:
         del token_headers["Authorization"]
         token_headers.update(
             {
-                "authorization": f"Basic {self._basic_auth_credentials}",
+                "authorization": f"Basic {self.resailer.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
             }
         )
