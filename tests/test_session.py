@@ -933,3 +933,47 @@ async def test_api_post_client_response_error(async_session):
                 data=json.dumps(data),
                 headers=async_session._headers,
             )
+
+
+@pytest.mark.asyncio
+async def test_get_node_setup(async_smartbox_session):
+    for mock_device in await async_smartbox_session.get_devices():
+        mock_device_id = mock_device["dev_id"]
+        for mock_node in await async_smartbox_session.get_nodes(mock_device_id):
+
+            with patch.object(
+                async_smartbox_session, "_api_request", new_callable=AsyncMock
+            ) as mock_api_request:
+                url = f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/setup"
+                mock_api_request.return_value = await fake_get_request(
+                    mock_api_request, url
+                )
+
+                async_smartbox_session.raw_response = True
+                setup = await async_smartbox_session.get_node_setup(
+                    device_id=mock_device_id, node=mock_node
+                )
+                assert setup == mock_api_request.return_value
+                mock_api_request.assert_called_with(url)
+
+                async_smartbox_session.raw_response = False
+                setup_model = await async_smartbox_session.get_node_setup(
+                    device_id=mock_device_id, node=mock_node
+                )
+                assert setup_model.away_mode == setup["away_mode"]
+                async_smartbox_session.raw_response = True
+
+
+@pytest.mark.asyncio
+async def test_get_homes(async_smartbox_session):
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        url = "grouped_devs"
+        mock_api_request.return_value = await fake_get_request(mock_api_request, url)
+        homes = await async_smartbox_session.get_homes()
+        assert homes == mock_api_request.return_value
+        mock_api_request.assert_called_once_with(url)
+        async_smartbox_session.raw_response = False
+        homes_model = await async_smartbox_session.get_homes()
+        assert homes_model[0].name == homes[0]["name"]
