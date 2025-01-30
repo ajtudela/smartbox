@@ -204,7 +204,6 @@ class AsyncSmartboxSession(AsyncSession):
             return homes
         return [home.model_dump(mode="json") for home in homes]
 
-    # TODO voir ici si on fusionne et ce qu'on renvoit (brut ou model)
     async def get_grouped_devices(self) -> list[dict[str, Any]] | Homes:
         response = await self._api_request("grouped_devs")
         homes: Homes = Homes.model_validate(response)

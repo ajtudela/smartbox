@@ -977,3 +977,24 @@ async def test_get_homes(async_smartbox_session):
         async_smartbox_session.raw_response = False
         homes_model = await async_smartbox_session.get_homes()
         assert homes_model[0].name == homes[0]["name"]
+
+
+def test_session_get_status(session):
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "thermostat",
+        "installed": True,
+        "lost": False,
+    }
+
+    with patch.object(
+        session._async, "get_node_status", new_callable=AsyncMock
+    ) as mock_get_node_status:
+        mock_get_node_status.return_value = {"status": "active"}
+        status = session.get_status(device_id=mock_device_id, node=mock_node)
+        assert status == {"status": "active"}
+        mock_get_node_status.assert_called_once_with(
+            device_id=mock_device_id, node=mock_node
+        )
