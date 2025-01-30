@@ -1012,3 +1012,26 @@ def test_session_get_status(session):
         mock_get_node_status.assert_called_once_with(
             device_id=mock_device_id, node=mock_node
         )
+
+
+def test_client_with_existing_session():
+    mock_session = AsyncMock(spec=ClientSession)
+    async_smartbox_session = AsyncSession(
+        username="test_user",
+        password="test_password",
+        websession=mock_session,
+    )
+
+    client = async_smartbox_session.client
+    assert client == mock_session
+
+
+@pytest.mark.asyncio
+async def test_client_without_existing_session():
+    async_smartbox_session = AsyncSession(
+        username="test_user",
+        password="test_password",
+    )
+
+    client = async_smartbox_session.client
+    assert isinstance(client, ClientSession)
