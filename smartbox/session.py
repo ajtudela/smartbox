@@ -160,7 +160,7 @@ class AsyncSession:
                     "password": self._password,
                 }
             )
-        if (self._expires_at - datetime.datetime.now()) < datetime.timedelta(
+        elif (self._expires_at - datetime.datetime.now()) < datetime.timedelta(
             seconds=_MIN_TOKEN_LIFETIME
         ):
             await self._authentication(

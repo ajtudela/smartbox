@@ -1035,3 +1035,34 @@ async def test_client_without_existing_session():
 
     client = async_smartbox_session.client
     assert isinstance(client, ClientSession)
+
+
+@pytest.mark.asyncio
+async def test_check_refresh_auth_no_access_token(async_session):
+    async_session._access_token = None
+
+    with patch.object(
+        async_session, "_authentication", new_callable=AsyncMock
+    ) as mock_authentication:
+        await async_session.check_refresh_auth()
+        mock_authentication.assert_called_once_with(
+            {
+                "grant_type": "password",
+                "username": async_session._username,
+                "password": async_session._password,
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_check_refresh_auth_token_valid(async_session):
+    async_session._access_token = "test_access_token"
+    async_session._expires_at = datetime.datetime.now() + datetime.timedelta(
+        seconds=3600
+    )
+
+    with patch.object(
+        async_session, "_authentication", new_callable=AsyncMock
+    ) as mock_authentication:
+        await async_session.check_refresh_auth()
+        mock_authentication.assert_not_called()
