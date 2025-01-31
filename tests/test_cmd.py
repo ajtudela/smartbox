@@ -7,8 +7,6 @@ from smartbox.cmd import smartbox
 DEFAULT_ARGS = [
     "-a",
     "test_api",
-    # "-b",
-    # "creds",
     "-u",
     "user",
     "-p",
@@ -287,3 +285,22 @@ async def test_node_samples(runner, mock_session):
         1609459200,
         1609462800,
     )
+
+
+@pytest.mark.asyncio
+async def test_resailers(runner, mocker):
+    mock_resailers = mocker.patch("smartbox.cmd.AvailableResailers.resailers")
+    mock_resailers.items.return_value = [
+        ("resailer1", "details1"),
+        ("resailer2", "details2"),
+    ]
+
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "resailers"],
+    )
+    assert result.exit_code == 0
+    assert "resailer1" in result.output
+    assert "details1" in result.output
+    assert "resailer2" in result.output
+    assert "details2" in result.output

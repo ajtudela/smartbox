@@ -6,6 +6,7 @@ from aiohttp import ClientSession
 
 from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
+from smartbox.resailer import AvailableResailers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,9 +25,12 @@ def _pretty_print(data):
 @click.option(
     "-v", "--verbose/--no-verbose", default=False, help="Enable verbose logging"
 )
-# TODO ici il faut ajouter de pouvoir mettre le serial_id et le x_referer
+@click.option("-r", "--x-referer", required=False, help="Refere of API")
+@click.option("-i", "--x-serial-id", required=False, help="Serial id of API")
 @click.pass_context
-async def smartbox(ctx, api_name, basic_auth_creds, username, password, verbose):
+async def smartbox(
+    ctx, api_name, basic_auth_creds, username, password, verbose, x_serial_id, x_referer
+):
     ctx.ensure_object(dict)
     logging.basicConfig(
         format="%(asctime)s %(levelname)-8s "
@@ -40,6 +44,8 @@ async def smartbox(ctx, api_name, basic_auth_creds, username, password, verbose)
         username=username,
         password=password,
         websession=ClientSession(),
+        x_referer=x_referer,
+        x_serial_id=x_serial_id,
     )
     ctx.obj["session"] = session
     ctx.obj["verbose"] = verbose
@@ -277,6 +283,13 @@ async def health_check(ctx):
     session = ctx.obj["session"]
     health = await session.health_check()
     _pretty_print(health)
+
+
+@smartbox.command(help="Get status of the API")
+@click.pass_context
+def resailers(ctx):
+    for item in AvailableResailers.resailers.items():
+        print(item)
 
 
 # For debuggging

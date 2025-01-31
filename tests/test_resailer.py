@@ -30,3 +30,15 @@ def test_available_resailers_custom_resailer():
     assert resailer.basic_auth == "custom-auth"
     assert resailer.web_url == "https://custom-url.com"
     assert resailer.serial_id == 99
+
+
+def test_available_resailer():
+    resailer = AvailableResailers(
+        api_url="custom-api",
+        basic_auth="custom-auth",
+        web_url="https://custom-url.com",
+        name="Custom",
+    )
+    assert resailer.name == "Custom"
+    assert resailer.api_url == "custom-api"
+    assert resailer.web_url == "https://custom-url.com"

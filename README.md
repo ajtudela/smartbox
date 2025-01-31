@@ -2,8 +2,6 @@
 
 Python API to control heating Haverland 'smart boxes'
 
-**NOTE**: The initial version of this integration was made by [graham33](https://github.com/graham33) but it was not maintained. I have taken over the project and will try to keep it up to date.
-
 ## Installation
 
 Install using pip from [PyPI](https://pypi.python.org/pypi/smartbox/):
@@ -11,22 +9,31 @@ Install using pip from [PyPI](https://pypi.python.org/pypi/smartbox/):
     pip install smartbox
 
 ## `smartbox` Command Line Tool
+### Mandatory options
 You can use the `smartbox` tool to get status information from your heaters
 (nodes) and change settings.
 
 A few common options are required for all commands:
- * `-a`/`--api-name`: The API name for your heater vendor. This is visible in
-  the 'API Host' entry in the 'Version' menu item in the mobile app/web app. If
-  the host name is of the form `api-foo.xxxx` or `api.xxxx` use the values
-  `api-foo` or `api` respectively.
 * `-u`/`--username`: Your username as used for the mobile app/web app.
 * `-p`/`--password`: Your password as used for the mobile app/web app.
-* `-b`/`--base-auth-creds`: An HTTP Basic Auth credential used to do initial
-  authentication with the server. Use the base64 encoded string directly. See
-  'Basic Auth Credential' section below for more details.
+
 
 Verbose logging can be enabled with the `-v`/`--verbose` flag.
 
+### Optionnal options
+Theses options are usefull if your resailer is not configured.
+
+* `-b`/`--base-auth-creds`: An HTTP Basic Auth credential used to do initial
+  authentication with the server. Use the base64 encoded string directly. See
+  'Basic Auth Credential' section below for more details.
+* `-a`/`--api-name`: The API name for your heater vendor. This is visible in
+  the 'API Host' entry in the 'Version' menu item in the mobile app/web app. If
+  the host name is of the form `api-foo.xxxx` or `api.xxxx` use the values
+  `api-foo` or `api` respectively. The resailer has to be declared in the package.
+* `-r`/`--x-referer`: The referer of your request.
+* `-i`/`--x-serial-id`: The serial-id of your request.
+
+## Availables commands
 ### Listing smartbox devices
 
     smartbox <auth options...> devices
@@ -58,6 +65,12 @@ node.
 
     smartbox <auth options...> set-setup <-d/--device-id> <device id> <-n/--node-addr> <node> <name>=<value> [<name>=<value> ...]
 
+### Setting node samples
+
+The `node-samples` command can be used to get the historical data (temperature and consumption) of a node.
+
+    smartbox <auth options...> node-samples <-d/--device-id> <device id> <-n/--node-addr> <node> <-s/--start-time> <start time>  <-e/--end-time> <end time>
+
 ### Getting device away status
 The `device-away-status` command lists the away status across all devices.
 
@@ -81,11 +94,17 @@ watts) on a particular device.
 
     smartbox <auth options...> set-device-power-limit <-d/--device-id> <device id> <limit>
 
-## Basic Auth Credential
-Initial authentication to the smartbox REST API is protected by HTTP Basic Auth,
-in addition to the user's username and password which are then used to obtain an
-access token. In order not to undermine the security layer it provides, and also
-because it might change over time or vary between implementations, **the token
-is not provided here and system owners need to find it themselves**.
+
+### Health check
+The `health-check` command can be used to know if the API is alived
+
+    smartbox <auth options...> health-check
+
+### List available resailers
+The `resailers` command can be used to know which resailershas an automatic configuration.
+If your resailer is not present you can raise an issue in github, or use the optionnal options.
+
+    smartbox <auth options...> resailers
+
 
 See [api-notes.md](./api-notes.md) for notes on REST and socket.io endpoints.
