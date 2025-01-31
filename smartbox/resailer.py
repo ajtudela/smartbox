@@ -17,10 +17,6 @@ class SmartboxResailer(BaseModel):
 
 class AvailableResailers(object):
     resailers: dict[str, SmartboxResailer] = {
-        "api": SmartboxResailer(
-            name="Smartbox",
-            api_url="api",
-        ),
         "api-helki": SmartboxResailer(
             name="Helki",
             web_url="https://app.helki.com/",
@@ -57,6 +53,10 @@ class AvailableResailers(object):
             web_url="https://ttiapp.technotherm.com/",
             api_url="api-lhz",
             serial_id=16,
+        ),
+        "api": SmartboxResailer(
+            name="Smartbox",
+            api_url="api",
         ),
     }
 
