@@ -86,7 +86,7 @@ def person():
 @pytest.fixture
 def resailer(mocker):
     mock = mocker.patch(
-        "smartbox.resailer.AvailableResailers._resailers",
+        "smartbox.resailer.AvailableResailers.resailers",
         new_callable=mocker.PropertyMock,
         return_value={
             "test_api": SmartboxResailer(

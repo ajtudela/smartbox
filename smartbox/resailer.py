@@ -68,7 +68,7 @@ class AvailableResailers(object):
         serial_id: str | None = None,
         name: str = "Smartbox",
     ) -> SmartboxResailer:
-        resailer = self._resailers.get(api_url, None)
+        resailer = self.resailers.get(api_url, None)
         if resailer is None:
             try:
                 resailer = SmartboxResailer(
