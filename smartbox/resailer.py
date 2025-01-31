@@ -85,3 +85,7 @@ class AvailableResailers(object):
     @property
     def resailer(self) -> SmartboxResailer:
         return self._resailer
+
+    @property
+    def resailers(self) -> dict[str, SmartboxResailer]:
+        return self._resailers
