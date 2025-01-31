@@ -85,3 +85,15 @@ class AvailableResailers(object):
     @property
     def resailer(self) -> SmartboxResailer:
         return self._resailer
+
+    @property
+    def api_url(self) -> str:
+        return self._resailer.api_url
+
+    @property
+    def name(self) -> str:
+        return self._resailer.name
+
+    @property
+    def web_url(self) -> str:
+        return self._resailer.web_url
