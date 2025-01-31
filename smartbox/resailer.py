@@ -16,7 +16,7 @@ class SmartboxResailer(BaseModel):
 
 
 class AvailableResailers(object):
-    _resailers: dict[str, SmartboxResailer] = {
+    resailers: dict[str, SmartboxResailer] = {
         "api": SmartboxResailer(
             name="Smartbox",
             api_url="api",
@@ -85,7 +85,3 @@ class AvailableResailers(object):
     @property
     def resailer(self) -> SmartboxResailer:
         return self._resailer
-
-    @property
-    def resailers(self) -> dict[str, SmartboxResailer]:
-        return self._resailers
