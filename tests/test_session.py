@@ -7,6 +7,7 @@ from aiohttp import ClientSession
 import pytest
 
 from smartbox import APIUnavailableError, InvalidAuthError, SmartboxError
+from smartbox.models import NodeSetup
 from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
     _DEFAULT_RETRY_ATTEMPTS,
@@ -551,12 +552,57 @@ async def test_set_node_setup(async_smartbox_session):
             node=mock_node,
             setup_args=setup_args,
         )
-
         assert result is None
         mock_api_post.assert_called_once_with(
             data={"setting1": "value1", "setting2": "value2"},
             path=f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/setup",
         )
+        data = {
+            "sync_status": "synced",
+            "control_mode": 1,
+            "units": "C",
+            "power": "on",
+            "offset": "0.5",
+            "away_mode": 0,
+            "away_offset": "1.0",
+            "modified_auto_span": 10,
+            "window_mode_enabled": True,
+            "true_radiant_enabled": True,
+            "user_duty_factor": 5,
+            "flash_version": "1.0.0",
+            "factory_options": {
+                "temp_compensation_enabled": True,
+                "window_mode_available": True,
+                "true_radiant_available": True,
+                "duty_limit": 10,
+                "boost_config": 1,
+                "button_double_press": True,
+                "prog_resolution": 5,
+                "bbc_value": 2,
+                "bbc_available": True,
+                "lst_value": 3,
+                "lst_available": True,
+                "fil_pilote_available": True,
+                "backlight_time": 30,
+                "button_down_code": 1,
+                "button_up_code": 2,
+                "button_mode_code": 3,
+                "button_prog_code": 4,
+                "button_off_code": 5,
+                "button_boost_code": 6,
+                "splash_screen_type": 1,
+            },
+            "extra_options": {"boost_temp": "22.5", "boost_time": 60},
+        }
+        setup = NodeSetup(**data)
+        mock_get_node_setup.return_value = setup
+
+        result = await async_smartbox_session.set_node_setup(
+            device_id=mock_device_id,
+            node=mock_node,
+            setup_args=setup_args,
+        )
+        assert result is None
 
 
 def test_session_set_node_setup(session):
@@ -617,7 +663,7 @@ async def test_async_session_init():
     )
 
     assert session.api_name == api_name
-    assert session._api_host == f"https://{api_name}.helki.com"
+    assert session.api_host == f"https://{api_name}.helki.com"
     assert session._basic_auth_credentials == basic_auth_credentials
     assert session._retry_attempts == retry_attempts
     assert session._backoff_factor == backoff_factor

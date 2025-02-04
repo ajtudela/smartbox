@@ -317,3 +317,31 @@ async def test_setup(runner, mock_session):
     mock_session.return_value.get_node_setup.assert_called_once_with(
         "1", {"name": "Node1", "addr": 1}
     )
+
+
+@pytest.mark.anyio
+async def test_set_device_power_limit(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    set_power_limit_future = asyncio.Future()
+    set_power_limit_future.set_result(None)
+    mock_session.return_value.set_device_power_limit.return_value = (
+        set_power_limit_future
+    )
+
+    result = await runner.invoke(
+        smartbox,
+        [
+            *DEFAULT_ARGS,
+            "set-device-power-limit",
+            "-d",
+            "1",
+            "100",
+        ],
+    )
+    assert result.exit_code == 0
+    mock_session.return_value.set_device_power_limit.assert_called_once_with(
+        "1", 100
+    )
