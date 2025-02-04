@@ -119,7 +119,7 @@ class UpdateManager:
             device_id,
             self._dev_data_cb,
             self._update_cb,
-            **kwargs,
+            **kwargs,  # type: ignore[arg-type]
         )
         self._dev_data_subscriptions: list[DevDataSubscription] = []
         self._update_subscriptions: list[UpdateSubscription] = []
@@ -185,7 +185,7 @@ class UpdateManager:
         """Subscribe to node status updates."""
 
         def dev_data_wrapper(data: dict[str, Any]) -> None:
-            (callback(data["type"], int(data["addr"]), data["status"]),)
+            (callback(data["type"], int(data["addr"]), data["status"]),)  # type: ignore[func-returns-value]
 
         self.subscribe_to_dev_data(
             "(.nodes[] | {addr, type, status})?",
@@ -197,7 +197,7 @@ class UpdateManager:
             node_type: str,
             addr: str,
         ) -> None:
-            (callback(node_type, int(addr), data),)
+            (callback(node_type, int(addr), data),)  # type: ignore[func-returns-value]
 
         self.subscribe_to_updates(
             r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/status",
@@ -212,7 +212,7 @@ class UpdateManager:
         """Subscribe to node setup updates."""
 
         def dev_data_wrapper(data: dict[str, Any]) -> None:
-            (callback(data["type"], int(data["addr"]), data["setup"]),)
+            (callback(data["type"], int(data["addr"]), data["setup"]),)  # type: ignore[func-returns-value]
 
         self.subscribe_to_dev_data(
             "(.nodes[] | {addr, type, setup})?",
@@ -224,7 +224,7 @@ class UpdateManager:
             node_type: str,
             addr: str,
         ) -> None:
-            (callback(node_type, int(addr), data),)
+            (callback(node_type, int(addr), data),)  # type: ignore[func-returns-value]
 
         self.subscribe_to_updates(
             r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/setup",

@@ -46,7 +46,7 @@ class AsyncSession:
         retry_attempts: int = _DEFAULT_RETRY_ATTEMPTS,
         backoff_factor: float = _DEFAULT_BACKOFF_FACTOR,
         raw_response: bool = True,
-        api_name: str | None = "api",
+        api_name: str = "api",
         basic_auth_credentials: str | None = None,
         x_serial_id: int | None = None,
         x_referer: str | None = None,
@@ -59,12 +59,12 @@ class AsyncSession:
             web_url=x_referer,
         ).resailer
         self._api_host: str = f"https://{self.resailer.api_url}.helki.com"
-        self._basic_auth_credentials: str = basic_auth_credentials
+        self._basic_auth_credentials: str | None = basic_auth_credentials
         self._retry_attempts: int = retry_attempts
         self._backoff_factor: float = backoff_factor
         self._username: str = username
         self._password: str = password
-        self._access_token: str | None = None
+        self._access_token: str = ""
         self._client_session: ClientSession | None = websession
         self.raw_response: bool = raw_response
         self._headers: dict[str, str] = {
@@ -145,36 +145,35 @@ class AsyncSession:
             raise APIUnavailableError from e
         except aiohttp.ClientResponseError as e:
             raise InvalidAuthError from e
-        r = await response.json()
         try:
-            r: Token = Token.model_validate(r)
+            rtoken: Token = Token.model_validate(await response.json())
+            self._access_token = rtoken.access_token
+            self._headers["Authorization"] = f"Bearer {self._access_token}"
+            self._refresh_token = rtoken.refresh_token
+            if rtoken.expires_in < _MIN_TOKEN_LIFETIME:
+                _LOGGER.warning(
+                    "Token expires in %ss which is below minimum lifetime of %ss- will refresh again on next operation",
+                    rtoken.expires_in,
+                    _MIN_TOKEN_LIFETIME,
+                )
+            self._expires_at = datetime.datetime.now(
+                datetime.UTC
+            ) + datetime.timedelta(
+                seconds=rtoken.expires_in,
+            )
+            _LOGGER.debug(
+                "Authenticated session (%s), access_token=%s, expires at %s",
+                credentials["grant_type"],
+                self.access_token,
+                self.expiry_time,
+            )
         except ValidationError as e:
             msg = "Received invalid auth response"
             raise SmartboxError(msg) from e
-        self._access_token = r.access_token
-        self._headers["Authorization"] = f"Bearer {self._access_token}"
-        self._refresh_token = r.refresh_token
-        if r.expires_in < _MIN_TOKEN_LIFETIME:
-            _LOGGER.warning(
-                "Token expires in %ss which is below minimum lifetime of %ss- will refresh again on next operation",
-                r.expires_in,
-                _MIN_TOKEN_LIFETIME,
-            )
-        self._expires_at = datetime.datetime.now(
-            tz=datetime.UTC,
-        ) + datetime.timedelta(
-            seconds=r.expires_in,
-        )
-        _LOGGER.debug(
-            "Authenticated session (%s), access_token=%s, expires at %s",
-            credentials["grant_type"],
-            self.access_token,
-            self.expiry_time,
-        )
 
     async def check_refresh_auth(self) -> None:
         """Do we have to refresh auth."""
-        if self._access_token is None:
+        if self._access_token == "":
             await self._authentication(
                 {
                     "grant_type": "password",
@@ -183,7 +182,7 @@ class AsyncSession:
                 },
             )
         elif (
-            self._expires_at - datetime.datetime.now(tz=datetime.UTC)
+            self._expires_at - datetime.datetime.now(datetime.UTC)
         ) < datetime.timedelta(seconds=_MIN_TOKEN_LIFETIME):
             await self._authentication(
                 {
@@ -257,8 +256,7 @@ class AsyncSmartboxSession(AsyncSession):
         homes: Homes = Homes.model_validate(response)
         if self.raw_response is False:
             return homes
-        homes = list(homes.root)
-        return [home.model_dump(mode="json") for home in homes]
+        return [home.model_dump(mode="json") for home in homes.root]
 
     async def get_nodes(
         self,
@@ -330,10 +328,10 @@ class AsyncSmartboxSession(AsyncSession):
             datetime.datetime.fromtimestamp(start_time, tz=datetime.UTC),
             datetime.datetime.fromtimestamp(end_time, tz=datetime.UTC),
         )
-        node: Node = Node.model_validate(node)
+        _node: Node = Node.model_validate(node)
         samples = Samples.model_validate(
             await self._api_request(
-                f"devs/{device_id}/{node.type}/{node.addr}/samples?start={start_time}&end={end_time}",
+                f"devs/{device_id}/{_node.type}/{_node.addr}/samples?start={start_time}&end={end_time}",
             ),
         )
         if self.raw_response is False:
@@ -346,14 +344,14 @@ class AsyncSmartboxSession(AsyncSession):
         node: dict[str, Any],
     ) -> dict[str, str] | NodeStatus:
         """Get a node status."""
-        node: Node = Node.model_validate(node)
+        _node: Node = Node.model_validate(node)
         response = await self._api_request(
-            f"devs/{device_id}/{node.type}/{node.addr}/status",
+            f"devs/{device_id}/{_node.type}/{_node.addr}/status",
         )
-        response = NodeStatus.model_validate(response)
+        status = NodeStatus.model_validate(response)
         if self.raw_response is False:
-            return response
-        return response.model_dump(mode="json")
+            return status
+        return status.model_dump(mode="json")
 
     async def set_node_status(
         self,
@@ -362,14 +360,14 @@ class AsyncSmartboxSession(AsyncSession):
         status_args: dict[str, Any],
     ) -> None:
         """Set a node status."""
-        node: Node = Node.model_validate(node)
+        _node: Node = Node.model_validate(node)
         data = {k: v for k, v in status_args.items() if v is not None}
         if "stemp" in data and "units" not in data:
             msg = "Must supply unit with temperature fields"
             raise ValueError(msg)
         await self._api_post(
             data=data,
-            path=f"devs/{device_id}/{node.type}/{node.addr}/status",
+            path=f"devs/{device_id}/{_node.type}/{_node.addr}/status",
         )
 
     async def get_node_setup(
@@ -378,14 +376,14 @@ class AsyncSmartboxSession(AsyncSession):
         node: dict[str, Any],
     ) -> dict[str, Any] | NodeSetup:
         """Get a node setup."""
-        node: Node = Node.model_validate(node)
+        _node: Node = Node.model_validate(node)
         response = await self._api_request(
-            f"devs/{device_id}/{node.type}/{node.addr}/setup",
+            f"devs/{device_id}/{_node.type}/{_node.addr}/setup",
         )
-        response = NodeSetup.model_validate(response)
+        setup = NodeSetup.model_validate(response)
         if self.raw_response is False:
-            return response
-        return response.model_dump(mode="json")
+            return setup
+        return setup.model_dump(mode="json")
 
     async def set_node_setup(
         self,
@@ -394,15 +392,17 @@ class AsyncSmartboxSession(AsyncSession):
         setup_args: dict[str, Any],
     ) -> None:
         """Set a node setup."""
-        node: Node = Node.model_validate(node)
+        _node: Node = Node.model_validate(node)
         data = {k: v for k, v in setup_args.items() if v is not None}
         # setup seems to require all settings to be re-posted, so get current
         # values and update
         setup_data = await self.get_node_setup(device_id, node)
+        if isinstance(setup_data, NodeSetup):
+            setup_data = setup_data.model_dump(mode="json")
         setup_data.update(data)
         await self._api_post(
             data=setup_data,
-            path=f"devs/{device_id}/{node.type}/{node.addr}/setup",
+            path=f"devs/{device_id}/{_node.type}/{_node.addr}/setup",
         )
 
 
@@ -411,23 +411,23 @@ class Session:
 
     def __init__(self, *args: int, **kwargs: dict[str, object]) -> None:
         """Sync init a session."""
-        self._async = AsyncSmartboxSession(*args, **kwargs)
+        self._async = AsyncSmartboxSession(*args, **kwargs)  # type: ignore[arg-type]
 
     def get_devices(self) -> list[dict[str, Any]]:
         """Sync get all devices."""
-        return asyncio.run(self._async.get_devices())
+        return asyncio.run(self._async.get_devices())  # type: ignore[arg-type]
 
     def get_homes(self) -> list[dict[str, Any]]:
         """Sync get homes."""
-        return asyncio.run(self._async.get_homes())
+        return asyncio.run(self._async.get_homes())  # type: ignore[arg-type]
 
     def get_grouped_devices(self) -> list[dict[str, Any]]:
         """Sync get grouped devices."""
-        return asyncio.run(self._async.get_grouped_devices())
+        return asyncio.run(self._async.get_grouped_devices())  # type: ignore[arg-type]
 
     def get_nodes(self, device_id: str) -> list[dict[str, Any]]:
         """Sync get nodes of device."""
-        return asyncio.run(self._async.get_nodes(device_id=device_id))
+        return asyncio.run(self._async.get_nodes(device_id=device_id))  # type: ignore[arg-type]
 
     def get_status(
         self,
@@ -436,7 +436,7 @@ class Session:
     ) -> dict[str, str]:
         """Sync get the status of a node."""
         return asyncio.run(
-            self._async.get_node_status(device_id=device_id, node=node),
+            self._async.get_node_status(device_id=device_id, node=node),  # type: ignore[arg-type]
         )
 
     def set_status(
@@ -447,7 +447,7 @@ class Session:
     ) -> dict[str, Any]:
         """Sync set the node status."""
         return asyncio.run(
-            self._async.set_node_status(
+            self._async.set_node_status(  # type: ignore[arg-type]
                 device_id=device_id,
                 node=node,
                 status_args=status_args,
@@ -457,7 +457,7 @@ class Session:
     def get_setup(self, device_id: str, node: dict[str, Any]) -> dict[str, Any]:
         """Sync get the node setup."""
         return asyncio.run(
-            self._async.get_node_setup(device_id=device_id, node=node),
+            self._async.get_node_setup(device_id=device_id, node=node),  # type: ignore[arg-type]
         )
 
     def set_setup(
@@ -468,7 +468,7 @@ class Session:
     ) -> dict[str, Any]:
         """Sync set the node setup."""
         return asyncio.run(
-            self._async.set_node_setup(
+            self._async.set_node_setup(  # type: ignore[arg-type]
                 device_id=device_id,
                 node=node,
                 setup_args=setup_args,
@@ -478,7 +478,7 @@ class Session:
     def get_device_away_status(self, device_id: str) -> dict[str, Any]:
         """Sync get the device away status."""
         return asyncio.run(
-            self._async.get_device_away_status(device_id=device_id),
+            self._async.get_device_away_status(device_id=device_id),  # type: ignore[arg-type]
         )
 
     def set_device_away_status(
@@ -488,7 +488,7 @@ class Session:
     ) -> dict[str, Any]:
         """Sync set the device away status."""
         return asyncio.run(
-            self._async.set_device_away_status(
+            self._async.set_device_away_status(  # type: ignore[arg-type]
                 device_id=device_id,
                 status_args=status_args,
             ),
@@ -497,13 +497,13 @@ class Session:
     def get_device_power_limit(self, device_id: str) -> int:
         """Get the device power limit."""
         return asyncio.run(
-            self._async.get_device_power_limit(device_id=device_id),
+            self._async.get_device_power_limit(device_id=device_id),  # type: ignore[arg-type]
         )
 
     def set_device_power_limit(self, device_id: str, power_limit: int) -> None:
         """Sync set of a device power limit."""
         return asyncio.run(
-            self._async.set_device_power_limit(
+            self._async.set_device_power_limit(  # type: ignore[arg-type]
                 device_id=device_id,
                 power_limit=power_limit,
             ),

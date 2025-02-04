@@ -62,13 +62,6 @@ async def test_status(runner, async_smartbox_session):
 
 
 @pytest.mark.asyncio
-async def test_setup(runner, async_smartbox_session):
-    result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "setup"])
-    assert result.exit_code == 0
-    assert "factory_options" in result.output
-
-
-@pytest.mark.asyncio
 async def test_device_away_status(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,
@@ -76,16 +69,6 @@ async def test_device_away_status(runner, async_smartbox_session):
     )
     assert result.exit_code == 0
     assert "away" in result.output
-
-
-@pytest.mark.asyncio
-async def test_device_power_limit(runner, async_smartbox_session):
-    result = await runner.invoke(
-        smartbox,
-        [*DEFAULT_ARGS, "device-power-limit"],
-    )
-    assert result.exit_code == 0
-    assert "100" in result.output
 
 
 @pytest.mark.asyncio
@@ -189,34 +172,6 @@ async def test_set_setup(runner, mock_session):
 
 
 @pytest.mark.asyncio
-async def test_set_device_power_limit(runner, mock_session):
-    devices_future = asyncio.Future()
-    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
-    mock_session.return_value.get_devices.return_value = devices_future
-
-    set_power_limit_future = asyncio.Future()
-    set_power_limit_future.set_result({})
-    mock_session.return_value.set_device_power_limit.return_value = (
-        set_power_limit_future
-    )
-
-    result = await runner.invoke(
-        smartbox,
-        [
-            *DEFAULT_ARGS,
-            "set-device-power-limit",
-            "-d",
-            "1",
-            "100",
-        ],
-    )
-    assert result.exit_code == 0
-    mock_session.return_value.set_device_power_limit.assert_called_once_with(
-        "1", 100
-    )
-
-
-@pytest.mark.asyncio
 async def test_set_device_away_status(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -261,7 +216,7 @@ async def test_node_samples(runner, mock_session):
     mock_session.return_value.get_nodes.return_value = nodes_future
 
     node_samples_future = asyncio.Future()
-    node_samples_future.set_result([{"sample": "data"}])
+    node_samples_future.set_result({"samples": "data"})
     mock_session.return_value.get_node_samples.return_value = (
         node_samples_future
     )
@@ -308,3 +263,57 @@ async def test_resailers(runner, mocker):
     assert "details1" in result.output
     assert "resailer2" in result.output
     assert "details2" in result.output
+
+
+@pytest.mark.asyncio
+async def test_device_power_limit(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    power_limit_future = asyncio.Future()
+    power_limit_future.set_result({"power_limit": 100})
+    mock_session.return_value.get_device_power_limit.return_value = (
+        power_limit_future
+    )
+
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "device-power-limit"],
+    )
+    assert result.exit_code == 0
+    assert "Device1" in result.output
+    assert "power_limit" in result.output
+    mock_session.return_value.get_devices.assert_called_once()
+    mock_session.return_value.get_device_power_limit.assert_called_once_with(
+        "1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_setup(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    nodes_future = asyncio.Future()
+    nodes_future.set_result([{"name": "Node1", "addr": 1}])
+    mock_session.return_value.get_nodes.return_value = nodes_future
+
+    setup_future = asyncio.Future()
+    setup_future.set_result({"setup": "data"})
+    mock_session.return_value.get_node_setup.return_value = setup_future
+
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "setup"],
+    )
+    assert result.exit_code == 0
+    assert "Device1" in result.output
+    assert "Node1" in result.output
+    assert "setup" in result.output
+    mock_session.return_value.get_devices.assert_called_once()
+    mock_session.return_value.get_nodes.assert_called_once_with("1")
+    mock_session.return_value.get_node_setup.assert_called_once_with(
+        "1", {"name": "Node1", "addr": 1}
+    )

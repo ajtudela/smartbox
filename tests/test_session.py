@@ -681,9 +681,7 @@ async def test_authentication_success(async_session):
         assert async_session.access_token == "test_access_token"
         assert async_session._refresh_token == "test_refresh_token"
         assert async_session.refresh_token == "test_refresh_token"
-        assert async_session._expires_at > datetime.datetime.now(
-            tz=datetime.UTC,
-        )
+        assert async_session._expires_at > datetime.datetime.now(datetime.UTC)
 
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
@@ -1021,7 +1019,7 @@ async def test_api_post_check_refresh_auth_called(async_session):
 async def test_check_refresh_auth_token_expired(async_session):
     async_session._access_token = "test_access_token"
     async_session._expires_at = datetime.datetime.now(
-        tz=datetime.UTC,
+        datetime.UTC
     ) - datetime.timedelta(
         seconds=10,
     )
@@ -1262,7 +1260,7 @@ async def test_check_refresh_auth_no_access_token(async_session):
 async def test_check_refresh_auth_token_valid(async_session):
     async_session._access_token = "test_access_token"
     async_session._expires_at = datetime.datetime.now(
-        tz=datetime.UTC,
+        datetime.UTC
     ) + datetime.timedelta(seconds=3600)
 
     with patch.object(

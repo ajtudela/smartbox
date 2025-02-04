@@ -71,8 +71,10 @@ module = [
     "jq",
     "test",
     "socketio",
+    "asyncio",
 ]
 ignore_missing_imports = true
+disable_error_code = ["arg-type"]
 
 [tool.ruff]
 target-version = "py312"
@@ -126,5 +128,6 @@ max-complexity = 25
     "SLF001",
     "S106",
     "PLR2004",
+    "B018",
 ]
 "src/smartbox/cmd.py" = ["T201","ANN001"]

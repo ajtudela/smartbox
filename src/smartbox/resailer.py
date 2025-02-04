@@ -16,7 +16,7 @@ class SmartboxResailer(BaseModel):
     web_url: str = ""
     api_url: str
     basic_auth: str = SMARTBOX_GENERIC_BASIC_AUTH
-    serial_id: int | None = None
+    serial_id: int = 0
 
 
 class AvailableResailers:
@@ -71,40 +71,51 @@ class AvailableResailers:
         api_url: str,
         basic_auth: str | None = None,
         web_url: str | None = None,
-        serial_id: str | None = None,
+        serial_id: int | None = None,
         name: str = "Smartbox",
-    ) -> SmartboxResailer:
+    ) -> None:
         """Check if resailer is already available or try to create one."""
-        resailer = self.resailers.get(api_url, None)
-        if resailer is None:
-            try:
-                resailer = SmartboxResailer(
-                    api_url=api_url,
-                    basic_auth=basic_auth,
-                    web_url=web_url,
-                    serial_id=serial_id,
-                    name=name,
-                )
-            except ValidationError as e:
-                raise ResailerNotExistError from e
-        self._resailer = resailer
+        self._api_url = api_url
+        self._basic_auth = basic_auth
+        self._web_url = web_url
+        self._serial_id = serial_id
+        self._name = name
 
     @property
     def resailer(self) -> SmartboxResailer:
         """Get the resailer."""
-        return self._resailer
+        resailer = self.resailers.get(self._api_url, None)
+        if resailer is None:
+            if (
+                self._basic_auth is None
+                or self._web_url is None
+                or self._serial_id is None
+            ):
+                msg = "This Resailer is not yet available or some arguments are missing."
+                raise ResailerNotExistError(msg)
+            try:
+                resailer = SmartboxResailer(
+                    api_url=self._api_url,
+                    basic_auth=self._basic_auth,
+                    web_url=self._web_url,
+                    serial_id=self._serial_id,
+                    name=self._name,
+                )
+            except ValidationError as e:
+                raise ResailerNotExistError from e
+        return resailer
 
     @property
     def api_url(self) -> str:
         """Get the api sub domain url."""
-        return self._resailer.api_url
+        return self.resailer.api_url
 
     @property
     def name(self) -> str:
         """Get the name of resailer."""
-        return self._resailer.name
+        return self.resailer.name
 
     @property
     def web_url(self) -> str:
         """Get the public websit of the resailer."""
-        return self._resailer.web_url
+        return self.resailer.web_url
