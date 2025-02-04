@@ -623,7 +623,7 @@ async def test_async_session_init():
     assert session._backoff_factor == backoff_factor
     assert session._username == username
     assert session._password == password
-    assert session._access_token is None
+    assert session._access_token == ""
     assert session._client_session == websession
     assert session._headers["x-serialid"] == str(serial_id)
     assert session._headers["x-referer"] == referer
@@ -647,7 +647,7 @@ async def test_async_session_init_defaults(resailer):
     assert session._backoff_factor == _DEFAULT_BACKOFF_FACTOR
     assert session._username == username
     assert session._password == password
-    assert session._access_token is None
+    assert session._access_token == ""
     assert session._client_session is None
     assert "x-serialid" in session._headers
     assert "x-referer" in session._headers
@@ -1239,7 +1239,7 @@ async def test_client_without_existing_session():
 
 @pytest.mark.asyncio
 async def test_check_refresh_auth_no_access_token(async_session):
-    async_session._access_token = None
+    async_session._access_token = ""
 
     with patch.object(
         async_session,
