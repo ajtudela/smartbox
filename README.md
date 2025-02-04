@@ -29,8 +29,8 @@ A few common options are required for all commands:
 
 Verbose logging can be enabled with the `-v`/`--verbose` flag.
 
-### Optionnal options
-Theses options are usefull if your resailer is not configured.
+### Optional options
+These options are useful if your resailer is not configured.
 
 * `-b`/`--base-auth-creds`: An HTTP Basic Auth credential used to do initial
   authentication with the server. Use the base64 encoded string directly. See
@@ -111,7 +111,7 @@ The `health-check` command can be used to know if the API is alived
 
 ### List available resailers
 The `resailers` command can be used to know which resailershas an automatic configuration.
-If your resailer is not present you can raise an issue in github, or use the optionnal options.
+If your resailer is not present you can raise an issue in github, or use the optional options.
 
     smartbox <auth options...> resailers
 
@@ -122,7 +122,7 @@ See [api-notes.md](./api-notes.md) for notes on REST and socket.io endpoints.
 
 ## Development
 
-Prerequisits:
+Prerequisites:
 
     uv
     python >=3.12

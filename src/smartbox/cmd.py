@@ -386,6 +386,6 @@ def resailers() -> None:
         print(item)
 
 
-# For debuggging
+# For debugging
 if __name__ == "__main__":
     smartbox()

@@ -114,7 +114,7 @@ class AsyncSession:
         return self._client_session
 
     async def health_check(self) -> dict[str, Any]:
-        """Chech if the API is alived."""
+        """Check if the API is alived."""
         api_url = f"{self._api_host}/health_check"
         try:
             response = await self.client.get(api_url)
