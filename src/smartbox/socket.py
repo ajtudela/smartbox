@@ -40,12 +40,12 @@ class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
         self._received_message = False
         self._received_dev_data = False
 
-    def on_connect(self) -> None:
+    async def on_connect(self) -> None:
         """Namespace connected."""
         _LOGGER.debug("Namespace %s connected", self._namespace)
         self._namespace_connected = True
 
-    def on_disconnect(self) -> None:
+    async def on_disconnect(self) -> None:
         """Disconnection of namespace."""
         _LOGGER.info(
             "Namespace %s disconnected, disconnecting socket",
@@ -55,7 +55,7 @@ class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
         self._received_message = False
         self._received_dev_data = False
         # we need to call disconnect to disconnect all namespaces
-        self.disconnect()
+        await self.disconnect()
 
     @property
     def connected(self) -> bool:
@@ -178,12 +178,7 @@ class SocketSession:
             for attempt in range(self._reconnect_attempts):
                 _LOGGER.debug("Connecting to %s (attempt #%s)", url, attempt)
                 try:
-                    await self._sio.connect(
-                        url,
-                        namespaces=[
-                            f"{_API_V2_NAMESPACE}?token={encoded_token}&dev_id={self._device_id}",
-                        ],
-                    )
+                    await self._sio.connect(url, transports=["websocket"])
                 except socketio.exceptions.ConnectionError:
                     remaining = self._reconnect_attempts - attempt - 1
                     sleep_time = self._backoff_factor * (2**attempt)
