@@ -1,11 +1,11 @@
 from unittest.mock import patch
 
-import pytest
 from asyncclick.testing import CliRunner
+import pytest
 
+from smartbox.resailer import SmartboxResailer
 from smartbox.session import AsyncSession, AsyncSmartboxSession, Session
 from smartbox.update_manager import UpdateManager
-from smartbox.resailer import SmartboxResailer
 from tests.common import fake_get_request
 
 
@@ -31,17 +31,19 @@ def async_smartbox_session(mocker, resailer):
         username="test_user",
         password="test_password",
     )
-    with patch(
-        "smartbox.session.AsyncSmartboxSession._api_request",
-        autospec=True,
-        side_effect=fake_get_request,
-    ):
-        with patch(
+    with (
+        patch(
+            "smartbox.session.AsyncSmartboxSession._api_request",
+            autospec=True,
+            side_effect=fake_get_request,
+        ),
+        patch(
             "smartbox.update_manager.SocketSession",
             autospec=True,
             side_effect=fake_get_request,
-        ):
-            yield async_smartbox_session
+        ),
+    ):
+        yield async_smartbox_session
 
 
 @pytest.fixture
@@ -85,7 +87,7 @@ def person():
 
 @pytest.fixture
 def resailer(mocker):
-    mock = mocker.patch(
+    return mocker.patch(
         "smartbox.resailer.AvailableResailers.resailers",
         new_callable=mocker.PropertyMock,
         return_value={
@@ -95,7 +97,6 @@ def resailer(mocker):
                 basic_auth="test_credentials",
                 serial_id=10,
                 web_url="http",
-            )
+            ),
         },
     )
-    yield mock

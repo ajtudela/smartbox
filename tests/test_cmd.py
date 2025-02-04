@@ -211,7 +211,9 @@ async def test_set_device_power_limit(runner, mock_session):
         ],
     )
     assert result.exit_code == 0
-    mock_session.return_value.set_device_power_limit.assert_called_once_with("1", 100)
+    mock_session.return_value.set_device_power_limit.assert_called_once_with(
+        "1", 100
+    )
 
 
 @pytest.mark.asyncio
@@ -260,7 +262,9 @@ async def test_node_samples(runner, mock_session):
 
     node_samples_future = asyncio.Future()
     node_samples_future.set_result([{"sample": "data"}])
-    mock_session.return_value.get_node_samples.return_value = node_samples_future
+    mock_session.return_value.get_node_samples.return_value = (
+        node_samples_future
+    )
 
     result = await runner.invoke(
         smartbox,

@@ -1,0 +1,29 @@
+repos:
+
+- repo: https://github.com/astral-sh/uv-pre-commit
+  # uv version.
+  rev: 0.5.26
+  hooks:
+    # Update the uv lockfile
+    - id: uv-lock
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+  - id: debug-statements
+  - id: check-ast
+  - id: check-merge-conflict
+  - id: pretty-format-json
+    args:
+      - "--autofix"
+      - "--indent=4"
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.9.4
+  hooks:
+    - id: ruff
+      args: [--fix, --exit-non-zero-on-fix]
+    - id: ruff-format

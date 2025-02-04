@@ -1,8 +1,9 @@
 """Smartbox socket update manager."""
 
+from collections.abc import Callable, Iterable
 import logging
 import re
-from typing import Any, Callable, Dict, Iterable, List
+from typing import Any
 
 import jq
 
@@ -14,10 +15,10 @@ _LOGGER = logging.getLogger(__name__)
 _SIMPLE_JQ_RE = re.compile(r"^\.(\w+)$")
 
 
-class OptimisedJQMatcher(object):
+class OptimisedJQMatcher:
     """jq matcher that doesn't bother with jq for simple one-level element queries."""
 
-    def __init__(self, jq_expr: str):
+    def __init__(self, jq_expr: str) -> None:
         """Create an OptimisedJQMatcher for any jq expression."""
         m = _SIMPLE_JQ_RE.match(jq_expr)
         self._fast_path = False
@@ -27,35 +28,38 @@ class OptimisedJQMatcher(object):
         else:
             self._compiled_jq = jq.compile(jq_expr)
 
-    def match(self, input_data: Dict[str, Any]) -> Iterable:
+    def match(self, input_data: dict[str, Any]) -> Iterable:
         """Return matches for the given dev data."""
         if self._fast_path:
             return [input_data.get(self._simple_elem)]
-        else:
-            return self._compiled_jq.input(input_data)
+        return self._compiled_jq.input(input_data)
 
     def __repr__(self) -> str:
+        """Printable representation."""
         if self._fast_path:
             return str(self)
-        else:
-            return repr(self._compiled_jq)
+        return repr(self._compiled_jq)
 
     def __str__(self) -> str:
+        """Str representation."""
         if self._fast_path:
             return f"OptimisedJQMatcher('.{self._simple_elem}', fast_path=True)"
-        else:
-            return str(self._compiled_jq)
+        return str(self._compiled_jq)
 
 
-class DevDataSubscription(object):
+class DevDataSubscription:
     """Subscription for dev data callbacks."""
 
-    def __init__(self, jq_expr: str, callback: Callable[[Dict[str, Any]], None]):
+    def __init__(
+        self,
+        jq_expr: str,
+        callback: Callable[[dict[str, Any]], None],
+    ) -> None:
         """Create a dev data subscription for the given jq expression."""
         self._jq_matcher = OptimisedJQMatcher(jq_expr)
         self._callback = callback
 
-    def match(self, input_data: Dict[str, Any]) -> None:
+    def match(self, input_data: dict[str, Any]) -> None:
         """Return matches for this subscription for the given dev data."""
         _LOGGER.debug("Matching jq %s", self._jq_matcher)
         try:
@@ -66,19 +70,21 @@ class DevDataSubscription(object):
             _LOGGER.exception("Error evaluating jq on dev data %s", input_data)
 
 
-class UpdateSubscription(object):
+class UpdateSubscription:
     """Subscription for updates."""
 
     def __init__(
-        self, path_regex: str, jq_expr: str, callback: Callable[[Dict[str, Any]], None]
-    ):
-        """Create an update subscription for the given path regex and body jq
-        expression."""
+        self,
+        path_regex: str,
+        jq_expr: str,
+        callback: Callable[[dict[str, Any]], None],
+    ) -> None:
+        """Create an update subscription for the given path regex and body jq expression."""
         self._path_regex = re.compile(path_regex)
         self._jq_matcher = OptimisedJQMatcher(jq_expr)
         self._callback = callback
 
-    def match(self, input_data: Dict[str, Any]) -> bool:
+    def match(self, input_data: dict[str, Any]) -> bool:
         """Return matches for this subscription for the given update."""
         path_match = self._path_regex.search(input_data["path"])
         if not path_match:
@@ -96,18 +102,27 @@ class UpdateSubscription(object):
         return matched
 
 
-class UpdateManager(object):
+class UpdateManager:
     """Manages subscription callbacks to receive updates from a Smartbox socket."""
 
     BODY_PATH = ".body"
 
-    def __init__(self, session: AsyncSmartboxSession, device_id: str, **kwargs):
+    def __init__(
+        self,
+        session: AsyncSmartboxSession,
+        device_id: str,
+        **kwargs: dict[str, object],
+    ) -> None:
         """Create an UpdateManager for a smartbox socket."""
         self._socket_session = SocketSession(
-            session, device_id, self._dev_data_cb, self._update_cb, **kwargs
+            session,
+            device_id,
+            self._dev_data_cb,
+            self._update_cb,
+            **kwargs,
         )
-        self._dev_data_subscriptions: List[DevDataSubscription] = []
-        self._update_subscriptions: List[UpdateSubscription] = []
+        self._dev_data_subscriptions: list[DevDataSubscription] = []
+        self._update_subscriptions: list[UpdateSubscription] = []
 
     @property
     def socket_session(self) -> SocketSession:
@@ -124,7 +139,10 @@ class UpdateManager(object):
         self._dev_data_subscriptions.append(sub)
 
     def subscribe_to_updates(
-        self, path_regex: str, jq_expr: str, callback: Callable[..., None]
+        self,
+        path_regex: str,
+        jq_expr: str,
+        callback: Callable[..., None],
     ) -> None:
         """Subscribe to receive device and node data updates.
 
@@ -134,16 +152,25 @@ class UpdateManager(object):
         self._update_subscriptions.append(sub)
 
     def subscribe_to_device_away_status(
-        self, callback: Callable[[Dict[str, Any]], None]
+        self,
+        callback: Callable[[dict[str, Any]], None],
     ) -> None:
         """Subscribe to device away status updates."""
         self.subscribe_to_dev_data(".away_status", callback)
-        self.subscribe_to_updates(r"^/mgr/away_status", self.BODY_PATH, callback)
+        self.subscribe_to_updates(
+            r"^/mgr/away_status",
+            self.BODY_PATH,
+            callback,
+        )
 
-    def subscribe_to_device_power_limit(self, callback: Callable[[int], None]) -> None:
+    def subscribe_to_device_power_limit(
+        self,
+        callback: Callable[[int], None],
+    ) -> None:
         """Subscribe to device power limit updates."""
         self.subscribe_to_dev_data(
-            ".htr_system.setup.power_limit", lambda p: callback(int(p))
+            ".htr_system.setup.power_limit",
+            lambda p: callback(int(p)),
         )
         self.subscribe_to_updates(
             r"^/htr_system/(setup|power_limit)",
@@ -152,18 +179,24 @@ class UpdateManager(object):
         )
 
     def subscribe_to_node_status(
-        self, callback: Callable[[str, int, Dict[str, Any]], None]
+        self,
+        callback: Callable[[str, int, dict[str, Any]], None],
     ) -> None:
         """Subscribe to node status updates."""
 
-        def dev_data_wrapper(data: Dict[str, Any]) -> None:
+        def dev_data_wrapper(data: dict[str, Any]) -> None:
             (callback(data["type"], int(data["addr"]), data["status"]),)
 
         self.subscribe_to_dev_data(
-            "(.nodes[] | {addr, type, status})?", dev_data_wrapper
+            "(.nodes[] | {addr, type, status})?",
+            dev_data_wrapper,
         )
 
-        def update_wrapper(data: Dict[str, Any], node_type: str, addr: str) -> None:
+        def update_wrapper(
+            data: dict[str, Any],
+            node_type: str,
+            addr: str,
+        ) -> None:
             (callback(node_type, int(addr), data),)
 
         self.subscribe_to_updates(
@@ -173,18 +206,24 @@ class UpdateManager(object):
         )
 
     def subscribe_to_node_setup(
-        self, callback: Callable[[str, int, Dict[str, Any]], None]
+        self,
+        callback: Callable[[str, int, dict[str, Any]], None],
     ) -> None:
         """Subscribe to node setup updates."""
 
-        def dev_data_wrapper(data: Dict[str, Any]) -> None:
+        def dev_data_wrapper(data: dict[str, Any]) -> None:
             (callback(data["type"], int(data["addr"]), data["setup"]),)
 
         self.subscribe_to_dev_data(
-            "(.nodes[] | {addr, type, setup})?", dev_data_wrapper
+            "(.nodes[] | {addr, type, setup})?",
+            dev_data_wrapper,
         )
 
-        def update_wrapper(data: Dict[str, Any], node_type: str, addr: str) -> None:
+        def update_wrapper(
+            data: dict[str, Any],
+            node_type: str,
+            addr: str,
+        ) -> None:
             (callback(node_type, int(addr), data),)
 
         self.subscribe_to_updates(
@@ -193,11 +232,11 @@ class UpdateManager(object):
             update_wrapper,
         )
 
-    def _dev_data_cb(self, data: Dict[str, Any]) -> None:
+    def _dev_data_cb(self, data: dict[str, Any]) -> None:
         for sub in self._dev_data_subscriptions:
             sub.match(data)
 
-    def _update_cb(self, data: Dict[str, Any]) -> None:
+    def _update_cb(self, data: dict[str, Any]) -> None:
         matched = False
         for sub in self._update_subscriptions:
             if "path" not in data:

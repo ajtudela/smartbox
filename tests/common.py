@@ -14,5 +14,4 @@ def load_fixture(filename):
 
 async def fake_get_request(*args, **kwargs):
     """Return fake data."""
-    payload = json.loads(load_fixture(f"{args[1]}.json"))
-    return payload
+    return json.loads(load_fixture(f"{args[1]}.json"))

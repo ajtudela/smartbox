@@ -1,10 +1,9 @@
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
-import asyncio
 from smartbox.update_manager import (
     DevDataSubscription,
     OptimisedJQMatcher,
@@ -138,7 +137,9 @@ def test_update_manager_subscribe_to_node_status(update_manager):
     assert len(update_manager._update_subscriptions) == 1
 
     # Test dev data callback
-    dev_data = {"nodes": [{"type": "node_type", "addr": 1, "status": {"key": "value"}}]}
+    dev_data = {
+        "nodes": [{"type": "node_type", "addr": 1, "status": {"key": "value"}}],
+    }
     update_manager._dev_data_cb(dev_data)
     callback.assert_called_once_with("node_type", 1, {"key": "value"})
 
@@ -156,7 +157,9 @@ def test_update_manager_subscribe_to_node_setup(update_manager):
     assert len(update_manager._update_subscriptions) == 1
 
     # Test dev data callback
-    dev_data = {"nodes": [{"type": "node_type", "addr": 1, "setup": {"key": "value"}}]}
+    dev_data = {
+        "nodes": [{"type": "node_type", "addr": 1, "setup": {"key": "value"}}],
+    }
     update_manager._dev_data_cb(dev_data)
     callback.assert_called_once_with("node_type", 1, {"key": "value"})
 
@@ -186,7 +189,10 @@ def test_update_manager_subscribe_to_device_power_limit(update_manager):
 
     # Test update callback with different path
     callback.reset_mock()
-    update_data = {"path": "/htr_system/power_limit", "body": {"power_limit": 300}}
+    update_data = {
+        "path": "/htr_system/power_limit",
+        "body": {"power_limit": 300},
+    }
     update_manager._update_cb(update_data)
     callback.assert_called_once_with(300)
 
@@ -194,7 +200,9 @@ def test_update_manager_subscribe_to_device_power_limit(update_manager):
 @pytest.mark.asyncio
 async def test_update_manager_run(update_manager):
     with patch.object(
-        update_manager._socket_session, "run", new_callable=AsyncMock
+        update_manager.socket_session,
+        "run",
+        new_callable=AsyncMock,
     ) as mock_run:
         await update_manager.run()
         mock_run.assert_awaited_once()

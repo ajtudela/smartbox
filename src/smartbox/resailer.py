@@ -1,12 +1,16 @@
-from pydantic import BaseModel
-from pydantic import ValidationError
-from smartbox.error import ResailerNotExist
+"""Resailer of Smartbox."""
+
+from typing import ClassVar
+
+from pydantic import BaseModel, ValidationError
+
+from smartbox.error import ResailerNotExistError
 
 SMARTBOX_GENERIC_BASIC_AUTH = "NTRiY2NiZmI0MWE5YTUxMTNmMDQ4OGQwOnZkaXZkaQ=="
 
 
 class SmartboxResailer(BaseModel):
-    """Class of Smartbox Resailer config."""
+    """Model of Smartbox Resailer config."""
 
     name: str = "Smartbox"
     web_url: str = ""
@@ -15,8 +19,10 @@ class SmartboxResailer(BaseModel):
     serial_id: int | None = None
 
 
-class AvailableResailers(object):
-    resailers: dict[str, SmartboxResailer] = {
+class AvailableResailers:
+    """Resailers that have been verified."""
+
+    resailers: ClassVar[dict[str, SmartboxResailer]] = {
         "api-helki": SmartboxResailer(
             name="Helki",
             web_url="https://app.helki.com/",
@@ -55,7 +61,7 @@ class AvailableResailers(object):
             serial_id=16,
         ),
         "api": SmartboxResailer(
-            name="Smartbox",
+            name="Fallback Smartbox",
             api_url="api",
         ),
     }
@@ -68,6 +74,7 @@ class AvailableResailers(object):
         serial_id: str | None = None,
         name: str = "Smartbox",
     ) -> SmartboxResailer:
+        """Check if resailer is already available or try to create one."""
         resailer = self.resailers.get(api_url, None)
         if resailer is None:
             try:
@@ -79,21 +86,25 @@ class AvailableResailers(object):
                     name=name,
                 )
             except ValidationError as e:
-                raise ResailerNotExist from e
+                raise ResailerNotExistError from e
         self._resailer = resailer
 
     @property
     def resailer(self) -> SmartboxResailer:
+        """Get the resailer."""
         return self._resailer
 
     @property
     def api_url(self) -> str:
+        """Get the api sub domain url."""
         return self._resailer.api_url
 
     @property
     def name(self) -> str:
+        """Get the name of resailer."""
         return self._resailer.name
 
     @property
     def web_url(self) -> str:
+        """Get the public websit of the resailer."""
         return self._resailer.web_url

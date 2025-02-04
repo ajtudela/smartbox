@@ -220,7 +220,7 @@ def test_nodes():
                 "installed": True,
                 "lost": False,
             },
-        ]
+        ],
     }
     nodes = Nodes(**data)
     assert len(nodes.nodes) == 2
@@ -242,7 +242,7 @@ def test_device():
                 "type": "thermostat",
                 "installed": True,
                 "lost": False,
-            }
+            },
         ],
     }
     device = Device(**data)
@@ -286,7 +286,7 @@ def test_samples():
         "samples": [
             {"t": 1234567890, "temp": "22.5", "counter": 1},
             {"t": 1234567891, "temp": "23.0", "counter": 2},
-        ]
+        ],
     }
     samples = Samples(**data)
     assert len(samples.samples) == 2

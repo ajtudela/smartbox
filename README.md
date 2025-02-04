@@ -4,9 +4,18 @@ Python API to control heating Haverland 'smart boxes'
 
 ## Installation
 
-Install using pip from [PyPI](https://pypi.python.org/pypi/smartbox/):
+## Install
+
+To install pyatmo simply run:
 
     pip install smartbox
+
+Depending on your permissions you might be required to use sudo.
+Once installed you can simply add `smartbox` to your Python 3 scripts by including:
+
+    import smartbox
+
+
 
 ## `smartbox` Command Line Tool
 ### Mandatory options
@@ -108,3 +117,41 @@ If your resailer is not present you can raise an issue in github, or use the opt
 
 
 See [api-notes.md](./api-notes.md) for notes on REST and socket.io endpoints.
+
+
+
+## Development
+
+Prerequisits:
+
+    uv
+    python >=3.12
+
+Clone the repo, install dependencies and install pre-commit hooks:
+
+    git clone
+    cd smartbox
+    uv sync
+    pre-commit install
+
+## Testing
+
+To run the full suite simply run the following command from within the virtual environment:
+
+    pytest
+
+or
+
+    python -m pytest tests/
+
+To generate code coverage xml (e.g. for use in VSCode) run
+
+    python -m pytest --cov-report xml:cov.xml --cov smartbox --cov-append tests/
+
+Another way to run the tests is by using `tox`. This runs the tests against the installed package and multiple versions of python.
+
+    tox
+
+or by specifying a python version
+
+    tox -e py312
