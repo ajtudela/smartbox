@@ -129,3 +129,9 @@ max-complexity = 25
     "B018",
 ]
 "src/smartbox/cmd.py" = ["T201","ANN001"]
+
+[tool.setuptools.package-data]
+"pkgname" = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
