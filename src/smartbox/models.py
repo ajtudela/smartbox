@@ -1,6 +1,18 @@
 """Pydantic model of smartbox."""
 
+from enum import StrEnum
+
 from pydantic import BaseModel, RootModel
+
+
+class SmartboxNodeType(StrEnum):
+    """Node type."""
+
+    HTR = "htr"
+    THM = "thm"
+    HTR_MOD = "htr_mod"
+    ACM = "acm"
+    PMO = "pmo"
 
 
 class NodeFactoryOptions(BaseModel):
@@ -54,8 +66,15 @@ class NodeSetup(BaseModel):
     extra_options: NodeExtraOptions
 
 
-class NodeStatus(BaseModel):
-    """NodeStatus model."""
+class DefaultNodeStatus(BaseModel):
+    """Default Node Status."""
+
+    mtemp: str
+    units: str
+    sync_status: str
+    locked: bool
+    mode: str
+    error_code: str
 
     eco_temp: str
     comf_temp: str
@@ -68,17 +87,56 @@ class NodeStatus(BaseModel):
     boost: bool
     boost_end_min: int
     boost_end_day: int
-    error_code: str
     stemp: str
     power: str
     duty: int
-    mtemp: str
     ice_temp: str
-    units: str
-    sync_status: str
-    locked: int
     active: bool
-    mode: str
+
+
+class HtrModNodeStatus(DefaultNodeStatus):
+    """NodeStatus for htr_mod node."""
+
+    on: bool
+    selected_temp: str
+    comfort_temp: str
+    eco_offset: str
+    ice_temp: str
+    active: bool
+
+
+class HtrNodeStatus(DefaultNodeStatus):
+    """NodeStatus for HTR node."""
+
+    stemp: str
+    active: bool
+    power: str
+    duty: int
+
+
+class AcmNodeStatus(DefaultNodeStatus):
+    """NodeStatus for acm node."""
+
+    stemp: str
+    charging: bool
+    charge_level: int
+    power: str
+
+
+class NodeStatus(
+    RootModel[
+        AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus
+    ]
+):
+    """NodeStatus model."""
+
+    root: AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus
+
+    def __getattr__(
+        self, name: str
+    ) -> AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus:
+        """Get the root model directly."""
+        return getattr(self.root, name)
 
 
 class Node(BaseModel):
@@ -86,7 +144,7 @@ class Node(BaseModel):
 
     name: str
     addr: int
-    type: str
+    type: SmartboxNodeType
     installed: bool
     lost: bool
 

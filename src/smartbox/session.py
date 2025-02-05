@@ -13,10 +13,14 @@ from pydantic import ValidationError
 
 from smartbox.error import APIUnavailableError, InvalidAuthError, SmartboxError
 from smartbox.models import (
+    AcmNodeStatus,
+    DefaultNodeStatus,
     DeviceAwayStatus,
     Devices,
     Home,
     Homes,
+    HtrModNodeStatus,
+    HtrNodeStatus,
     Node,
     Nodes,
     NodeSetup,
@@ -342,16 +346,25 @@ class AsyncSmartboxSession(AsyncSession):
         self,
         device_id: str,
         node: dict[str, Any],
-    ) -> dict[str, str] | NodeStatus:
+    ) -> (
+        dict[str, Any]
+        | AcmNodeStatus
+        | HtrNodeStatus
+        | HtrModNodeStatus
+        | DefaultNodeStatus
+    ):
         """Get a node status."""
         _node: Node = Node.model_validate(node)
         response = await self._api_request(
             f"devs/{device_id}/{_node.type}/{_node.addr}/status",
         )
-        status = NodeStatus.model_validate(response)
-        if self.raw_response is False:
-            return status
-        return status.model_dump(mode="json")
+        try:
+            status = NodeStatus.model_validate(response).root
+            if self.raw_response is False:
+                return status
+            return status.model_dump(mode="json")
+        except ValidationError:
+            return response
 
     async def set_node_status(
         self,

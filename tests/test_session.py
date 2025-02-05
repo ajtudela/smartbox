@@ -360,7 +360,7 @@ async def test_set_node_status(async_smartbox_session):
     mock_node = {
         "name": "Living Room",
         "addr": 1,
-        "type": "thermostat",
+        "type": "htr",
         "installed": True,
         "lost": False,
     }
@@ -526,7 +526,7 @@ async def test_set_node_setup(async_smartbox_session):
     mock_node = {
         "name": "Living Room",
         "addr": 1,
-        "type": "thermostat",
+        "type": "acm",
         "installed": True,
         "lost": False,
     }
