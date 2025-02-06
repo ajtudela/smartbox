@@ -1,12 +1,15 @@
 # smartbox ![build](https://github.com/delmael/smartbox/workflows/Python%20package/badge.svg) [![PyPI version](https://badge.fury.io/py/smartbox.svg)](https://badge.fury.io/py/smartbox) [![codecov](https://codecov.io/gh/delmael/smartbox/branch/main/graph/badge.svg?token=ghNZOGVzVv)](https://codecov.io/gh/delmael/smartbox) [![PyPI license](https://img.shields.io/pypi/l/smartbox.svg)](https://pypi.python.org/pypi/smartbox/) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/smartbox.svg)](https://pypi.python.org/pypi/smartbox/)
 
-Python API to control heating Haverland 'smart boxes'
+Python API to control heating 'smart boxes'
 
+[![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
+[buymeacoffee]: https://www.buymeacoffee.com/Delmael
+[buymeacoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
 ## Installation
 
 ## Install
 
-To install pyatmo simply run:
+To install smartbox simply run:
 
     pip install smartbox
 
