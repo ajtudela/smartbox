@@ -3,8 +3,11 @@
 Python API to control heating 'smart boxes'
 
 [![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
+
 [buymeacoffee]: https://www.buymeacoffee.com/Delmael
+
 [buymeacoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
+
 ## Installation
 
 ## Install
