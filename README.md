@@ -131,7 +131,7 @@ See [api-notes.md](./api-notes.md) for notes on REST and socket.io endpoints.
 Prerequisites:
 
     uv
-    python >=3.12
+    python >=3.13
 
 Clone the repo, install dependencies and install pre-commit hooks:
 
@@ -160,4 +160,4 @@ Another way to run the tests is by using `tox`. This runs the tests against the 
 
 or by specifying a python version
 
-    tox -e py312
+    tox -e py313
