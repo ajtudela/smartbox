@@ -759,7 +759,7 @@ async def test_authentication_invalid_response(async_session):
         mock_post.return_value.raise_for_status = AsyncMock()
 
         with pytest.raises(
-            SmartboxError,
+            InvalidAuthError,
             match="Received invalid auth response",
         ):
             await async_session._authentication(credentials)
