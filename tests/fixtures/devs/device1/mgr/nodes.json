@@ -1,0 +1,18 @@
+{
+  "nodes": [
+    {
+      "addr": 0,
+      "name": "Node 1 0",
+      "type": "htr",
+      "installed": true,
+      "lost": false
+    },
+    {
+      "addr": 1,
+      "name": "Node 1 1",
+      "type": "acm",
+      "installed": true,
+      "lost": false
+    }
+  ]
+}
