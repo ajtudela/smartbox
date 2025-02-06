@@ -1,5 +1,6 @@
 """Resailer of Smartbox."""
 
+import logging
 from typing import ClassVar
 
 from pydantic import BaseModel, ValidationError
@@ -7,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 from smartbox.error import ResailerNotExistError
 
 SMARTBOX_GENERIC_BASIC_AUTH = "NTRiY2NiZmI0MWE5YTUxMTNmMDQ4OGQwOnZkaXZkaQ=="
+_LOGGER = logging.getLogger(__name__)
 
 
 class SmartboxResailer(BaseModel):
@@ -90,6 +92,14 @@ class AvailableResailers:
                 msg = "This Resailer is not yet available or some arguments are missing."
                 raise ResailerNotExistError(msg)
             try:
+                _LOGGER.debug(
+                    "Creating a new resailer api_url (%s), name=%s,  web_url %s, basic_auth=%s, serial_id=%s",
+                    self._api_url,
+                    self._name,
+                    self._web_url,
+                    self._basic_auth,
+                    self._serial_id,
+                )
                 resailer = SmartboxResailer(
                     api_url=self._api_url,
                     basic_auth=self._basic_auth,
@@ -99,6 +109,12 @@ class AvailableResailers:
                 )
             except ValidationError as e:
                 raise ResailerNotExistError from e
+        _LOGGER.debug(
+            "Resailer api_url (%s), name=%s,  web_url %s",
+            self.api_url,
+            self.name,
+            self.web_url,
+        )
         return resailer
 
     @property

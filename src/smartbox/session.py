@@ -178,8 +178,13 @@ class AsyncSession:
                 self.expiry_time,
             )
         except ValidationError as e:
+            _LOGGER.exception(
+                "Invalid authentication: %s, status: %s",
+                e.message,
+                e.status,
+            )
             msg = "Received invalid auth response"
-            raise SmartboxError(msg) from e
+            raise InvalidAuthError(msg) from e
 
     async def check_refresh_auth(self) -> None:
         """Do we have to refresh auth."""
@@ -206,6 +211,7 @@ class AsyncSession:
         await self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
         try:
+            _LOGGER.debug("Getting %s.", api_url)
             response = await self.client.get(api_url, headers=self._headers)
         except (
             aiohttp.ClientConnectionError,
@@ -243,6 +249,11 @@ class AsyncSession:
         ) as e:
             raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
+            _LOGGER.exception(
+                "Smartbox Error: %s, status: %s",
+                e.message,
+                e.status,
+            )
             raise SmartboxError(e) from e
         return await response.json()
 
