@@ -26,6 +26,7 @@ from smartbox.models import (
     NodeSetup,
     NodeStatus,
     Samples,
+    SmartboxNodeType,
     Token,
 )
 from smartbox.resailer import AvailableResailers, SmartboxResailer
@@ -314,23 +315,37 @@ class AsyncSmartboxSession(AsyncSession):
             path=f"devs/{device_id}/mgr/away_status",
         )
 
-    async def get_device_power_limit(self, device_id: str) -> int:
+    async def get_device_power_limit(
+        self, device_id: str, node: dict[str, Any] | None = None
+    ) -> int:
         """Get device power limit."""
-        resp = await self._api_request(
-            f"devs/{device_id}/htr_system/power_limit",
-        )
+        url = f"devs/{device_id}/htr_system/power_limit"
+        if node is not None and (
+            (_node := Node.model_validate(node))
+            and _node.type == SmartboxNodeType.PMO
+        ):
+            url = f"devs/{device_id}/{_node.type}/{_node.addr}/power"
+
+        resp = await self._api_request(url)
         return int(resp["power_limit"])
 
     async def set_device_power_limit(
         self,
         device_id: str,
         power_limit: int,
+        node: dict[str, Any] | None = None,
     ) -> None:
         """Set device power limit."""
+        _node_type = "htr_system"
+        if node is not None and (
+            (_node := Node.model_validate(node))
+            and _node.type == SmartboxNodeType.PMO
+        ):
+            _node_type = f"{_node.type}/{_node.addr}"
         data = {"power_limit": str(power_limit)}
         await self._api_post(
             data=data,
-            path=f"devs/{device_id}/htr_system/power_limit",
+            path=f"devs/{device_id}/{_node_type}/power_limit",
         )
 
     async def get_node_samples(

@@ -190,6 +190,13 @@ async def test_set_device_away_status(async_smartbox_session):
 @pytest.mark.asyncio
 async def test_get_device_power_limit(async_smartbox_session):
     power = 100
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "pmo",
+        "installed": True,
+        "lost": False,
+    }
     with patch.object(
         async_smartbox_session,
         "_api_request",
@@ -204,9 +211,24 @@ async def test_get_device_power_limit(async_smartbox_session):
             "devs/test_device/htr_system/power_limit",
         )
 
+        power_limit = await async_smartbox_session.get_device_power_limit(
+            device_id="test_device", node=mock_node
+        )
+        assert power_limit == power
+        mock_api_request.assert_called_with(
+            "devs/test_device/pmo/1/power",
+        )
+
 
 @pytest.mark.asyncio
 async def test_set_device_power_limit(async_smartbox_session):
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "pmo",
+        "installed": True,
+        "lost": False,
+    }
     with patch.object(
         async_smartbox_session,
         "_api_post",
@@ -221,6 +243,16 @@ async def test_set_device_power_limit(async_smartbox_session):
         mock_api_post.assert_called_once_with(
             data={"power_limit": str(power_limit)},
             path="devs/test_device/htr_system/power_limit",
+        )
+
+        await async_smartbox_session.set_device_power_limit(
+            device_id="test_device",
+            node=mock_node,
+            power_limit=power_limit,
+        )
+        mock_api_post.assert_called_with(
+            data={"power_limit": str(power_limit)},
+            path="devs/test_device/pmo/1/power_limit",
         )
 
 
