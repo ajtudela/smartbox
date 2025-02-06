@@ -22,7 +22,7 @@ from .session import AsyncSmartboxSession, Session
 from .socket import SocketSession
 from .update_manager import UpdateManager
 
-__version__ = "2.1.0-beta.2"
+__version__ = "2.1.0-beta.3"
 
 
 __all__ = [

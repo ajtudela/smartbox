@@ -1,6 +1,6 @@
 [project]
 name = "smartbox"
-version = "2.1.0-beta.2"
+version = "2.1.0-beta.3"
 requires-python = ">=3.12"
 authors = [
   { name="Delmael", email="delmael@outlook.com" },
@@ -20,7 +20,7 @@ dependencies = [
     "aiohttp>=3.11.11",
     "asyncclick>=8.1.8",
     "jq>=1.8.0",
-    "pydantic==2.10.4",
+    "pydantic>=2.10.6",
     "python-socketio==5.12.1",
     "requests>=2.32.3",
     "websocket-client>=1.8.0",

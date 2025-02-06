@@ -47,7 +47,7 @@ class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
 
     async def on_disconnect(self) -> None:
         """Disconnection of namespace."""
-        _LOGGER.info(
+        _LOGGER.debug(
             "Namespace %s disconnected, disconnecting socket",
             self._namespace,
         )
