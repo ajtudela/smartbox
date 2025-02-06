@@ -111,9 +111,9 @@ class AvailableResailers:
                 raise ResailerNotExistError from e
         _LOGGER.debug(
             "Resailer api_url (%s), name=%s,  web_url %s",
-            self.api_url,
-            self.name,
-            self.web_url,
+            resailer.api_url,
+            resailer.name,
+            resailer.web_url,
         )
         return resailer
 

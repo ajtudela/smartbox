@@ -178,11 +178,6 @@ class AsyncSession:
                 self.expiry_time,
             )
         except ValidationError as e:
-            _LOGGER.exception(
-                "Invalid authentication: %s, status: %s",
-                e.message,
-                e.status,
-            )
             msg = "Received invalid auth response"
             raise InvalidAuthError(msg) from e
 
