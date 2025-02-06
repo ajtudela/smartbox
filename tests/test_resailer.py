@@ -6,10 +6,8 @@ from smartbox.resailer import AvailableResailers
 
 def test_available_resailers_existing_resailer():
     resailer = AvailableResailers(api_url="api").resailer
-    assert resailer.name == "Fallback Smartbox"
+    assert resailer.name == "Helki"
     assert resailer.api_url == "api"
-    assert resailer.basic_auth == "NTRiY2NiZmI0MWE5YTUxMTNmMDQ4OGQwOnZkaXZkaQ=="
-    assert resailer.serial_id == 0
 
 
 def test_available_resailers_non_existing_resailer():

@@ -23,10 +23,10 @@ class AvailableResailers:
     """Resailers that have been verified."""
 
     resailers: ClassVar[dict[str, SmartboxResailer]] = {
-        "api-helki": SmartboxResailer(
+        "api": SmartboxResailer(
             name="Helki",
             web_url="https://app.helki.com/",
-            api_url="api-helki",
+            api_url="api",
             serial_id=1,
         ),
         "api-climastar": SmartboxResailer(
@@ -59,10 +59,6 @@ class AvailableResailers:
             web_url="https://ttiapp.technotherm.com/",
             api_url="api-lhz",
             serial_id=16,
-        ),
-        "api": SmartboxResailer(
-            name="Fallback Smartbox",
-            api_url="api",
         ),
     }
 

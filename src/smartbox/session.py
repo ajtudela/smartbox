@@ -122,8 +122,11 @@ class AsyncSession:
         api_url = f"{self._api_host}/health_check"
         try:
             response = await self.client.get(api_url)
-        except aiohttp.ClientConnectionError as e:
-            raise APIUnavailableError from e
+        except (
+            aiohttp.ClientConnectionError,
+            aiohttp.ClientConnectorError,
+        ) as e:
+            raise APIUnavailableError(e) from e
         return await response.json()
 
     async def _authentication(self, credentials: dict[str, str]) -> None:
@@ -145,10 +148,13 @@ class AsyncSession:
                 headers=token_headers,
                 data=token_data,
             )
-        except aiohttp.ClientConnectionError as e:
-            raise APIUnavailableError from e
+        except (
+            aiohttp.ClientConnectionError,
+            aiohttp.ClientConnectorError,
+        ) as e:
+            raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
-            raise InvalidAuthError from e
+            raise InvalidAuthError(e) from e
         try:
             rtoken: Token = Token.model_validate(await response.json())
             self._access_token = rtoken.access_token
@@ -201,15 +207,18 @@ class AsyncSession:
         api_url = f"{self._api_host}/api/v2/{path}"
         try:
             response = await self.client.get(api_url, headers=self._headers)
-        except aiohttp.ClientConnectionError as e:
-            raise APIUnavailableError from e
+        except (
+            aiohttp.ClientConnectionError,
+            aiohttp.ClientConnectorError,
+        ) as e:
+            raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
             _LOGGER.exception(
                 "ClientResponseError: %s, status: %s",
                 e.message,
                 e.status,
             )
-            raise SmartboxError from e
+            raise SmartboxError(e) from e
         return await response.json()
 
     async def _api_post(
@@ -228,10 +237,13 @@ class AsyncSession:
                 data=data_str,
                 headers=self._headers,
             )
-        except aiohttp.ClientConnectionError as e:
-            raise APIUnavailableError from e
+        except (
+            aiohttp.ClientConnectionError,
+            aiohttp.ClientConnectorError,
+        ) as e:
+            raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
-            raise SmartboxError from e
+            raise SmartboxError(e) from e
         return await response.json()
 
 
@@ -276,7 +288,7 @@ class AsyncSmartboxSession(AsyncSession):
     async def get_device_away_status(
         self,
         device_id: str,
-    ) -> dict[str, Any] | DeviceAwayStatus:
+    ) -> dict[str, bool] | DeviceAwayStatus:
         """Get device away status."""
         response = await self._api_request(f"devs/{device_id}/mgr/away_status")
         status: DeviceAwayStatus = DeviceAwayStatus.model_validate(response)
@@ -446,7 +458,7 @@ class Session:
         self,
         device_id: str,
         node: dict[str, Any],
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         """Sync get the status of a node."""
         return asyncio.run(
             self._async.get_node_status(device_id=device_id, node=node),  # type: ignore[arg-type]
@@ -488,7 +500,7 @@ class Session:
             ),
         )
 
-    def get_device_away_status(self, device_id: str) -> dict[str, Any]:
+    def get_device_away_status(self, device_id: str) -> dict[str, bool]:
         """Sync get the device away status."""
         return asyncio.run(
             self._async.get_device_away_status(device_id=device_id),  # type: ignore[arg-type]
