@@ -2,11 +2,6 @@
 
 Python API to control heating 'smart boxes'
 
-[![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
-
-[buymeacoffee]: https://www.buymeacoffee.com/Delmael
-
-[buymeacoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
 
 ## Installation
 
@@ -161,3 +156,10 @@ Another way to run the tests is by using `tox`. This runs the tests against the 
 or by specifying a python version
 
     tox -e py313
+
+# Support
+[![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
+
+[buymeacoffee]: https://www.buymeacoffee.com/Delmael
+
+[buymeacoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
