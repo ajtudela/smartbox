@@ -26,7 +26,7 @@ setup(
         # python-socketio major version needs to be synchronised with the
         # server socket.io version (socket.io has incompatible protocol
         # changes between major versions)
-        "python-socketio>=4.6.0,<5.0.0",
+        "python-socketio>=4.6.0,<6.0.0",
         "requests",
         "websocket_client",
     ],
