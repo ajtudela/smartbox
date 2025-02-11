@@ -17,6 +17,7 @@ from smartbox.models import (
     DefaultNodeStatus,
     DeviceAwayStatus,
     Devices,
+    Guests,
     Home,
     Homes,
     HtrModNodeStatus,
@@ -132,7 +133,6 @@ class AsyncSession:
 
     async def _authentication(self, credentials: dict[str, str]) -> None:
         """Do the authentication process to Smartbox. First one use login/mdp/basic_auth. Then the tokens."""
-        token_data = "&".join(f"{k}={v}" for k, v in credentials.items())
         token_headers = self._headers.copy()
         del token_headers["Authorization"]
         token_headers.update(
@@ -147,7 +147,7 @@ class AsyncSession:
             response = await self.client.post(
                 url=token_url,
                 headers=token_headers,
-                data=token_data,
+                data=credentials,
             )
         except (
             aiohttp.ClientConnectionError,
@@ -263,7 +263,10 @@ class AsyncSmartboxSession(AsyncSession):
         devices: Devices = Devices.model_validate(response)
         if self.raw_response is False:
             return devices
-        return [device.model_dump(mode="json") for device in devices.devs]
+        return [
+            device.model_dump(mode="json")
+            for device in (devices.devs + devices.invited_to)
+        ]
 
     async def get_homes(self) -> list[dict[str, Any]] | list[Home]:
         """Get homes."""
@@ -272,6 +275,16 @@ class AsyncSmartboxSession(AsyncSession):
         if self.raw_response is False:
             return homes
         return [home.model_dump(mode="json") for home in homes]
+
+    async def get_home_guests(
+        self, home_id: str
+    ) -> list[dict[str, Any]] | Guests:
+        """Get all devices."""
+        response = await self._api_request(f"groups/{home_id}/guest_users")
+        guests: Guests = Guests.model_validate(response)
+        if self.raw_response is False:
+            return guests
+        return [guest.model_dump(mode="json") for guest in guests.guest_users]
 
     async def get_grouped_devices(self) -> list[dict[str, Any]] | Homes:
         """Get grouped devices."""

@@ -1,6 +1,8 @@
 from smartbox.models import (
     AcmNodeStatus,
     DefaultNodeStatus,
+    Guests,
+    GuestUser,
     HtrModNodeStatus,
     HtrNodeStatus,
     NodeExtraOptions,
@@ -250,3 +252,32 @@ def test_node_status():
     assert status.root.sync_status == "synced"
     assert status.sync_status == "synced"
     assert status.mode == "auto"
+
+
+def test_guest_user():
+    data = {
+        "pending": True,
+        "email": "guest@example.com",
+    }
+    guest = GuestUser(**data)
+    assert guest.pending
+    assert guest.email == "guest@example.com"
+
+
+def test_guests():
+    data = {
+        "guest_users": [
+            {
+                "pending": True,
+                "email": "guest1@example.com",
+            },
+            {
+                "pending": False,
+                "email": "guest2@example.com",
+            },
+        ]
+    }
+    guests = Guests(**data)
+    assert len(guests.guest_users) == 2
+    assert guests.guest_users[0].email == "guest1@example.com"
+    assert not guests.guest_users[1].pending

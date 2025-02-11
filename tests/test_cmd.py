@@ -345,3 +345,23 @@ async def test_set_device_power_limit(runner, mock_session):
     mock_session.return_value.set_device_power_limit.assert_called_once_with(
         "1", 100
     )
+
+
+@pytest.mark.anyio
+async def test_guests(runner, mock_session):
+    guests_future = asyncio.Future()
+    guests_future.set_result(
+        [{"email": "guest1@example.com"}, {"email": "guest2@example.com"}]
+    )
+    mock_session.return_value.get_home_guests.return_value = guests_future
+
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "guests", "-h", "home1"],
+    )
+    assert result.exit_code == 0
+    assert "guest1@example.com" in result.output
+    assert "guest2@example.com" in result.output
+    mock_session.return_value.get_home_guests.assert_called_once_with(
+        home_id="home1"
+    )

@@ -177,7 +177,7 @@ class Devices(BaseModel):
     """Devices model."""
 
     devs: list[Device]
-    invited_to: list
+    invited_to: list[Device]
 
 
 class Home(BaseModel):
@@ -216,3 +216,16 @@ class Token(BaseModel):
     refresh_token: str
     expires_in: int
     token_type: str
+
+
+class GuestUser(BaseModel):
+    """Guest model."""
+
+    pending: bool
+    email: str
+
+
+class Guests(BaseModel):
+    """Guests model."""
+
+    guest_users: list[GuestUser]

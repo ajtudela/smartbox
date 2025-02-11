@@ -386,6 +386,21 @@ def resailers() -> None:
         print(item)
 
 
+@smartbox.command(help="Get the home guest")
+@click.option(
+    "-h",
+    "--home-id",
+    required=True,
+    help="Home ID to get the guests.",
+)
+@click.pass_context
+async def guests(ctx, home_id: str) -> None:
+    """Set device power limit."""
+    session = ctx.obj["session"]
+    guests = await session.get_home_guests(home_id=home_id)
+    _pretty_print(guests)
+
+
 # For debugging
 if __name__ == "__main__":
     smartbox()
