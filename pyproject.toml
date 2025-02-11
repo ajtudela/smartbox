@@ -3,6 +3,7 @@ name = "smartbox"
 version = "2.1.0-beta.3"
 requires-python = ">=3.13"
 authors = [
+  { name="Alberto Tudela", email="ajtudela@gmail.com" },
   { name="Delmael", email="delmael@outlook.com" },
   { name="graham33", email="graham@grahambennett.org" },
 ]
@@ -27,8 +28,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/delmael/smartbox"
-Issues = "https://github.com/delmael/smartbox/issues"
+Homepage = "https://github.com/ajtudela/smartbox"
+Issues = "https://github.com/ajtudela/smartbox/issues"
 
 [project.scripts]
 smartbox = "smartbox.cmd:smartbox"
