@@ -28,7 +28,7 @@ class OptimisedJQMatcher:
         else:
             self._compiled_jq = jq.compile(jq_expr)
 
-    def match(self, input_data: dict[str, Any]) -> Iterable:
+    def match(self, input_data: dict[str, Any]) -> Iterable[Any]:
         """Return matches for the given dev data."""
         if self._fast_path:
             return [input_data.get(self._simple_elem)]

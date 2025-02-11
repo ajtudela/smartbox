@@ -9,6 +9,8 @@ from .error import (
 from .models import (
     AcmNodeStatus,
     DefaultNodeStatus,
+    Guests,
+    GuestUser,
     HtrModNodeStatus,
     HtrNodeStatus,
     NodeExtraOptions,
@@ -31,6 +33,8 @@ __all__ = [
     "AsyncSmartboxSession",
     "AvailableResailers",
     "DefaultNodeStatus",
+    "GuestUser",
+    "Guests",
     "HtrModNodeStatus",
     "HtrNodeStatus",
     "InvalidAuthError",

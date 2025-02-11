@@ -1,5 +1,6 @@
 import datetime
 import json
+import math
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
@@ -698,7 +699,7 @@ async def test_async_session_init():
     assert session.api_host == f"https://{api_name}.helki.com"
     assert session._basic_auth_credentials == basic_auth_credentials
     assert session._retry_attempts == retry_attempts
-    assert session._backoff_factor == backoff_factor
+    assert math.isclose(session._backoff_factor, backoff_factor)
     assert session._username == username
     assert session._password == password
     assert session._access_token == ""
@@ -769,7 +770,7 @@ async def test_authentication_success(async_session):
                 "x-referer": "http",
                 "x-serialid": "10",
             },
-            data="grant_type=password&username=test_user&password=test_password",
+            data=credentials,
         )
 
 
@@ -804,7 +805,7 @@ async def test_authentication_invalid_response(async_session):
                 "x-serialid": f"{async_session.resailer.serial_id}",
                 "x-referer": f"{async_session.resailer.web_url}",
             },
-            data="grant_type=password&username=test_user&password=test_password",
+            data=credentials,
         )
 
 
@@ -839,7 +840,7 @@ async def test_authentication_client_response_error(async_session):
                 "x-serialid": f"{async_session.resailer.serial_id}",
                 "x-referer": f"{async_session.resailer.web_url}",
             },
-            data="grant_type=password&username=test_user&password=test_password",
+            data=credentials,
         )
 
 
@@ -869,7 +870,7 @@ async def test_authentication_client_response_unavailable(async_session):
                 "x-serialid": f"{async_session.resailer.serial_id}",
                 "x-referer": f"{async_session.resailer.web_url}",
             },
-            data="grant_type=password&username=test_user&password=test_password",
+            data=credentials,
         )
 
 
@@ -1348,3 +1349,30 @@ async def test_check_refresh_auth_token_valid(async_session):
     ) as mock_authentication:
         await async_session.check_refresh_auth()
         mock_authentication.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_home_guests(async_smartbox_session):
+    mock_home_id = "test_home"
+    with patch.object(
+        async_smartbox_session,
+        "_api_request",
+        new_callable=AsyncMock,
+    ) as mock_api_request:
+        url = f"groups/{mock_home_id}/guest_users"
+        mock_api_request.return_value = await fake_get_request(
+            mock_api_request,
+            url,
+        )
+        guests = await async_smartbox_session.get_home_guests(
+            home_id=mock_home_id,
+        )
+        assert guests == mock_api_request.return_value["guest_users"]
+        mock_api_request.assert_called_once_with(url)
+
+        async_smartbox_session.raw_response = False
+        guests_model = await async_smartbox_session.get_home_guests(
+            home_id=mock_home_id,
+        )
+        assert guests_model.guest_users[0].email == guests[0]["email"]
+        async_smartbox_session.raw_response = True
