@@ -1,0 +1,12 @@
+{
+    "guest_users": [
+        {
+            "email": "guest1@example.com",
+            "pending": true
+        },
+        {
+            "email": "guest2@example.com",
+            "pending": false
+        }
+    ]
+}

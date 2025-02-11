@@ -1,0 +1,19 @@
+{
+  "devs": [
+    {
+      "dev_id": "device1",
+      "name": "Smart Thermostat",
+      "product_id": "prod123",
+      "fw_version": "1.0.0",
+      "serial_id": "serial123"
+    },
+    {
+      "dev_id": "device2",
+      "name": "Smart Light",
+      "product_id": "prod456",
+      "fw_version": "2.0.0",
+      "serial_id": "serial456"
+    }
+  ],
+  "invited_to": []
+}

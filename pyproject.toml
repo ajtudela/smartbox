@@ -1,0 +1,137 @@
+[project]
+name = "smartbox"
+version = "2.1.0-beta.3"
+requires-python = ">=3.13"
+authors = [
+  { name="Delmael", email="delmael@outlook.com" },
+  { name="graham33", email="graham@grahambennett.org" },
+]
+description = "Python API to control heating 'smart boxes'"
+readme = "README.md"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "aiohttp>=3.11.11",
+    "asyncclick>=8.1.8",
+    "jq>=1.8.0",
+    "pydantic>=2.10.4",
+    "python-socketio==5.12.1",
+    "requests>=2.32.3",
+    "websocket-client>=1.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/delmael/smartbox"
+Issues = "https://github.com/delmael/smartbox/issues"
+
+[project.scripts]
+smartbox = "smartbox.cmd:smartbox"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.workspace]
+members = ["smartbox"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.1.0",
+    "freezegun>=1.5.1",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-randomly>=3.16.0",
+    "requests-mock>=1.12.1",
+    "tox>=4.24.1",
+    "ruff>=0.9.4",
+    "mypy>=1.14.1",
+    "time-machine>=2.16.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "module"
+
+[tool.mypy]
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "freezegun",
+    "jq",
+    "test",
+    "socketio",
+    "asyncio",
+]
+ignore_missing_imports = true
+disable_error_code = ["arg-type"]
+
+[tool.ruff]
+target-version = "py313"
+fix = true
+line-length = 80
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "E501", # line too long
+    "D203",
+    "D213",
+    "RUF006",
+    "FBT001",
+    "FBT002",
+    "PLR0913",
+    "A005",
+    "COM812"
+]
+
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+combine-as-imports = true
+split-on-trailing-comma = false
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "D10",
+    "S105",
+    "S101",
+    "ANN201",
+    "ANN001",
+    "N802",
+    "ANN202",
+    "PTH123",
+    "ASYNC230",
+    "PT012",
+    "DTZ001",
+    "ANN003",
+    "ANN002",
+    "A001",
+    "ARG001",
+    "ANN204",
+    "SLF001",
+    "S106",
+    "PLR2004",
+    "B018",
+]
+"src/smartbox/cmd.py" = ["T201","ANN001"]
+
+[tool.setuptools.package-data]
+"pkgname" = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
