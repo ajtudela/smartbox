@@ -404,13 +404,14 @@ class AsyncSmartboxSession(AsyncSession):
         response = await self._api_request(
             f"devs/{device_id}/{_node.type}/{_node.addr}/status",
         )
-        try:
-            status = NodeStatus.model_validate(response).root
-            if self.raw_response is False:
-                return status
-            return status.model_dump(mode="json")
-        except ValidationError:
+        _LOGGER.debug("(%s) Status config data %s", _node.type, response)
+        if self.raw_response is True:
             return response
+        try:
+            return NodeStatus.model_validate(response).root
+        except ValidationError:
+            _LOGGER.exception("Status config validation error %s", response)
+            raise
 
     async def set_node_status(
         self,
@@ -439,10 +440,14 @@ class AsyncSmartboxSession(AsyncSession):
         response = await self._api_request(
             f"devs/{device_id}/{_node.type}/{_node.addr}/setup",
         )
-        setup = NodeSetup.model_validate(response)
-        if self.raw_response is False:
-            return setup
-        return setup.model_dump(mode="json")
+        _LOGGER.debug("(%s) Setup config data %s", _node.type, response)
+        if self.raw_response is True:
+            return response
+        try:
+            return NodeSetup.model_validate(response)
+        except ValidationError:
+            _LOGGER.exception("Setup config validation error %s", response)
+            raise
 
     async def set_node_setup(
         self,
