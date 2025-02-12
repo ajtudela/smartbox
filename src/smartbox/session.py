@@ -411,7 +411,7 @@ class AsyncSmartboxSession(AsyncSession):
             return NodeStatus.model_validate(response).root
         except ValidationError:
             _LOGGER.exception("Status config validation error %s", response)
-            return response
+            raise
 
     async def set_node_status(
         self,
@@ -447,7 +447,7 @@ class AsyncSmartboxSession(AsyncSession):
             return NodeSetup.model_validate(response)
         except ValidationError:
             _LOGGER.exception("Setup config validation error %s", response)
-            return response
+            raise
 
     async def set_node_setup(
         self,

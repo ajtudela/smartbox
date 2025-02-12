@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import aiohttp
 from aiohttp import ClientSession
+from pydantic import ValidationError
 import pytest
 
 from smartbox import APIUnavailableError, InvalidAuthError, SmartboxError
@@ -66,7 +67,7 @@ async def test_get_nodes(async_smartbox_session):
 
 
 @pytest.mark.asyncio
-async def test_get_node_status(async_smartbox_session):
+async def test_get_node_status(async_smartbox_session, caplog):
     for mock_device in await async_smartbox_session.get_devices():
         for mock_node in await async_smartbox_session.get_nodes(
             mock_device["dev_id"],
@@ -94,7 +95,17 @@ async def test_get_node_status(async_smartbox_session):
                     mock_node,
                 )
                 assert status_model.act_duty == status["act_duty"]
+                with pytest.raises(ValidationError):
+                    mock_api_request.return_value = {
+                        "sync_status": "synced",
+                        "mode": "auto",
+                    }
+                    await async_smartbox_session.get_node_status(
+                        mock_device["dev_id"],
+                        mock_node,
+                    )
                 async_smartbox_session.raw_response = True
+                assert "Status config validation error" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1217,7 +1228,7 @@ async def test_api_post_client_response_error(async_session):
 
 
 @pytest.mark.asyncio
-async def test_get_node_setup(async_smartbox_session):
+async def test_get_node_setup(async_smartbox_session, caplog):
     for mock_device in await async_smartbox_session.get_devices():
         mock_device_id = mock_device["dev_id"]
         for mock_node in await async_smartbox_session.get_nodes(mock_device_id):
@@ -1246,6 +1257,15 @@ async def test_get_node_setup(async_smartbox_session):
                     node=mock_node,
                 )
                 assert setup_model.away_mode == setup["away_mode"]
+                with pytest.raises(ValidationError):
+                    mock_api_request.return_value = {
+                        "sync_status": "synced",
+                        "control_mode": 1,
+                    }
+                    await async_smartbox_session.get_node_setup(
+                        device_id=mock_device_id, node=mock_node
+                    )
+                assert "Setup config validation error" in caplog.text
                 async_smartbox_session.raw_response = True
 
 
