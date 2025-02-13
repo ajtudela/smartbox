@@ -302,10 +302,9 @@ class AsyncSmartboxSession(AsyncSession):
         """Get nodes from devices."""
         response = await self._api_request(f"devs/{device_id}/mgr/nodes")
         _LOGGER.debug("Get nodes %s", response)
-        nodes: Nodes = Nodes.model_validate(response)
-        if self.raw_response is False:
-            return nodes.nodes
-        return [node.model_dump(mode="json") for node in nodes.nodes]
+        if self.raw_response is True:
+            return response["nodes"]
+        return Nodes.model_validate(response).nodes
 
     async def get_device_away_status(
         self,
