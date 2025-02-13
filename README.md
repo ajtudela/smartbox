@@ -158,8 +158,11 @@ or by specifying a python version
     tox -e py313
 
 # Support
-[![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
+[![Buy a coffee to ajtudela][buymeacoffee-shield]][buymeacoffee-ajtudela]
 
-[buymeacoffee]: https://www.buymeacoffee.com/ajtudela
+[![Buy a coffee to delmael][buymeacoffee-shield]][buymeacoffee-delmael]
+
+[buymeacoffee-ajtudela]: https://www.buymeacoffee.com/ajtudela
+[buymeacoffee-delmael]: https://www.buymeacoffee.com/delmael
 
 [buymeacoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png

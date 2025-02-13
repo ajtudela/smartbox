@@ -260,6 +260,7 @@ class AsyncSmartboxSession(AsyncSession):
     async def get_devices(self) -> list[dict[str, Any]] | Devices:
         """Get all devices."""
         response = await self._api_request("devs")
+        _LOGGER.debug("Get devices %s", response)
         devices: Devices = Devices.model_validate(response)
         if self.raw_response is False:
             return devices
@@ -300,6 +301,7 @@ class AsyncSmartboxSession(AsyncSession):
     ) -> list[dict[str, Any]] | list[Node]:
         """Get nodes from devices."""
         response = await self._api_request(f"devs/{device_id}/mgr/nodes")
+        _LOGGER.debug("Get nodes %s", response)
         nodes: Nodes = Nodes.model_validate(response)
         if self.raw_response is False:
             return nodes.nodes
