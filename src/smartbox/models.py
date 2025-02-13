@@ -146,7 +146,7 @@ class Node(BaseModel):
     addr: int
     type: SmartboxNodeType
     installed: bool
-    lost: bool
+    lost: bool | None = False
 
 
 class Nodes(BaseModel):
