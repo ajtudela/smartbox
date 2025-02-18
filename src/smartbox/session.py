@@ -489,9 +489,12 @@ class AsyncSmartboxSession(AsyncSession):
         data = {k: v for k, v in setup_args.items() if v is not None}
         # setup seems to require all settings to be re-posted, so get current
         # values and update
-        setup_data = await self.get_node_setup(device_id, node)
-        if isinstance(setup_data, NodeSetup):
-            setup_data = setup_data.model_dump(mode="json")
+        setup_data: dict[str, Any] = {}
+        node_setup = await self.get_node_setup(device_id, node)
+        if not isinstance(node_setup, dict):
+            setup_data = node_setup.model_dump(mode="json")
+        else:
+            setup_data = node_setup
         setup_data.update(data)
         await self._api_post(
             data=setup_data,
