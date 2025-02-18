@@ -381,3 +381,13 @@ async def test_guests(runner, mock_session):
     mock_session.return_value.get_home_guests.assert_called_once_with(
         home_id="home1"
     )
+
+
+@pytest.mark.anyio
+async def test_device_connected_status(runner, async_smartbox_session):
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "device-connected-status"],
+    )
+    assert result.exit_code == 0
+    assert "connected" in result.output

@@ -1446,3 +1446,30 @@ async def test_get_home_guests(async_smartbox_session):
         )
         assert guests_model.guest_users[0].email == guests[0]["email"]
         async_smartbox_session.raw_response = True
+
+
+@pytest.mark.asyncio
+async def test_get_deviceconnected_status(async_smartbox_session):
+    for mock_device in await async_smartbox_session.get_devices():
+        with patch.object(
+            async_smartbox_session,
+            "_api_request",
+            new_callable=AsyncMock,
+        ) as mock_api_request:
+            url = f"devs/{mock_device['dev_id']}/connected"
+            mock_api_request.return_value = await fake_get_request(
+                mock_api_request,
+                url,
+            )
+            nodes = await async_smartbox_session.get_device_connected(
+                device_id=mock_device["dev_id"],
+            )
+            assert nodes == mock_api_request.return_value
+            mock_api_request.assert_called_with(url)
+
+            async_smartbox_session.raw_response = False
+            nodes_model = await async_smartbox_session.get_device_connected(
+                device_id=mock_device["dev_id"],
+            )
+            assert nodes_model.connected == nodes["connected"]
+            async_smartbox_session.raw_response = True
