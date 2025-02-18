@@ -16,6 +16,7 @@ from smartbox.models import (
     AcmNodeStatus,
     DefaultNodeStatus,
     DeviceAwayStatus,
+    DeviceConnected,
     Devices,
     Guests,
     Home,
@@ -131,6 +132,18 @@ class AsyncSession:
             raise APIUnavailableError(e) from e
         return await response.json()
 
+    async def api_version(self) -> dict[str, str]:
+        """Check if the API is alived."""
+        api_url = f"{self._api_host}/version"
+        try:
+            response = await self.client.get(api_url)
+        except (
+            aiohttp.ClientConnectionError,
+            aiohttp.ClientConnectorError,
+        ) as e:
+            raise APIUnavailableError(e) from e
+        return await response.json()
+
     async def _authentication(self, credentials: dict[str, str]) -> None:
         """Do the authentication process to Smartbox. First one use login/mdp/basic_auth. Then the tokens."""
         token_headers = self._headers.copy()
@@ -209,6 +222,7 @@ class AsyncSession:
         try:
             _LOGGER.debug("Getting %s.", api_url)
             response = await self.client.get(api_url, headers=self._headers)
+            _LOGGER.debug("Response %s.", (await response.json()))
         except (
             aiohttp.ClientConnectionError,
             aiohttp.ClientConnectorError,
@@ -306,6 +320,17 @@ class AsyncSmartboxSession(AsyncSession):
             return response["nodes"]
         return Nodes.model_validate(response).nodes
 
+    async def get_device_connected(
+        self,
+        device_id: str,
+    ) -> dict[str, bool] | DeviceConnected:
+        """Get device away status."""
+        response = await self._api_request(f"devs/{device_id}/connected")
+        status: DeviceConnected = DeviceConnected.model_validate(response)
+        if self.raw_response is False:
+            return status
+        return status.model_dump(mode="json")
+
     async def get_device_away_status(
         self,
         device_id: str,
@@ -333,15 +358,18 @@ class AsyncSmartboxSession(AsyncSession):
         self, device_id: str, node: dict[str, Any] | None = None
     ) -> int:
         """Get device power limit."""
-        url = f"devs/{device_id}/htr_system/power_limit"
+        power_param = "power_limit"
+        url = f"devs/{device_id}/htr_system/{power_param}"
+
         if node is not None and (
             (_node := Node.model_validate(node))
             and _node.type == SmartboxNodeType.PMO
         ):
-            url = f"devs/{device_id}/{_node.type}/{_node.addr}/power"
+            power_param = "power"
+            url = f"devs/{device_id}/{_node.type}/{_node.addr}/{power_param}"
 
         resp = await self._api_request(url)
-        return int(resp["power_limit"])
+        return int(resp[power_param])
 
     async def set_device_power_limit(
         self,
@@ -380,14 +408,13 @@ class AsyncSmartboxSession(AsyncSession):
             datetime.datetime.fromtimestamp(end_time, tz=datetime.UTC),
         )
         _node: Node = Node.model_validate(node)
-        samples = Samples.model_validate(
-            await self._api_request(
-                f"devs/{device_id}/{_node.type}/{_node.addr}/samples?start={start_time}&end={end_time}",
-            ),
+        response = await self._api_request(
+            f"devs/{device_id}/{_node.type}/{_node.addr}/samples?start={start_time}&end={end_time}",
         )
-        if self.raw_response is False:
-            return samples
-        return samples.model_dump(mode="json")
+        _LOGGER.debug("Get_Device_Samples_Node: %s", response)
+        if self.raw_response is True:
+            return response
+        return Samples.model_validate(response)
 
     async def get_node_status(
         self,
@@ -399,6 +426,7 @@ class AsyncSmartboxSession(AsyncSession):
         | HtrNodeStatus
         | HtrModNodeStatus
         | DefaultNodeStatus
+        | None
     ):
         """Get a node status."""
         _node: Node = Node.model_validate(node)

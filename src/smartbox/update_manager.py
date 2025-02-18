@@ -163,6 +163,21 @@ class UpdateManager:
             callback,
         )
 
+    def subscribe_to_device_connected(
+        self,
+        callback: Callable[[bool], None],
+    ) -> None:
+        """Subscribe to device power limit updates."""
+        self.subscribe_to_dev_data(
+            ".connected",
+            lambda p: callback(bool(p)),
+        )
+        self.subscribe_to_updates(
+            r"^/connected",
+            f"{self.BODY_PATH}.connected",
+            lambda p: callback(bool(p)),
+        )
+
     def subscribe_to_device_power_limit(
         self,
         callback: Callable[[int], None],

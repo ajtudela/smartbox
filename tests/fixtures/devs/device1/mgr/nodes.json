@@ -1,18 +1,31 @@
 {
-  "nodes": [
-    {
-      "addr": 0,
-      "name": "Node 1 0",
-      "type": "htr",
-      "installed": true,
-      "lost": false
-    },
-    {
-      "addr": 1,
-      "name": "Node 1 1",
-      "type": "acm",
-      "installed": true,
-      "lost": false
-    }
-  ]
+    "nodes": [
+        {
+            "addr": 0,
+            "installed": true,
+            "lost": false,
+            "name": "Node 1 0",
+            "type": "htr"
+        },
+        {
+            "addr": 1,
+            "installed": true,
+            "lost": false,
+            "name": "Node 1 1",
+            "type": "acm"
+        },
+        {
+            "addr": 3,
+            "installed": true,
+            "level": 1,
+            "lost": false,
+            "name": "Node 1 3",
+            "parent": 1,
+            "setup": {
+                "counter_offset": "679.33"
+            },
+            "type": "pmo",
+            "uid": "003E003F0D47373436363733"
+        }
+    ]
 }

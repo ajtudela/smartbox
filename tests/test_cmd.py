@@ -29,6 +29,22 @@ async def test_health_check(runner, mock_session):
 
 
 @pytest.mark.anyio
+async def test_api_version(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result(
+        {"major": "1", "minor": "53", "subminor": "2", "commit": "NULL"}
+    )
+    mock_session.return_value.api_version.return_value = devices_future
+
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "api-version"],
+    )
+    assert result.exit_code == 0
+    assert "subminor" in result.output
+
+
+@pytest.mark.anyio
 async def test_devices(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,

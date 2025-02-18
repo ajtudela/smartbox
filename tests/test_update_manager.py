@@ -206,3 +206,21 @@ async def test_update_manager_run(update_manager):
     ) as mock_run:
         await update_manager.run()
         mock_run.assert_awaited_once()
+
+
+def test_update_manager_subscribe_to_device_connected(update_manager):
+    callback = MagicMock()
+    update_manager.subscribe_to_device_connected(callback)
+    assert len(update_manager._dev_data_subscriptions) == 1
+    assert len(update_manager._update_subscriptions) == 1
+
+    # Test dev data callback
+    dev_data = {"connected": True}
+    update_manager._dev_data_cb(dev_data)
+    callback.assert_called_once_with(dev_data["connected"])
+
+    # Test update callback
+    callback.reset_mock()
+    update_data = {"path": "/connected", "body": {"connected": True}}
+    update_manager._update_cb(update_data)
+    callback.assert_called_once_with(update_data["body"]["connected"])

@@ -277,6 +277,21 @@ async def device_away_status(ctx) -> None:
         _pretty_print(device_away_status)
 
 
+@smartbox.command(help="Show device connected status")
+@click.pass_context
+async def device_connected_status(ctx) -> None:
+    """Show device connected status."""
+    session = ctx.obj["session"]
+    devices = await session.get_devices()
+
+    for device in devices:
+        print(f"{device['name']} (dev_id: {device['dev_id']})")
+        device_away_status = await session.get_device_connected(
+            device["dev_id"],
+        )
+        _pretty_print(device_away_status)
+
+
 @smartbox.command(
     help="Set device away_status (pass settings as extra args, e.g. away=true)",
 )
@@ -377,6 +392,15 @@ async def health_check(ctx) -> None:
     session = ctx.obj["session"]
     health = await session.health_check()
     _pretty_print(health)
+
+
+@smartbox.command(help="Get version of the API.")
+@click.pass_context
+async def api_version(ctx) -> None:
+    """Get the version of the API."""
+    session = ctx.obj["session"]
+    version = await session.api_version()
+    _pretty_print(version)
 
 
 @smartbox.command(help="Get the availables resailers.")
