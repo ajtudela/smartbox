@@ -133,6 +133,10 @@ class UpdateManager:
         """Run the socket session asynchronously, waiting for updates."""
         await self._socket_session.run()
 
+    async def cancel(self) -> None:
+        """Disconnecting and cancelling tasks."""
+        await self._socket_session.cancel()
+
     def subscribe_to_dev_data(self, jq_expr: str, callback: Callable) -> None:
         """Subscribe to receive device data."""
         sub = DevDataSubscription(jq_expr, callback)
