@@ -9,7 +9,7 @@ from pydantic import ValidationError
 import pytest
 
 from smartbox import APIUnavailableError, InvalidAuthError, SmartboxError
-from smartbox.models import NodeSetup
+from smartbox.models import DefaultNodeSetup, NodeSetup
 from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
     _DEFAULT_RETRY_ATTEMPTS,
@@ -90,11 +90,12 @@ async def test_get_node_status(async_smartbox_session, caplog):
                 mock_api_request.assert_called_with(url)
 
                 async_smartbox_session.raw_response = False
-                status_model = await async_smartbox_session.get_node_status(
-                    mock_device["dev_id"],
-                    mock_node,
-                )
-                assert status_model.act_duty == status["act_duty"]
+                if mock_node["type"] != "pmo":
+                    status_model = await async_smartbox_session.get_node_status(
+                        mock_device["dev_id"],
+                        mock_node,
+                    )
+                    assert status_model.act_duty == status["act_duty"]
                 with pytest.raises(ValidationError):
                     mock_api_request.return_value = {
                         "sync_status": "synced",
@@ -145,9 +146,8 @@ async def test_get_node_samples(async_smartbox_session):
                     start_time=start_time,
                     end_time=end_time,
                 )
-                assert (
-                    samples_model.samples[0].counter
-                    == samples["samples"][0]["counter"]
+                assert samples_model.samples[0].counter == float(
+                    samples["samples"][0]["counter"]
                 )
                 async_smartbox_session.raw_response = True
 
@@ -223,6 +223,7 @@ async def test_get_device_power_limit(async_smartbox_session):
             "devs/test_device/htr_system/power_limit",
         )
 
+        mock_api_request.return_value = {"power": "100"}
         power_limit = await async_smartbox_session.get_device_power_limit(
             device_id="test_device", node=mock_node
         )
@@ -922,6 +923,54 @@ async def test_health_check_api_unavailable(async_session):
 
 
 @pytest.mark.asyncio
+async def test_api_version_success(async_session):
+    with patch.object(
+        async_session.client,
+        "get",
+        new_callable=AsyncMock,
+    ) as mock_get:
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(
+            return_value={
+                "major": "1",
+                "minor": "53",
+                "subminor": "2",
+                "commit": "NULL",
+            }
+        )
+        mock_response.raise_for_status = AsyncMock()
+        mock_get.return_value = mock_response
+
+        result = await async_session.api_version()
+        assert result == {
+            "major": "1",
+            "minor": "53",
+            "subminor": "2",
+            "commit": "NULL",
+        }
+        mock_get.assert_called_once_with(
+            f"{async_session._api_host}/version",
+        )
+
+
+@pytest.mark.asyncio
+async def test_api_version_unavailable(async_session):
+    with patch.object(
+        async_session.client,
+        "get",
+        new_callable=AsyncMock,
+    ) as mock_get:
+        mock_get.side_effect = aiohttp.ClientConnectionError()
+
+        with pytest.raises(APIUnavailableError):
+            await async_session.api_version()
+
+        mock_get.assert_called_once_with(
+            f"{async_session._api_host}/version",
+        )
+
+
+@pytest.mark.asyncio
 async def test_api_request_success(async_session):
     path = "test_path"
     expected_response = {"key": "value"}
@@ -1256,7 +1305,8 @@ async def test_get_node_setup(async_smartbox_session, caplog):
                     device_id=mock_device_id,
                     node=mock_node,
                 )
-                assert setup_model.away_mode == setup["away_mode"]
+                if isinstance(setup_model, DefaultNodeSetup):
+                    assert setup_model.away_mode == setup["away_mode"]
                 with pytest.raises(ValidationError):
                     mock_api_request.return_value = {
                         "sync_status": "synced",
@@ -1396,3 +1446,30 @@ async def test_get_home_guests(async_smartbox_session):
         )
         assert guests_model.guest_users[0].email == guests[0]["email"]
         async_smartbox_session.raw_response = True
+
+
+@pytest.mark.asyncio
+async def test_get_deviceconnected_status(async_smartbox_session):
+    for mock_device in await async_smartbox_session.get_devices():
+        with patch.object(
+            async_smartbox_session,
+            "_api_request",
+            new_callable=AsyncMock,
+        ) as mock_api_request:
+            url = f"devs/{mock_device['dev_id']}/connected"
+            mock_api_request.return_value = await fake_get_request(
+                mock_api_request,
+                url,
+            )
+            nodes = await async_smartbox_session.get_device_connected(
+                device_id=mock_device["dev_id"],
+            )
+            assert nodes == mock_api_request.return_value
+            mock_api_request.assert_called_with(url)
+
+            async_smartbox_session.raw_response = False
+            nodes_model = await async_smartbox_session.get_device_connected(
+                device_id=mock_device["dev_id"],
+            )
+            assert nodes_model.connected == nodes["connected"]
+            async_smartbox_session.raw_response = True

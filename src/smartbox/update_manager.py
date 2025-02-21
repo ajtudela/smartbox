@@ -133,6 +133,10 @@ class UpdateManager:
         """Run the socket session asynchronously, waiting for updates."""
         await self._socket_session.run()
 
+    async def cancel(self) -> None:
+        """Disconnecting and cancelling tasks."""
+        await self._socket_session.cancel()
+
     def subscribe_to_dev_data(self, jq_expr: str, callback: Callable) -> None:
         """Subscribe to receive device data."""
         sub = DevDataSubscription(jq_expr, callback)
@@ -161,6 +165,21 @@ class UpdateManager:
             r"^/mgr/away_status",
             self.BODY_PATH,
             callback,
+        )
+
+    def subscribe_to_device_connected(
+        self,
+        callback: Callable[[bool], None],
+    ) -> None:
+        """Subscribe to device power limit updates."""
+        self.subscribe_to_dev_data(
+            ".connected",
+            lambda p: callback(bool(p)),
+        )
+        self.subscribe_to_updates(
+            r"^/connected",
+            f"{self.BODY_PATH}.connected",
+            lambda p: callback(bool(p)),
         )
 
     def subscribe_to_device_power_limit(

@@ -143,6 +143,13 @@ class SocketSession:
 
                 event_loop.add_signal_handler(signal.SIGINT, sigint_handler)
 
+    async def _dev_data(self) -> None:
+        """Send first dev data."""
+        if not self._api_v2_ns.connected:
+            _LOGGER.debug("Namespace disconnected, not sending ping")
+        _LOGGER.debug("Sending dev_data event")
+        await self._sio.emit("dev_data", namespace=_API_V2_NAMESPACE)
+
     async def _send_ping(self) -> None:
         """End pings to be alive."""
         _LOGGER.debug("Starting ping task every %ss", self._ping_interval)
@@ -196,6 +203,7 @@ class SocketSession:
                         )
                 else:
                     _LOGGER.info("Successfully connected to %s", url)
+                    await self._dev_data()
                     await self._sio.wait()
                     _LOGGER.info("Socket loop exited, disconnecting")
                     await self._sio.disconnect()

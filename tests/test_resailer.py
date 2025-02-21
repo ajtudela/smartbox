@@ -1,6 +1,6 @@
 import pytest
 
-from smartbox import ResailerNotExistError
+from smartbox import AsyncSmartboxSession, ResailerNotExistError
 from smartbox.resailer import AvailableResailers
 
 
@@ -44,3 +44,15 @@ def test_resailer_invalid_data():
             web_url="invalid-url",
             serial_id="invalid-serial-id",
         ).resailer
+
+
+@pytest.mark.asyncio
+async def test_all_resailers():
+    for resailer in AvailableResailers.resailers.values():
+        _session = AsyncSmartboxSession(
+            username="", password="", api_name=resailer.api_url
+        )
+        check = await _session.health_check()
+        assert check is not None
+        version = await _session.api_version()
+        assert "major" in version

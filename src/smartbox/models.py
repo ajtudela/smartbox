@@ -47,7 +47,15 @@ class NodeExtraOptions(BaseModel):
     boost_time: int
 
 
-class NodeSetup(BaseModel):
+class PmoSetup(BaseModel):
+    """Pmo node setup."""
+
+    circuit_type: int
+    power_limit: int
+    reverse: bool
+
+
+class DefaultNodeSetup(BaseModel):
     """NodeSetup model."""
 
     sync_status: str
@@ -64,6 +72,16 @@ class NodeSetup(BaseModel):
     flash_version: str
     factory_options: NodeFactoryOptions
     extra_options: NodeExtraOptions
+
+
+class NodeSetup(RootModel[DefaultNodeSetup | PmoSetup]):
+    """NodeSetup model."""
+
+    root: DefaultNodeSetup | PmoSetup
+
+    def __getattr__(self, name: str) -> DefaultNodeSetup | PmoSetup:
+        """Get the root model directly."""
+        return getattr(self.root, name)
 
 
 class DefaultNodeStatus(BaseModel):
@@ -196,17 +214,26 @@ class Homes(RootModel[list[Home]]):
 
 
 class Sample(BaseModel):
-    """Sample model."""
+    """Pmo Sample model."""
 
     t: int
+    counter: float
     temp: str
-    counter: int
+
+
+class PmoSample(BaseModel):
+    """Default Sample."""
+
+    t: int
+    counter: float
+    max: int
+    min: int
 
 
 class Samples(BaseModel):
     """Samples model."""
 
-    samples: list[Sample]
+    samples: list[PmoSample | Sample]
 
 
 class Token(BaseModel):
@@ -229,3 +256,9 @@ class Guests(BaseModel):
     """Guests model."""
 
     guest_users: list[GuestUser]
+
+
+class DeviceConnected(BaseModel):
+    """Connected status of devices."""
+
+    connected: bool

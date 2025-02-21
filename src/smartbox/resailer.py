@@ -31,6 +31,12 @@ class AvailableResailers:
             api_url="api",
             serial_id=1,
         ),
+        "api-ehc": SmartboxResailer(
+            name="Electric Heating Company",
+            web_url="https://control.electric-heatingcompany.co.uk/",
+            api_url="api-ehc",
+            serial_id=3,
+        ),
         "api-climastar": SmartboxResailer(
             name="Climastar",
             web_url="https://avantwifi.climastar.es/",
