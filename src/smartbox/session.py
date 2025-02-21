@@ -253,6 +253,7 @@ class AsyncSession:
                 data=data_str,
                 headers=self._headers,
             )
+            _LOGGER.debug("Response %s.", (await response.json()))
         except (
             aiohttp.ClientConnectionError,
             aiohttp.ClientConnectorError,
