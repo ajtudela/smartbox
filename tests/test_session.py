@@ -721,7 +721,7 @@ async def test_async_session_init():
 
 
 @pytest.mark.asyncio
-async def test_async_session_init_defaults(resailer):
+async def test_async_session_init_defaults(reseller):
     api_name = "test_api"
     username = "test_user"
     password = "test_password"
@@ -777,7 +777,7 @@ async def test_authentication_success(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session.resailer.basic_auth}",
+                "authorization": f"Basic {async_session.reseller.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
                 "x-referer": "http",
                 "x-serialid": "10",
@@ -812,10 +812,10 @@ async def test_authentication_invalid_response(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session.resailer.basic_auth}",
+                "authorization": f"Basic {async_session.reseller.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
-                "x-serialid": f"{async_session.resailer.serial_id}",
-                "x-referer": f"{async_session.resailer.web_url}",
+                "x-serialid": f"{async_session.reseller.serial_id}",
+                "x-referer": f"{async_session.reseller.web_url}",
             },
             data=credentials,
         )
@@ -847,10 +847,10 @@ async def test_authentication_client_response_error(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session.resailer.basic_auth}",
+                "authorization": f"Basic {async_session.reseller.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
-                "x-serialid": f"{async_session.resailer.serial_id}",
-                "x-referer": f"{async_session.resailer.web_url}",
+                "x-serialid": f"{async_session.reseller.serial_id}",
+                "x-referer": f"{async_session.reseller.web_url}",
             },
             data=credentials,
         )
@@ -877,10 +877,10 @@ async def test_authentication_client_response_unavailable(async_session):
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
             headers={
-                "authorization": f"Basic {async_session.resailer.basic_auth}",
+                "authorization": f"Basic {async_session.reseller.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
-                "x-serialid": f"{async_session.resailer.serial_id}",
-                "x-referer": f"{async_session.resailer.web_url}",
+                "x-serialid": f"{async_session.reseller.serial_id}",
+                "x-referer": f"{async_session.reseller.web_url}",
             },
             data=credentials,
         )

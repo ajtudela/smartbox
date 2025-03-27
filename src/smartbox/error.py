@@ -15,5 +15,5 @@ class APIUnavailableError(aiohttp.ClientConnectionError):
     """API is unavailable."""
 
 
-class ResailerNotExistError(Exception):
-    """Resailer is not known."""
+class ResellerNotExistError(Exception):
+    """Reseller is not known."""

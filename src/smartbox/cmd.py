@@ -7,7 +7,7 @@ from typing import Any
 from aiohttp import ClientSession
 import asyncclick as click
 
-from smartbox.resailer import AvailableResailers
+from smartbox.reseller import AvailableResellers
 from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
 
@@ -403,10 +403,10 @@ async def api_version(ctx) -> None:
     _pretty_print(version)
 
 
-@smartbox.command(help="Get the availables resailers.")
-def resailers() -> None:
-    """Get the availables resailers."""
-    for item in AvailableResailers.resailers.items():
+@smartbox.command(help="Get the availables resellers.")
+def resellers() -> None:
+    """Get the availables resellers."""
+    for item in AvailableResellers.resellers.items():
         print(item)
 
 

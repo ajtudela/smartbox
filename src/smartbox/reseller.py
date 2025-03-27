@@ -1,18 +1,18 @@
-"""Resailer of Smartbox."""
+"""Reseller of Smartbox."""
 
 import logging
 from typing import ClassVar
 
 from pydantic import BaseModel, ValidationError
 
-from smartbox.error import ResailerNotExistError
+from smartbox.error import ResellerNotExistError
 
 SMARTBOX_GENERIC_BASIC_AUTH = "NTRiY2NiZmI0MWE5YTUxMTNmMDQ4OGQwOnZkaXZkaQ=="
 _LOGGER = logging.getLogger(__name__)
 
 
-class SmartboxResailer(BaseModel):
-    """Model of Smartbox Resailer config."""
+class SmartboxReseller(BaseModel):
+    """Model of Smartbox Reseller config."""
 
     name: str = "Smartbox"
     web_url: str = ""
@@ -21,55 +21,55 @@ class SmartboxResailer(BaseModel):
     serial_id: int = 0
 
 
-class AvailableResailers:
-    """Resailers that have been verified."""
+class AvailableResellers:
+    """Resellers that have been verified."""
 
-    resailers: ClassVar[dict[str, SmartboxResailer]] = {
-        "api": SmartboxResailer(
+    resellers: ClassVar[dict[str, SmartboxReseller]] = {
+        "api": SmartboxReseller(
             name="Helki",
             web_url="https://app.helki.com/",
             api_url="api",
             serial_id=1,
         ),
-        "api-ehc": SmartboxResailer(
+        "api-ehc": SmartboxReseller(
             name="Electric Heating Company",
             web_url="https://control.electric-heatingcompany.co.uk/",
             api_url="api-ehc",
             serial_id=3,
         ),
-        "api-climastar": SmartboxResailer(
+        "api-climastar": SmartboxReseller(
             name="Climastar",
             web_url="https://avantwifi.climastar.es/",
             api_url="api-climastar",
             serial_id=5,
         ),
-        "api-elnur": SmartboxResailer(
+        "api-elnur": SmartboxReseller(
             name="Elnur",
             web_url="https://remotecontrol.elnur.es/",
             api_url="api-elnur",
             serial_id=7,
         ),
-        "api-hjm": SmartboxResailer(
+        "api-hjm": SmartboxReseller(
             name="HJM",
             web_url="https://api.calorhjm.com/",
             api_url="api-hjm",
             serial_id=10,
         ),
-        "api-evconfort": SmartboxResailer(
+        "api-evconfort": SmartboxReseller(
             name="Electrorad",
             web_url="https://app.controls-electrorad.co.uk/",
             api_url="api-evconfort",
             serial_id=12,
         ),
-        "api-haverland": SmartboxResailer(
+        "api-haverland": SmartboxReseller(
             name="Haverland",
             web_url="https://i2control.haverland.com/",
             api_url="api-haverland",
             basic_auth="NTU2ZDc0MWI3OGUzYmU5YjU2NjA3NTQ4OnZkaXZkaQ==",
             serial_id=14,
         ),
-        "api-lhz": SmartboxResailer(
-            name="Technotherm",
+        "api-lhz": SmartboxReseller(
+            name="Technotherm / Lucht-LHZ",
             web_url="https://ttiapp.technotherm.com/",
             api_url="api-lhz",
             serial_id=16,
@@ -84,7 +84,7 @@ class AvailableResailers:
         serial_id: int | None = None,
         name: str = "Smartbox",
     ) -> None:
-        """Check if resailer is already available or try to create one."""
+        """Check if reseller is already available or try to create one."""
         self._api_url = api_url
         self._basic_auth = basic_auth
         self._web_url = web_url
@@ -92,27 +92,27 @@ class AvailableResailers:
         self._name = name
 
     @property
-    def resailer(self) -> SmartboxResailer:
-        """Get the resailer."""
-        resailer = self.resailers.get(self._api_url, None)
-        if resailer is None:
+    def reseller(self) -> SmartboxReseller:
+        """Get the reseller."""
+        reseller = self.resellers.get(self._api_url, None)
+        if reseller is None:
             if (
                 self._basic_auth is None
                 or self._web_url is None
                 or self._serial_id is None
             ):
-                msg = "This Resailer is not yet available or some arguments are missing."
-                raise ResailerNotExistError(msg)
+                msg = "This reseller is not yet available or some arguments are missing."
+                raise ResellerNotExistError(msg)
             try:
                 _LOGGER.debug(
-                    "Creating a new resailer api_url (%s), name=%s,  web_url %s, basic_auth=%s, serial_id=%s",
+                    "Creating a new reseller api_url (%s), name=%s,  web_url %s, basic_auth=%s, serial_id=%s",
                     self._api_url,
                     self._name,
                     self._web_url,
                     self._basic_auth,
                     self._serial_id,
                 )
-                resailer = SmartboxResailer(
+                reseller = SmartboxReseller(
                     api_url=self._api_url,
                     basic_auth=self._basic_auth,
                     web_url=self._web_url,
@@ -120,26 +120,26 @@ class AvailableResailers:
                     name=self._name,
                 )
             except ValidationError as e:
-                raise ResailerNotExistError from e
+                raise ResellerNotExistError from e
         _LOGGER.debug(
-            "Resailer api_url (%s), name=%s,  web_url %s",
-            resailer.api_url,
-            resailer.name,
-            resailer.web_url,
+            "Reseller api_url (%s), name=%s,  web_url %s",
+            reseller.api_url,
+            reseller.name,
+            reseller.web_url,
         )
-        return resailer
+        return reseller
 
     @property
     def api_url(self) -> str:
         """Get the api sub domain url."""
-        return self.resailer.api_url
+        return self.reseller.api_url
 
     @property
     def name(self) -> str:
-        """Get the name of resailer."""
-        return self.resailer.name
+        """Get the name of reseller."""
+        return self.reseller.name
 
     @property
     def web_url(self) -> str:
-        """Get the public websit of the resailer."""
-        return self.resailer.web_url
+        """Get the public websit of the reseller."""
+        return self.reseller.web_url
