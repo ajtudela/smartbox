@@ -55,6 +55,12 @@ class AvailableResailers:
             api_url="api-hjm",
             serial_id=10,
         ),
+        "api-evconfort": SmartboxResailer(
+            name="Electrorad",
+            web_url="https://app.controls-electrorad.co.uk/",
+            api_url="api-evconfort",
+            serial_id=12,
+        ),
         "api-haverland": SmartboxResailer(
             name="Haverland",
             web_url="https://i2control.haverland.com/",
