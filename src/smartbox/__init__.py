@@ -5,7 +5,7 @@ import importlib.metadata
 from .error import (
     APIUnavailableError,
     InvalidAuthError,
-    ResailerNotExistError,
+    ResellerNotExistError,
     SmartboxError,
 )
 from .models import (
@@ -21,7 +21,7 @@ from .models import (
     NodeStatus,
     SmartboxNodeType,
 )
-from .resailer import AvailableResailers, SmartboxResailer
+from .reseller import AvailableResellers, SmartboxReseller
 from .session import AsyncSmartboxSession, Session
 from .socket import SocketSession
 from .update_manager import UpdateManager
@@ -33,7 +33,7 @@ __all__ = [
     "APIUnavailableError",
     "AcmNodeStatus",
     "AsyncSmartboxSession",
-    "AvailableResailers",
+    "AvailableResellers",
     "DefaultNodeStatus",
     "GuestUser",
     "Guests",
@@ -44,11 +44,11 @@ __all__ = [
     "NodeFactoryOptions",
     "NodeSetup",
     "NodeStatus",
-    "ResailerNotExistError",
+    "ResellerNotExistError",
     "Session",
     "SmartboxError",
     "SmartboxNodeType",
-    "SmartboxResailer",
+    "SmartboxReseller",
     "SocketSession",
     "UpdateManager",
 ]

@@ -31,7 +31,7 @@ A few common options are required for all commands:
 Verbose logging can be enabled with the `-v`/`--verbose` flag.
 
 ### Optional options
-These options are useful if your resailer is not configured.
+These options are useful if your reseller is not configured.
 
 * `-b`/`--base-auth-creds`: An HTTP Basic Auth credential used to do initial
   authentication with the server. Use the base64 encoded string directly. See
@@ -39,7 +39,7 @@ These options are useful if your resailer is not configured.
 * `-a`/`--api-name`: The API name for your heater vendor. This is visible in
   the 'API Host' entry in the 'Version' menu item in the mobile app/web app. If
   the host name is of the form `api-foo.xxxx` or `api.xxxx` use the values
-  `api-foo` or `api` respectively. The resailer has to be declared in the package.
+  `api-foo` or `api` respectively. The reseller has to be declared in the package.
 * `-r`/`--x-referer`: The referer of your request.
 * `-i`/`--x-serial-id`: The serial-id of your request.
 
@@ -110,11 +110,11 @@ The `health-check` command can be used to know if the API is alived
 
     smartbox <auth options...> health-check
 
-### List available resailers
-The `resailers` command can be used to know which resailershas an automatic configuration.
-If your resailer is not present you can raise an issue in github, or use the optional options.
+### List available resellers
+The `resellers` command can be used to know which resellers has an automatic configuration.
+If your reseller is not present you can raise an issue in github, or use the optional options.
 
-    smartbox <auth options...> resailers
+    smartbox <auth options...> resellers
 
 
 See [api-notes.md](./api-notes.md) for notes on REST and socket.io endpoints.

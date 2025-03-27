@@ -3,7 +3,7 @@ from unittest.mock import patch
 from asyncclick.testing import CliRunner
 import pytest
 
-from smartbox.resailer import SmartboxResailer
+from smartbox.reseller import SmartboxReseller
 from smartbox.session import AsyncSession, AsyncSmartboxSession, Session
 from smartbox.update_manager import UpdateManager
 from tests.common import fake_get_request
@@ -25,7 +25,7 @@ def update_manager(mock_session):
 
 
 @pytest.fixture
-def async_smartbox_session(mocker, resailer):
+def async_smartbox_session(mocker, reseller):
     async_smartbox_session = AsyncSmartboxSession(
         api_name="test_api",
         username="test_user",
@@ -47,7 +47,7 @@ def async_smartbox_session(mocker, resailer):
 
 
 @pytest.fixture
-def session(resailer):
+def session(reseller):
     return Session(
         api_name="test_api",
         username="test_user",
@@ -56,7 +56,7 @@ def session(resailer):
 
 
 @pytest.fixture
-def async_session(resailer):
+def async_session(reseller):
     api_name = "test_api"
     username = "test_user"
     password = "test_password"
@@ -76,7 +76,7 @@ def async_session(resailer):
 
 @pytest.fixture
 def person():
-    return SmartboxResailer(
+    return SmartboxReseller(
         name="test",
         api_url="test_api",
         basic_auth="test_credentials",
@@ -86,12 +86,12 @@ def person():
 
 
 @pytest.fixture
-def resailer(mocker):
+def reseller(mocker):
     return mocker.patch(
-        "smartbox.resailer.AvailableResailers.resailers",
+        "smartbox.reseller.AvailableResellers.resellers",
         new_callable=mocker.PropertyMock,
         return_value={
-            "test_api": SmartboxResailer(
+            "test_api": SmartboxReseller(
                 name="test",
                 api_url="test_api",
                 basic_auth="test_credentials",

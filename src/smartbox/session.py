@@ -31,7 +31,7 @@ from smartbox.models import (
     SmartboxNodeType,
     Token,
 )
-from smartbox.resailer import AvailableResailers, SmartboxResailer
+from smartbox.reseller import AvailableResellers, SmartboxReseller
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
@@ -59,13 +59,13 @@ class AsyncSession:
         x_referer: str | None = None,
     ) -> None:
         """Init the session."""
-        self._resailer = AvailableResailers(
+        self._reseller = AvailableResellers(
             api_url=api_name,
             basic_auth=basic_auth_credentials,
             serial_id=x_serial_id,
             web_url=x_referer,
-        ).resailer
-        self._api_host: str = f"https://{self.resailer.api_url}.helki.com"
+        ).reseller
+        self._api_host: str = f"https://{self.reseller.api_url}.helki.com"
         self._basic_auth_credentials: str | None = basic_auth_credentials
         self._retry_attempts: int = retry_attempts
         self._backoff_factor: float = backoff_factor
@@ -78,20 +78,20 @@ class AsyncSession:
             "Authorization": f"Bearer {self._access_token}",
             "Content-Type": "application/json",
         }
-        if self.resailer.serial_id:
-            self._headers.update({"x-serialid": str(self.resailer.serial_id)})
-        if self.resailer.web_url:
-            self._headers.update({"x-referer": self.resailer.web_url})
+        if self.reseller.serial_id:
+            self._headers.update({"x-serialid": str(self.reseller.serial_id)})
+        if self.reseller.web_url:
+            self._headers.update({"x-referer": self.reseller.web_url})
 
     @property
-    def resailer(self) -> SmartboxResailer:
-        """Get the resailer."""
-        return self._resailer
+    def reseller(self) -> SmartboxReseller:
+        """Get the reseller."""
+        return self._reseller
 
     @property
     def api_name(self) -> str:
         """Get the api sub domain url."""
-        return self.resailer.api_url
+        return self.reseller.api_url
 
     @property
     def api_host(self) -> str:
@@ -150,7 +150,7 @@ class AsyncSession:
         del token_headers["Authorization"]
         token_headers.update(
             {
-                "authorization": f"Basic {self.resailer.basic_auth}",
+                "authorization": f"Basic {self.reseller.basic_auth}",
                 "Content-Type": "application/x-www-form-urlencoded",
             },
         )
