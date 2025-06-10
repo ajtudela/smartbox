@@ -68,11 +68,17 @@ class AvailableResellers:
             basic_auth="NTU2ZDc0MWI3OGUzYmU5YjU2NjA3NTQ4OnZkaXZkaQ==",
             serial_id=14,
         ),
-        "api-lhz": SmartboxReseller(
-            name="Technotherm / Lucht-LHZ",
+        "api-technoterm": SmartboxReseller(
+            name="Technotherm",
             web_url="https://ttiapp.technotherm.com/",
             api_url="api-lhz",
             serial_id=16,
+        ),
+        "api-smartcontrol": SmartboxReseller(
+            name="SmartControl",
+            web_url="https://app.smart-control.eu/",
+            api_url="api-lhz",
+            serial_id=17,
         ),
     }
 
@@ -94,14 +100,17 @@ class AvailableResellers:
     @property
     def reseller(self) -> SmartboxReseller:
         """Get the reseller."""
-        reseller = self.resellers.get(self._api_url, None)
+        reseller = next(
+            (r for r in self.resellers.values() if r.api_url == self._api_url),
+            None,
+        )
         if reseller is None:
             if (
                 self._basic_auth is None
                 or self._web_url is None
                 or self._serial_id is None
             ):
-                msg = "This reseller is not yet available or some arguments are missing."
+                msg = f"This reseller {self._api_url} is not yet available or some arguments are missing."
                 raise ResellerNotExistError(msg)
             try:
                 _LOGGER.debug(
