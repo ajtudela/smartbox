@@ -685,7 +685,7 @@ wheels = [
 
 [[package]]
 name = "smartbox"
-version = "2.1.4"
+version = "2.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
