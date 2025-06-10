@@ -263,22 +263,14 @@ async def test_node_samples(runner, mock_session):
 
 
 @pytest.mark.anyio
-async def test_reseller(runner, mocker):
-    mock_resellers = mocker.patch("smartbox.cmd.AvailableResellers.resellers")
-    mock_resellers.items.return_value = [
-        ("reseller1", "details1"),
-        ("reseller2", "details2"),
-    ]
-
+async def test_reseller(runner, mocker, reseller):
     result = await runner.invoke(
         smartbox,
         [*DEFAULT_ARGS, "resellers"],
     )
     assert result.exit_code == 0
-    assert "reseller1" in result.output
-    assert "details1" in result.output
-    assert "reseller2" in result.output
-    assert "details2" in result.output
+    assert "test_api" in result.output
+    assert "http" in result.output
 
 
 @pytest.mark.anyio
