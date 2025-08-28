@@ -14,7 +14,7 @@ DEFAULT_ARGS = [
 ]
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_health_check(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result("")
@@ -28,7 +28,7 @@ async def test_health_check(runner, mock_session):
     assert "" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_api_version(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result(
@@ -44,7 +44,7 @@ async def test_api_version(runner, mock_session):
     assert "subminor" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_devices(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,
@@ -54,14 +54,14 @@ async def test_devices(runner, async_smartbox_session):
     assert "device1" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_homes(runner, async_smartbox_session):
     result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "homes"])
     assert result.exit_code == 0
     assert "home1" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_nodes(runner, async_smartbox_session):
     result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "nodes"])
     assert result.exit_code == 0
@@ -69,7 +69,7 @@ async def test_nodes(runner, async_smartbox_session):
     assert "Smart Light" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_status(runner, async_smartbox_session):
     result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "status"])
     assert result.exit_code == 0
@@ -77,7 +77,7 @@ async def test_status(runner, async_smartbox_session):
     assert "true_radiant_active" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_device_away_status(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,
@@ -87,7 +87,7 @@ async def test_device_away_status(runner, async_smartbox_session):
     assert "away" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_socket(runner, mocker, mock_session):
     mock_socket_session = mocker.patch("smartbox.cmd.SocketSession")
     mock_socket_session.return_value.run.return_value = asyncio.Future()
@@ -100,7 +100,7 @@ async def test_socket(runner, mocker, mock_session):
     assert result.exit_code == 0
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_set_status(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -135,7 +135,7 @@ async def test_set_status(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_set_setup(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -187,7 +187,7 @@ async def test_set_setup(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_set_device_away_status(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -221,7 +221,7 @@ async def test_set_device_away_status(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_node_samples(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -262,7 +262,7 @@ async def test_node_samples(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_reseller(runner, mocker, reseller):
     result = await runner.invoke(
         smartbox,
@@ -273,7 +273,7 @@ async def test_reseller(runner, mocker, reseller):
     assert "http" in result.output
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_device_power_limit(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -298,7 +298,7 @@ async def test_device_power_limit(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_setup(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -327,7 +327,7 @@ async def test_setup(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_set_device_power_limit(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
@@ -355,7 +355,7 @@ async def test_set_device_power_limit(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_guests(runner, mock_session):
     guests_future = asyncio.Future()
     guests_future.set_result(
@@ -375,7 +375,7 @@ async def test_guests(runner, mock_session):
     )
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_device_connected_status(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,

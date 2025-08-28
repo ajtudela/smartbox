@@ -715,29 +715,29 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.11.11" },
-    { name = "asyncclick", specifier = ">=8.1.8" },
-    { name = "jq", specifier = ">=1.8.0" },
-    { name = "pydantic", specifier = ">=2.10.4" },
+    { name = "aiohttp" },
+    { name = "asyncclick" },
+    { name = "jq" },
+    { name = "pydantic" },
     { name = "python-socketio", specifier = "==5.13.0" },
-    { name = "requests", specifier = ">=2.32.3" },
-    { name = "websocket-client", specifier = ">=1.8.0" },
+    { name = "requests" },
+    { name = "websocket-client" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "freezegun", specifier = ">=1.5.1" },
-    { name = "mypy", specifier = ">=1.14.1" },
-    { name = "pre-commit", specifier = ">=4.1.0" },
-    { name = "pytest", specifier = ">=8.3.4" },
-    { name = "pytest-asyncio", specifier = ">=0.25.3" },
-    { name = "pytest-cov", specifier = ">=6.0.0" },
-    { name = "pytest-mock", specifier = ">=3.14.0" },
-    { name = "pytest-randomly", specifier = ">=3.16.0" },
-    { name = "requests-mock", specifier = ">=1.12.1" },
-    { name = "ruff", specifier = ">=0.9.4" },
-    { name = "time-machine", specifier = ">=2.16.0" },
-    { name = "tox", specifier = ">=4.24.1" },
+    { name = "freezegun" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "pytest-randomly" },
+    { name = "requests-mock" },
+    { name = "ruff" },
+    { name = "time-machine" },
+    { name = "tox" },
 ]
 
 [[package]]
