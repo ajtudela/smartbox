@@ -21,8 +21,8 @@ dependencies = [
     "aiohttp",
     "asyncclick",
     "jq",
-    "pydantic",
-    "python-socketio==5.13.0",
+    "pydantic==2.12.2",
+    "python-socketio",
     "requests",
     "websocket-client",
 ]
