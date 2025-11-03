@@ -22,7 +22,7 @@ dependencies = [
     "asyncclick",
     "jq",
     "pydantic",
-    "python-socketio==5.13.0",
+    "python-socketio==5.14.3",
     "requests",
     "websocket-client",
 ]
