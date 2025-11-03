@@ -70,3 +70,5 @@ env.bak/
 venv.bak/
 junit.xml
 .DS_Store
+
+*.code-workspace

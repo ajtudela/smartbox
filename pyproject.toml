@@ -1,6 +1,6 @@
 [project]
 name = "smartbox"
-version = "2.2.1"
+version = "2.3.0"
 requires-python = ">=3.13"
 authors = [
   { name="Alberto Tudela", email="ajtudela@gmail.com" },
@@ -18,13 +18,13 @@ classifiers = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
-    "aiohttp>=3.11.11",
-    "asyncclick>=8.1.8",
-    "jq>=1.8.0",
-    "pydantic>=2.10.4",
+    "aiohttp",
+    "asyncclick",
+    "jq",
+    "pydantic",
     "python-socketio==5.13.0",
-    "requests>=2.32.3",
-    "websocket-client>=1.8.0",
+    "requests",
+    "websocket-client",
 ]
 
 [project.urls]
@@ -43,18 +43,18 @@ members = ["smartbox"]
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.1.0",
-    "freezegun>=1.5.1",
-    "pytest>=8.3.4",
-    "pytest-asyncio>=0.25.3",
-    "pytest-cov>=6.0.0",
-    "pytest-mock>=3.14.0",
-    "pytest-randomly>=3.16.0",
-    "requests-mock>=1.12.1",
-    "tox>=4.24.1",
-    "ruff>=0.9.4",
-    "mypy>=1.14.1",
-    "time-machine>=2.16.0",
+    "pre-commit",
+    "freezegun",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-randomly",
+    "requests-mock",
+    "tox",
+    "ruff",
+    "mypy",
+    "time-machine",
 ]
 
 [tool.pytest.ini_options]
