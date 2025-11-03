@@ -49,6 +49,12 @@ class AvailableResellers:
             api_url="api-elnur",
             serial_id=7,
         ),
+        "api-valderoma": SmartboxReseller(
+            name="Valderoma",
+            web_url="https://wifi.valderoma.fr/",
+            api_url="api-climastar",
+            serial_id=8,
+        ),
         "api-hjm": SmartboxReseller(
             name="HJM",
             web_url="https://api.calorhjm.com/",

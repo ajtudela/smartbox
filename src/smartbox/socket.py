@@ -45,17 +45,16 @@ class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
         _LOGGER.debug("Namespace %s connected", self._namespace)
         self._namespace_connected = True
 
-    async def on_disconnect(self) -> None:
+    async def on_disconnect(self, reason: str) -> None:
         """Disconnection of namespace."""
         _LOGGER.debug(
-            "Namespace %s disconnected, disconnecting socket",
+            "Namespace %s disconnected, disconnecting socket. Reason: %s",
             self._namespace,
+            reason,
         )
         self._namespace_connected = False
         self._received_message = False
         self._received_dev_data = False
-        # we need to call disconnect to disconnect all namespaces
-        await self.disconnect()
 
     @property
     def connected(self) -> bool:
@@ -197,7 +196,7 @@ class SocketSession:
                     if remaining > 0:
                         await asyncio.sleep(sleep_time)
                     else:
-                        logging.warning(
+                        _LOGGER.warning(
                             "Failed to connect after %s attempts, falling through to refresh token",
                             self._reconnect_attempts,
                         )

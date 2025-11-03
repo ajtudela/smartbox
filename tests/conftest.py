@@ -11,7 +11,7 @@ from tests.common import fake_get_request
 
 @pytest.fixture
 def runner():
-    return CliRunner(mix_stderr=False)
+    return CliRunner()
 
 
 @pytest.fixture
