@@ -196,7 +196,7 @@ class SocketSession:
                     if remaining > 0:
                         await asyncio.sleep(sleep_time)
                     else:
-                        logging.warning(
+                        _LOGGER.warning(
                             "Failed to connect after %s attempts, falling through to refresh token",
                             self._reconnect_attempts,
                         )
