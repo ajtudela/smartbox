@@ -48,10 +48,8 @@ def test_reseller_invalid_data():
 
 @pytest.mark.asyncio
 async def test_all_resellers():
-    for reseller in AvailableResellers.resellers.values():
-        _session = AsyncSmartboxSession(
-            username="", password="", api_name=reseller.api_url
-        )
+    for key in AvailableResellers.resellers:
+        _session = AsyncSmartboxSession(username="", password="", api_name=key)
         check = await _session.health_check()
         assert check is not None
         version = await _session.api_version()
