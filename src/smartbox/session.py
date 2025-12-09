@@ -192,7 +192,7 @@ class AsyncSession:
                 self.expiry_time,
             )
         except ValidationError as e:
-            msg = "Received invalid auth response"
+            msg = f"Received invalid auth response {response.status} with msg: {response.reason}"
             raise InvalidAuthError(msg) from e
 
     async def check_refresh_auth(self) -> None:

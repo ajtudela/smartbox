@@ -107,7 +107,11 @@ class AvailableResellers:
     def reseller(self) -> SmartboxReseller:
         """Get the reseller."""
         reseller = next(
-            (r for r in self.resellers.values() if r.api_url == self._api_url),
+            (
+                value
+                for key, value in self.resellers.items()
+                if key == self._api_url
+            ),
             None,
         )
         if reseller is None:
