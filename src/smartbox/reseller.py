@@ -86,6 +86,14 @@ class AvailableResellers:
             api_url="api-lhz",
             serial_id=17,
         ),
+        "api-lhz": SmartboxReseller(
+            name="Lhz",
+            web_url="https://api-lhz.helki.com",
+            api_url="api-lhz",
+            basic_auth="NTU2ZDc0MWI3OGUzYmU5YjU2NjA3NTQ4OnZkaXZkaQ==",
+            serial_id=2,
+        ),
+
     }
 
     def __init__(
