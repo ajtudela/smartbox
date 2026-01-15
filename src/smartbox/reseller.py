@@ -61,14 +61,12 @@ class AvailableResellers:
             api_url="api-climastar",
             serial_id=8,
         ),
-
         "api-iheatcontrol": SmartboxReseller(
             name="iHeat Control",
             web_url="https://app.iheatcontrol.com/",
             api_url="api-evconfort",
             serial_id=9,
         ),
-
         "api-hjm": SmartboxReseller(
             name="HJM",
             web_url="https://api.calorhjm.com/",
