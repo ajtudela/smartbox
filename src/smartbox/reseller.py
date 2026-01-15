@@ -31,6 +31,12 @@ class AvailableResellers:
             api_url="api",
             serial_id=1,
         ),
+        "api-lhz": SmartboxReseller(
+            name="Lucht LHZ",
+            web_url="https://smartcontrol.lucht-lhz.de/",
+            api_url="api-lhz",
+            serial_id=2,
+        ),
         "api-ehc": SmartboxReseller(
             name="Electric Heating Company",
             web_url="https://control.electric-heatingcompany.co.uk/",
@@ -55,6 +61,14 @@ class AvailableResellers:
             api_url="api-climastar",
             serial_id=8,
         ),
+
+        "api-iheatcontrol": SmartboxReseller(
+            name="iHeat Control",
+            web_url="https://app.iheatcontrol.com/",
+            api_url="api-evconfort",
+            serial_id=9,
+        ),
+
         "api-hjm": SmartboxReseller(
             name="HJM",
             web_url="https://api.calorhjm.com/",
