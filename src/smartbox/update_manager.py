@@ -251,6 +251,33 @@ class UpdateManager:
             update_wrapper,
         )
 
+    def subscribe_to_node_version(
+        self,
+        callback: Callable[[str, int, dict[str, Any]], None],
+    ) -> None:
+        """Subscribe to node version updates."""
+
+        def dev_data_wrapper(data: dict[str, Any]) -> None:
+            (callback(data["type"], int(data["addr"]), data["version"]),)  # type: ignore[func-returns-value]
+
+        self.subscribe_to_dev_data(
+            "(.nodes[] | {addr, type, version})?",
+            dev_data_wrapper,
+        )
+
+        def update_wrapper(
+            data: dict[str, Any],
+            node_type: str,
+            addr: str,
+        ) -> None:
+            (callback(node_type, int(addr), data),)  # type: ignore[func-returns-value]
+
+        self.subscribe_to_updates(
+            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/version",
+            self.BODY_PATH,
+            update_wrapper,
+        )
+
     def _dev_data_cb(self, data: dict[str, Any]) -> None:
         for sub in self._dev_data_subscriptions:
             sub.match(data)

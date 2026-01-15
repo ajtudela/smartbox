@@ -224,3 +224,61 @@ def test_update_manager_subscribe_to_device_connected(update_manager):
     update_data = {"path": "/connected", "body": {"connected": True}}
     update_manager._update_cb(update_data)
     callback.assert_called_once_with(update_data["body"]["connected"])
+
+
+
+def test_update_manager_subscribe_to_node_version(update_manager):
+    callback = MagicMock()
+    update_manager.subscribe_to_node_version(callback)
+    assert len(update_manager._dev_data_subscriptions) == 1
+    assert len(update_manager._update_subscriptions) == 1
+
+    # Test dev data callback
+    dev_data = {
+        "nodes": [
+            {
+                "type": "acm",
+                "addr": 2,
+                "version": {
+                    "pid": "081c",
+                    "fw_version": "1.6",
+                    "hw_version": "1.0",
+                    "uid": "test123",
+                },
+            }
+        ],
+    }
+    update_manager._dev_data_cb(dev_data)
+    callback.assert_called_once_with(
+        "acm",
+        2,
+        {
+            "pid": "081c",
+            "fw_version": "1.6",
+            "hw_version": "1.0",
+            "uid": "test123",
+        },
+    )
+
+    # Test update callback
+    callback.reset_mock()
+    update_data = {
+        "path": "/acm/2/version",
+        "body": {
+            "pid": "081c",
+            "fw_version": "1.7",
+            "hw_version": "1.0",
+            "uid": "test123",
+        },
+    }
+    update_manager._update_cb(update_data)
+    callback.assert_called_once_with(
+        "acm",
+        2,
+        {
+            "pid": "081c",
+            "fw_version": "1.7",
+            "hw_version": "1.0",
+            "uid": "test123",
+        },
+    )
