@@ -72,6 +72,8 @@ class AsyncSession:
         self._username: str = username
         self._password: str = password
         self._access_token: str = ""
+        self._refresh_token: str = ""
+        self._expires_at: datetime.datetime = datetime.datetime.now(datetime.UTC)
         self._client_session: ClientSession | None = websession
         self.raw_response: bool = raw_response
         self._headers: dict[str, str] = {
@@ -271,6 +273,23 @@ class AsyncSession:
 
 class AsyncSmartboxSession(AsyncSession):
     """Asynchronous Smartbox Session. This should be the default one."""
+
+    async def __aenter__(self) -> "AsyncSmartboxSession":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit."""
+        if self._client_session:
+            await self._client_session.close()
+        # Cleanup socket if exists
+        if hasattr(self, "_socket") and self._socket:
+            await self._socket.disconnect()
 
     async def get_devices(self) -> list[dict[str, Any]] | Devices:
         """Get all devices."""

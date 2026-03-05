@@ -85,7 +85,7 @@ class NodeSetup(RootModel[DefaultNodeSetup | PmoSetup]):
 
 class NodeVersion(BaseModel):
     """NodeVersion model."""
-    
+
     hw_version: str
     fw_version: str
     uid: str
