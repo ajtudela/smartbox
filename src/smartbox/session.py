@@ -5,7 +5,7 @@ import datetime
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, Self
 
 import aiohttp
 from aiohttp import ClientSession
@@ -73,7 +73,9 @@ class AsyncSession:
         self._password: str = password
         self._access_token: str = ""
         self._refresh_token: str = ""
-        self._expires_at: datetime.datetime = datetime.datetime.now(datetime.UTC)
+        self._expires_at: datetime.datetime = datetime.datetime.now(
+            datetime.UTC
+        )
         self._client_session: ClientSession | None = websession
         self.raw_response: bool = raw_response
         self._headers: dict[str, str] = {
@@ -274,7 +276,7 @@ class AsyncSession:
 class AsyncSmartboxSession(AsyncSession):
     """Asynchronous Smartbox Session. This should be the default one."""
 
-    async def __aenter__(self) -> "AsyncSmartboxSession":
+    async def __aenter__(self) -> Self:
         """Async context manager entry."""
         return self
 
