@@ -56,7 +56,7 @@ def session(reseller):
 
 
 @pytest.fixture
-def async_session(reseller):
+def async_session(reseller, mocker):
     api_name = "test_api"
     username = "test_user"
     password = "test_password"
@@ -66,10 +66,42 @@ def async_session(reseller):
         username=username,
         password=password,
     )
+
+    class MockAiohttpResponse:
+        def __init__(self, *args, **kwargs):
+            self.url = args[0] if args else kwargs.get("url", "")
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            """Context manager exit, no special handling needed."""
+
+        async def json(self):
+            path = "unknown"
+            if isinstance(self.url, str):
+                if "api/v2/" in self.url:
+                    path = self.url.split("api/v2/")[-1]
+                elif "client/token" in self.url:
+                    return {
+                        "access_token": "fake_token",
+                        "refresh_token": "fake_refresh",
+                        "expires_in": 3600,
+                    }
+
+            try:
+                return await fake_get_request(None, path)
+            except FileNotFoundError:
+                return {}
+
+    mock_client = mocker.MagicMock()
+    mock_client.get.side_effect = MockAiohttpResponse
+    mock_client.post.side_effect = MockAiohttpResponse
+
     with patch(
         "smartbox.session.AsyncSession.client",
-        autospec=True,
-        side_effect=fake_get_request,
+        new_callable=mocker.PropertyMock,
+        return_value=mock_client,
     ):
         yield session
 

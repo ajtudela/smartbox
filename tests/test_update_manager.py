@@ -226,7 +226,6 @@ def test_update_manager_subscribe_to_device_connected(update_manager):
     callback.assert_called_once_with(update_data["body"]["connected"])
 
 
-
 def test_update_manager_subscribe_to_node_version(update_manager):
     callback = MagicMock()
     update_manager.subscribe_to_node_version(callback)
