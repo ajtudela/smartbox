@@ -1489,3 +1489,39 @@ async def test_get_deviceconnected_status(async_smartbox_session):
             )
             assert nodes_model.connected == nodes["connected"]
             async_smartbox_session.raw_response = True
+
+
+@pytest.mark.asyncio
+async def test_async_session_context_manager_success():
+    """Testing __aenter__ and __aexit__."""
+    mock_client = AsyncMock(spec=ClientSession)
+    session = AsyncSession(
+        username="test_user",
+        password="test_password",
+        websession=mock_client,
+    )
+
+    async with session as s:
+        assert s is session
+        mock_client.close.assert_not_called()
+    mock_client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_async_session_context_manager_with_exception():
+    """Testing that __aexit__ cleans up properly even in case of a crash."""
+    mock_client = AsyncMock(spec=ClientSession)
+    session = AsyncSession(
+        username="test_user",
+        password="test_password",
+        websession=mock_client,
+    )
+
+    class DummyError(Exception):
+        """Dummy exception for testing context manager error handling."""
+
+    with pytest.raises(DummyError):
+        async with session:
+            msg = "This is a test error to check context manager exception handling."
+            raise DummyError(msg)
+    mock_client.close.assert_awaited_once()

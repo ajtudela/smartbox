@@ -165,6 +165,71 @@ class SocketSession:
             _LOGGER.debug("Sending ping")
             await self._sio.send("ping", namespace=_API_V2_NAMESPACE)
 
+    async def _attempt_connection(self, url: str) -> bool:
+        """Attempt to connect to the websocket URL.
+
+        Returns True if connection was successful, False otherwise.
+        """
+        _LOGGER.debug("Connecting to %s", url)
+        try:
+            connect_task = asyncio.create_task(
+                self._sio.connect(url, transports=["websocket"])
+            )
+            try:
+                await asyncio.shield(connect_task)
+            except asyncio.CancelledError:
+                _LOGGER.debug(
+                    "HA stops during connection, scheduled cleaning..."
+                )
+                if not connect_task.done():
+
+                    async def _cleanup_dangling_socket(
+                        task_to_cleanup: asyncio.Task = connect_task,
+                    ) -> None:
+                        try:
+                            await task_to_cleanup
+                            await self._sio.disconnect()
+                        except (
+                            AttributeError,
+                            RuntimeError,
+                            OSError,
+                            ConnectionError,
+                        ) as e:
+                            _LOGGER.debug(
+                                "Error occurred while _cleanup_dangling_socket: %s",
+                                e,
+                            )
+
+                    asyncio.create_task(_cleanup_dangling_socket())
+
+                raise
+            _LOGGER.info("Successfully connected to %s", url)
+            await self._dev_data()
+            await self._sio.wait()
+            await self._cleanup_websocket()
+            with contextlib.suppress(Exception):
+                await self._sio.disconnect()
+        except socketio.exceptions.ConnectionError:
+            return False
+        return True
+
+    async def _cleanup_websocket(self) -> None:
+        """Clean up orphaned WebSocket connections."""
+        _LOGGER.debug("Exiting wait(), forcing socketio cleanup...")
+        try:
+            if (
+                hasattr(self._sio, "eio")
+                and hasattr(self._sio.eio, "ws")
+                and self._sio.eio.ws
+            ) and not self._sio.eio.ws.closed:
+                _LOGGER.debug("Manually closing the orphaned WebSocket")
+                await self._sio.eio.ws.close()
+        except (AttributeError, RuntimeError, OSError, ConnectionError) as e:
+            _LOGGER.debug(
+                "Error occurred while manually closing the WebSocket: %s",
+                e,
+            )
+
     async def run(self) -> None:
         """Run the websocket."""
         self._ping_task = self._sio.start_background_task(self._send_ping)
@@ -189,72 +254,25 @@ class SocketSession:
                     _LOGGER.debug(
                         "Connecting to %s (attempt #%s)", url, attempt
                     )
-                    try:
-                        connect_task = asyncio.create_task(
-                            self._sio.connect(url, transports=["websocket"])
-                        )
-                        try:
-                            await asyncio.shield(connect_task)
-                        except asyncio.CancelledError:
-                            _LOGGER.debug(
-                                "HA stops during connection, scheduled cleaning..."
-                            )
-                            if not connect_task.done():
 
-                                async def _cleanup_dangling_socket(task_to_cleanup: asyncio.Task=connect_task) -> None:
-                                    try:
-                                        await task_to_cleanup
-                                        await self._sio.disconnect()
-                                    except (AttributeError, RuntimeError, OSError, ConnectionError) as e:
-                                        _LOGGER.debug(
-                                            "Error occurred while _cleanup_dangling_socket: %s",
-                                            e,
-                                        )
-                                asyncio.create_task(_cleanup_dangling_socket())
-
-                            raise
-                        _LOGGER.info("Successfully connected to %s", url)
-                        await self._dev_data()
-                        await self._sio.wait()
-                        _LOGGER.debug(
-                            "Exiting wait(), forcing socketio cleanup..."
-                        )
-                        try:
-                            if (
-                                hasattr(self._sio, "eio")
-                                and hasattr(self._sio.eio, "ws")
-                                and self._sio.eio.ws
-                            ) and not self._sio.eio.ws.closed:
-                                _LOGGER.debug(
-                                    "Manually closing the orphaned WebSocket"
-                                )
-                                await self._sio.eio.ws.close()
-                        except (AttributeError, RuntimeError, OSError, ConnectionError) as e:
-                            _LOGGER.debug(
-                                "Error occurred while manually closing the WebSocket: %s",
-                                e,
-                            )
-
-                        with contextlib.suppress(Exception):
-                            await self._sio.disconnect()
-                    except socketio.exceptions.ConnectionError:
-                        remaining = self._reconnect_attempts - attempt - 1
-                        sleep_time = self._backoff_factor * (2**attempt)
-                        _LOGGER.exception(
-                            "Received error on connection attempt, %s retries remaining, sleeping %ss",
-                            remaining,
-                            sleep_time,
-                        )
-                        if remaining > 0:
-                            await asyncio.sleep(sleep_time)
-                        else:
-                            _LOGGER.warning(
-                                "Failed to connect after %s attempts, falling through to refresh token",
-                                self._reconnect_attempts,
-                            )
-                    else:
+                    if await self._attempt_connection(url):
                         _LOGGER.debug("Breaking loop to refresh token")
                         break
+
+                    remaining = self._reconnect_attempts - attempt - 1
+                    sleep_time = self._backoff_factor * (2**attempt)
+                    _LOGGER.exception(
+                        "Received error on connection attempt, %s retries remaining, sleeping %ss",
+                        remaining,
+                        sleep_time,
+                    )
+                    if remaining > 0:
+                        await asyncio.sleep(sleep_time)
+                    else:
+                        _LOGGER.warning(
+                            "Failed to connect after %s attempts, falling through to refresh token",
+                            self._reconnect_attempts,
+                        )
                 await self._session.check_refresh_auth()
         except asyncio.CancelledError:
             _LOGGER.debug("WebSocket loop cancelled by Home Assistant")

@@ -87,6 +87,29 @@ class AsyncSession:
         if self.reseller.web_url:
             self._headers.update({"x-referer": self.reseller.web_url})
 
+    async def __aenter__(self) -> Self:
+        """Async context manager entry."""
+        _LOGGER.debug(
+            "__aenter__ of AsyncSmartboxSession, authenticating and creating client session if not provided",
+        )
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit."""
+        _LOGGER.debug(
+            "Async context manager exit, closing client session and socket if exists"
+        )
+        if self._client_session:
+            await self._client_session.close()
+        # Cleanup socket if exists
+        if hasattr(self, "_socket") and self._socket:
+            await self._socket.disconnect()
+
     @property
     def reseller(self) -> SmartboxReseller:
         """Get the reseller."""
@@ -285,29 +308,6 @@ class AsyncSession:
 
 class AsyncSmartboxSession(AsyncSession):
     """Asynchronous Smartbox Session. This should be the default one."""
-
-    async def __aenter__(self) -> Self:
-        """Async context manager entry."""
-        _LOGGER.debug(
-            "__aenter__ of AsyncSmartboxSession, authenticating and creating client session if not provided",
-        )
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: object,
-    ) -> None:
-        """Async context manager exit."""
-        _LOGGER.debug(
-            "Async context manager exit, closing client session and socket if exists"
-        )
-        if self._client_session:
-            await self._client_session.close()
-        # Cleanup socket if exists
-        if hasattr(self, "_socket") and self._socket:
-            await self._socket.disconnect()
 
     async def get_devices(self) -> list[dict[str, Any]] | Devices:
         """Get all devices."""
