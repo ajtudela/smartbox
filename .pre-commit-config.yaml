@@ -2,7 +2,7 @@ repos:
 
 - repo: https://github.com/astral-sh/uv-pre-commit
   # uv version.
-  rev: 0.9.25
+  rev: 0.10.8
   hooks:
     # Update the uv lockfile
     - id: uv-lock
@@ -22,7 +22,7 @@ repos:
       - "--indent=4"
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.14.11
+  rev: v0.15.4
   hooks:
     - id: ruff
       args: [--fix, --exit-non-zero-on-fix]

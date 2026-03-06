@@ -16,7 +16,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.13, 3.14]
+        python-version: [3.14]
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6.1.0
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install the project
@@ -37,7 +37,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [3.13, 3.14]
+        python-version: [3.14]
 
     steps:
       - uses: actions/checkout@v6
@@ -46,7 +46,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6.1.0
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install the project
@@ -59,7 +59,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.13, 3.14]
+        python-version: [3.14]
 
     steps:
       - uses: actions/checkout@v6
@@ -69,7 +69,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6.1.0
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install the project

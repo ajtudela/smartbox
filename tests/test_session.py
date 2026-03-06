@@ -1,7 +1,10 @@
 import datetime
 import json
+import logging
 import math
-from unittest.mock import AsyncMock, patch
+import re
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 from aiohttp import ClientSession
@@ -150,6 +153,47 @@ async def test_get_node_samples(async_smartbox_session):
                     samples["samples"][0]["counter"]
                 )
                 async_smartbox_session.raw_response = True
+
+
+@pytest.mark.asyncio
+async def test_get_node_samples_default_times(async_smartbox_session):
+    """Default start and end times should be 1 hour before and after current time."""
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "htr",
+        "installed": True,
+        "lost": False,
+    }
+
+    with patch.object(
+        async_smartbox_session,
+        "_api_request",
+        new_callable=AsyncMock,
+    ) as mock_api_request:
+        mock_api_request.return_value = {"samples": []}
+        now = int(time.time())
+        await async_smartbox_session.get_node_samples(
+            device_id=mock_device_id,
+            node=mock_node,
+        )
+        called_url = mock_api_request.call_args[0][0]
+
+        assert called_url.startswith(
+            f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/samples?start="
+        )
+
+        match = re.search(r"start=(\d+)&end=(\d+)", called_url)
+        assert match is not None, (
+            "Start and end date not present in url"
+        )
+
+        called_start = int(match.group(1))
+        called_end = int(match.group(2))
+
+        assert abs(called_start - (now - 3600)) <= 5
+        assert abs(called_end - (now + 3600)) <= 5
 
 
 @pytest.mark.asyncio
@@ -718,6 +762,7 @@ async def test_async_session_init():
     assert session._client_session == websession
     assert session._headers["x-serialid"] == str(serial_id)
     assert session._headers["x-referer"] == referer
+    await websession.close()
 
 
 @pytest.mark.asyncio
@@ -745,7 +790,7 @@ async def test_async_session_init_defaults(reseller):
 
 
 @pytest.mark.asyncio
-async def test_authentication_success(async_session):
+async def test_authentication_success(async_session, caplog):
     credentials = {
         "grant_type": "password",
         "username": "test_user",
@@ -754,25 +799,33 @@ async def test_authentication_success(async_session):
     token_response = {
         "access_token": "test_access_token",
         "refresh_token": "test_refresh_token",
-        "expires_in": 3600,
+        "expires_in": 5,
         "token_type": "test_token_type",
     }
 
     with patch.object(
         async_session.client,
         "post",
-        new_callable=AsyncMock,
     ) as mock_post:
-        mock_post.return_value.json = AsyncMock(return_value=token_response)
-        mock_post.return_value.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
 
-        await async_session._authentication(credentials)
+        mock_response.json = AsyncMock(return_value=token_response)
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
+
+        with caplog.at_level(logging.WARNING, logger="smartbox.session"):
+            await async_session._authentication(credentials)
 
         assert async_session._access_token == "test_access_token"
         assert async_session.access_token == "test_access_token"
         assert async_session._refresh_token == "test_refresh_token"
         assert async_session.refresh_token == "test_refresh_token"
         assert async_session._expires_at > datetime.datetime.now(datetime.UTC)
+
+        assert "below minimum lifetime" in caplog.text
+        assert "will refresh again on next operation" in caplog.text
 
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
@@ -798,10 +851,15 @@ async def test_authentication_invalid_response(async_session):
     with patch.object(
         async_session.client,
         "post",
-        new_callable=AsyncMock,
     ) as mock_post:
-        mock_post.return_value.json = AsyncMock(return_value=invalid_response)
-        mock_post.return_value.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+
+        mock_response.json = AsyncMock(return_value=invalid_response)
+        mock_response.raise_for_status = MagicMock()
+
+        mock_post.return_value = mock_response
 
         with pytest.raises(
             InvalidAuthError,
@@ -832,7 +890,6 @@ async def test_authentication_client_response_error(async_session):
     with patch.object(
         async_session.client,
         "post",
-        new_callable=AsyncMock,
     ) as mock_post:
         mock_post.side_effect = aiohttp.ClientResponseError(
             request_info=None,
@@ -867,7 +924,6 @@ async def test_authentication_client_response_unavailable(async_session):
     with patch.object(
         async_session.client,
         "post",
-        new_callable=AsyncMock,
     ) as mock_post:
         mock_post.side_effect = aiohttp.ClientConnectionError()
 
@@ -891,11 +947,14 @@ async def test_health_check_success(async_session):
     with patch.object(
         async_session.client,
         "get",
-        new_callable=AsyncMock,
     ) as mock_get:
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+
         mock_response.json = AsyncMock(return_value={"status": "ok"})
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+
         mock_get.return_value = mock_response
 
         result = await async_session.health_check()
@@ -910,7 +969,6 @@ async def test_health_check_api_unavailable(async_session):
     with patch.object(
         async_session.client,
         "get",
-        new_callable=AsyncMock,
     ) as mock_get:
         mock_get.side_effect = aiohttp.ClientConnectionError()
 
@@ -927,18 +985,18 @@ async def test_api_version_success(async_session):
     with patch.object(
         async_session.client,
         "get",
-        new_callable=AsyncMock,
     ) as mock_get:
         mock_response = AsyncMock()
-        mock_response.json = AsyncMock(
-            return_value={
-                "major": "1",
-                "minor": "53",
-                "subminor": "2",
-                "commit": "NULL",
-            }
-        )
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+        mock_response.json.return_value = {
+            "major": "1",
+            "minor": "53",
+            "subminor": "2",
+            "commit": "NULL",
+        }
+
+        mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
 
         result = await async_session.api_version()
@@ -958,7 +1016,6 @@ async def test_api_version_unavailable(async_session):
     with patch.object(
         async_session.client,
         "get",
-        new_callable=AsyncMock,
     ) as mock_get:
         mock_get.side_effect = aiohttp.ClientConnectionError()
 
@@ -984,11 +1041,13 @@ async def test_api_request_success(async_session):
         patch.object(
             async_session.client,
             "get",
-            new_callable=AsyncMock,
         ) as mock_get,
     ):
         mock_response = AsyncMock()
-        mock_response.json = AsyncMock(return_value=expected_response)
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+        mock_response.json.return_value = expected_response
+        mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
 
         result = await async_session._api_request(path)
@@ -1013,12 +1072,16 @@ async def test_api_request_check_refresh_auth_called(async_session):
         patch.object(
             async_session.client,
             "get",
-            new_callable=AsyncMock,
         ) as mock_get,
     ):
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
+
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+
         mock_response.json = AsyncMock(return_value={})
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+
         mock_get.return_value = mock_response
 
         await async_session._api_request(path)
@@ -1042,7 +1105,6 @@ async def test_api_request_client_connection_error(async_session):
         patch.object(
             async_session.client,
             "get",
-            new_callable=AsyncMock,
         ) as mock_get,
     ):
         mock_get.side_effect = aiohttp.ClientConnectionError()
@@ -1070,7 +1132,6 @@ async def test_api_request_client_response_error(async_session):
         patch.object(
             async_session.client,
             "get",
-            new_callable=AsyncMock,
         ) as mock_get,
     ):
         mock_get.side_effect = aiohttp.ClientResponseError(
@@ -1105,12 +1166,15 @@ async def test_api_post_success(async_session):
         patch.object(
             async_session.client,
             "post",
-            new_callable=AsyncMock,
         ) as mock_post,
     ):
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+
         mock_response.json = AsyncMock(return_value=expected_response)
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+
         mock_post.return_value = mock_response
 
         result = await async_session._api_post(data, path)
@@ -1137,12 +1201,14 @@ async def test_api_post_check_refresh_auth_called(async_session):
         patch.object(
             async_session.client,
             "post",
-            new_callable=AsyncMock,
         ) as mock_post,
     ):
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+
         mock_response.json = AsyncMock(return_value={})
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await async_session._api_post(data, path)
@@ -1225,7 +1291,6 @@ async def test_api_post_client_connection_error(async_session):
         patch.object(
             async_session.client,
             "post",
-            new_callable=AsyncMock,
         ) as mock_post,
     ):
         mock_post.side_effect = aiohttp.ClientConnectionError()
@@ -1255,7 +1320,6 @@ async def test_api_post_client_response_error(async_session):
         patch.object(
             async_session.client,
             "post",
-            new_callable=AsyncMock,
         ) as mock_post,
     ):
         mock_post.side_effect = aiohttp.ClientResponseError(
@@ -1381,9 +1445,9 @@ async def test_client_without_existing_session():
         username="test_user",
         password="test_password",
     )
-
-    client = async_smartbox_session.client
-    assert isinstance(client, ClientSession)
+    with patch("smartbox.session.ClientSession") as mock_client_session:
+        client = async_smartbox_session.client
+        assert client == mock_client_session.return_value
 
 
 @pytest.mark.asyncio
@@ -1473,3 +1537,46 @@ async def test_get_deviceconnected_status(async_smartbox_session):
             )
             assert nodes_model.connected == nodes["connected"]
             async_smartbox_session.raw_response = True
+
+
+@pytest.mark.asyncio
+async def test_async_session_context_manager_success():
+    """Testing __aenter__ and __aexit__."""
+    mock_client = AsyncMock(spec=ClientSession)
+    session = AsyncSession(
+        username="test_user",
+        password="test_password",
+        websession=mock_client,
+    )
+    mock_socket = AsyncMock()
+    session._socket = mock_socket
+
+    async with session as s:
+        assert s is session
+        mock_client.close.assert_not_called()
+        mock_socket.disconnect.assert_not_called()
+    mock_client.close.assert_awaited_once()
+    mock_socket.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_async_session_context_manager_with_exception():
+    """Testing that __aexit__ cleans up properly even in case of a crash."""
+    mock_client = AsyncMock(spec=ClientSession)
+    session = AsyncSession(
+        username="test_user",
+        password="test_password",
+        websession=mock_client,
+    )
+    mock_socket = AsyncMock()
+    session._socket = mock_socket
+
+    class DummyError(Exception):
+        """Dummy exception for testing context manager error handling."""
+
+    with pytest.raises(DummyError):
+        async with session:
+            msg = "This is a test error to check context manager exception handling."
+            raise DummyError(msg)
+    mock_client.close.assert_awaited_once()
+    mock_socket.disconnect.assert_awaited_once()

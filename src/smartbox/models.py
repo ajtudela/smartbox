@@ -83,13 +83,15 @@ class NodeSetup(RootModel[DefaultNodeSetup | PmoSetup]):
         """Get the root model directly."""
         return getattr(self.root, name)
 
+
 class NodeVersion(BaseModel):
     """NodeVersion model."""
-    
+
     hw_version: str
     fw_version: str
     uid: str
     pid: str
+
 
 class DefaultNodeStatus(BaseModel):
     """Default Node Status."""
@@ -172,6 +174,7 @@ class Node(BaseModel):
     type: SmartboxNodeType
     installed: bool
     lost: bool | None = False
+
 
 class Nodes(BaseModel):
     """Nodes model."""

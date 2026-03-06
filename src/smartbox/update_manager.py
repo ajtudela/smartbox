@@ -3,7 +3,7 @@
 from collections.abc import Callable, Iterable
 import logging
 import re
-from typing import Any
+from typing import Any, ClassVar
 
 import jq
 
@@ -18,6 +18,8 @@ _SIMPLE_JQ_RE = re.compile(r"^\.(\w+)$")
 class OptimisedJQMatcher:
     """jq matcher that doesn't bother with jq for simple one-level element queries."""
 
+    _jq_cache: ClassVar[dict[str, Any]] = {}
+
     def __init__(self, jq_expr: str) -> None:
         """Create an OptimisedJQMatcher for any jq expression."""
         m = _SIMPLE_JQ_RE.match(jq_expr)
@@ -26,7 +28,9 @@ class OptimisedJQMatcher:
             self._fast_path = True
             self._simple_elem = m.group(1)
         else:
-            self._compiled_jq = jq.compile(jq_expr)
+            if jq_expr not in self._jq_cache:
+                self._jq_cache[jq_expr] = jq.compile(jq_expr)
+            self._compiled_jq = self._jq_cache[jq_expr]
 
     def match(self, input_data: dict[str, Any]) -> Iterable[Any]:
         """Return matches for the given dev data."""
