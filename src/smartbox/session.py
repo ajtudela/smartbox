@@ -121,37 +121,39 @@ class AsyncSession:
     def client(self) -> ClientSession:
         """Return the underlying http client."""
         if not self._client_session:
-            return ClientSession()
+            self._client_session = ClientSession()
         return self._client_session
 
     async def health_check(self) -> dict[str, Any]:
         """Check if the API is alived."""
         api_url = f"{self._api_host}/health_check"
         try:
-            response = await self.client.get(api_url)
+            async with self.client.get(api_url) as response:
+                response.raise_for_status()
+                return await response.json()
         except (
             aiohttp.ClientConnectionError,
             aiohttp.ClientConnectorError,
         ) as e:
             raise APIUnavailableError(e) from e
-        return await response.json()
 
     async def api_version(self) -> dict[str, str]:
         """Check if the API is alived."""
         api_url = f"{self._api_host}/version"
         try:
-            response = await self.client.get(api_url)
+            async with self.client.get(api_url) as response:
+                response.raise_for_status()
+                return await response.json()
         except (
             aiohttp.ClientConnectionError,
             aiohttp.ClientConnectorError,
         ) as e:
             raise APIUnavailableError(e) from e
-        return await response.json()
 
     async def _authentication(self, credentials: dict[str, str]) -> None:
         """Do the authentication process to Smartbox. First one use login/mdp/basic_auth. Then the tokens."""
         token_headers = self._headers.copy()
-        del token_headers["Authorization"]
+        token_headers.pop("Authorization", None)
         token_headers.update(
             {
                 "authorization": f"Basic {self.reseller.basic_auth}",
@@ -161,11 +163,40 @@ class AsyncSession:
 
         token_url = f"{self._api_host}/client/token"
         try:
-            response = await self.client.post(
+            async with self.client.post(
                 url=token_url,
                 headers=token_headers,
                 data=credentials,
-            )
+            ) as response:
+                response.raise_for_status()
+                response_json = await response.json()
+                try:
+                    rtoken: Token = Token.model_validate(response_json)
+                    self._access_token = rtoken.access_token
+                    self._headers["Authorization"] = (
+                        f"Bearer {self._access_token}"
+                    )
+                    self._refresh_token = rtoken.refresh_token
+                    if rtoken.expires_in < _MIN_TOKEN_LIFETIME:
+                        _LOGGER.warning(
+                            "Token expires in %ss which is below minimum lifetime of %ss- will refresh again on next operation",
+                            rtoken.expires_in,
+                            _MIN_TOKEN_LIFETIME,
+                        )
+                    self._expires_at = datetime.datetime.now(
+                        datetime.UTC
+                    ) + datetime.timedelta(
+                        seconds=rtoken.expires_in,
+                    )
+                    _LOGGER.debug(
+                        "Authenticated session (%s), access_token=%s, expires at %s",
+                        credentials["grant_type"],
+                        self.access_token,
+                        self.expiry_time,
+                    )
+                except ValidationError as e:
+                    msg = f"Received invalid auth response {response.status} with msg: {response.reason}"
+                    raise InvalidAuthError(msg) from e
         except (
             aiohttp.ClientConnectionError,
             aiohttp.ClientConnectorError,
@@ -173,31 +204,6 @@ class AsyncSession:
             raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
             raise InvalidAuthError(e) from e
-        try:
-            rtoken: Token = Token.model_validate(await response.json())
-            self._access_token = rtoken.access_token
-            self._headers["Authorization"] = f"Bearer {self._access_token}"
-            self._refresh_token = rtoken.refresh_token
-            if rtoken.expires_in < _MIN_TOKEN_LIFETIME:
-                _LOGGER.warning(
-                    "Token expires in %ss which is below minimum lifetime of %ss- will refresh again on next operation",
-                    rtoken.expires_in,
-                    _MIN_TOKEN_LIFETIME,
-                )
-            self._expires_at = datetime.datetime.now(
-                datetime.UTC
-            ) + datetime.timedelta(
-                seconds=rtoken.expires_in,
-            )
-            _LOGGER.debug(
-                "Authenticated session (%s), access_token=%s, expires at %s",
-                credentials["grant_type"],
-                self.access_token,
-                self.expiry_time,
-            )
-        except ValidationError as e:
-            msg = f"Received invalid auth response {response.status} with msg: {response.reason}"
-            raise InvalidAuthError(msg) from e
 
     async def check_refresh_auth(self) -> None:
         """Do we have to refresh auth."""
@@ -225,8 +231,13 @@ class AsyncSession:
         api_url = f"{self._api_host}/api/v2/{path}"
         try:
             _LOGGER.debug("Getting %s.", api_url)
-            response = await self.client.get(api_url, headers=self._headers)
-            _LOGGER.debug("Response %s.", (await response.json()))
+            async with self.client.get(
+                api_url, headers=self._headers
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                _LOGGER.debug("Response %s.", data)
+                return data
         except (
             aiohttp.ClientConnectionError,
             aiohttp.ClientConnectorError,
@@ -239,7 +250,6 @@ class AsyncSession:
                 e.status,
             )
             raise SmartboxError(e) from e
-        return await response.json()
 
     async def _api_post(
         self,
@@ -252,12 +262,13 @@ class AsyncSession:
         try:
             data_str = json.dumps(data)
             _LOGGER.debug("Posting %s to %s.", data_str, api_url)
-            response = await self.client.post(
-                api_url,
-                data=data_str,
-                headers=self._headers,
-            )
-            _LOGGER.debug("Response %s.", (await response.json()))
+            async with self.client.post(
+                api_url, headers=self._headers, data=data_str
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                _LOGGER.debug("Response %s.", data)
+                return data
         except (
             aiohttp.ClientConnectionError,
             aiohttp.ClientConnectorError,
@@ -270,7 +281,6 @@ class AsyncSession:
                 e.status,
             )
             raise SmartboxError(e) from e
-        return await response.json()
 
 
 class AsyncSmartboxSession(AsyncSession):
@@ -278,6 +288,9 @@ class AsyncSmartboxSession(AsyncSession):
 
     async def __aenter__(self) -> Self:
         """Async context manager entry."""
+        _LOGGER.debug(
+            "__aenter__ of AsyncSmartboxSession, authenticating and creating client session if not provided",
+        )
         return self
 
     async def __aexit__(
@@ -287,6 +300,9 @@ class AsyncSmartboxSession(AsyncSession):
         exc_tb: object,
     ) -> None:
         """Async context manager exit."""
+        _LOGGER.debug(
+            "Async context manager exit, closing client session and socket if exists"
+        )
         if self._client_session:
             await self._client_session.close()
         # Cleanup socket if exists

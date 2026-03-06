@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Callable
+import contextlib
 import logging
 import signal
 from typing import Any
@@ -14,8 +15,8 @@ from smartbox.session import AsyncSmartboxSession
 _API_V2_NAMESPACE = "/api/v2/socket_io"
 # We most commonly get disconnected when the session
 # expires, so we don't want to try many times
-_DEFAULT_RECONNECT_ATTEMPTS = 3
-_DEFAULT_BACKOFF_FACTOR = 0.1
+_DEFAULT_RECONNECT_ATTEMPTS = 10
+_DEFAULT_BACKOFF_FACTOR = 1.0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,12 +112,16 @@ class SocketSession:
             self._sio = socketio.AsyncClient(
                 logger=True,
                 engineio_logger=True,
-                reconnection_attempts=reconnect_attempts,
+                http_session=self._session.client,
+                reconnection=False,
             )
         else:
             logging.getLogger("socketio").setLevel(logging.ERROR)
             logging.getLogger("engineio").setLevel(logging.ERROR)
-            self._sio = socketio.AsyncClient()
+            self._sio = socketio.AsyncClient(
+                http_session=self._session.client,
+                reconnection=False,
+            )
 
         self._api_v2_ns = SmartboxAPIV2Namespace(
             session,
@@ -163,68 +168,122 @@ class SocketSession:
     async def run(self) -> None:
         """Run the websocket."""
         self._ping_task = self._sio.start_background_task(self._send_ping)
-
-        # Will loop indefinitely unless our signal handler is set and called
         self._loop_should_exit = False
 
         _LOGGER.debug("Starting main loop")
-        while not self._loop_should_exit:
-            encoded_token = urllib.parse.quote(
-                self._session.access_token,
-                safe="~()*!.'",
-            )
-            url = f"{self._session.api_host}/?token={encoded_token}&dev_id={self._device_id}"
+        try:
+            while not self._loop_should_exit:
+                encoded_token = urllib.parse.quote(
+                    self._session.access_token,
+                    safe="~()*!.'",
+                )
+                url = f"{self._session.api_host}/?token={encoded_token}&dev_id={self._device_id}"
 
-            # Try to connect
-            _LOGGER.debug(
-                "Connecting to %s (will try %s times)",
-                url,
-                self._reconnect_attempts,
-            )
-            for attempt in range(self._reconnect_attempts):
-                _LOGGER.debug("Connecting to %s (attempt #%s)", url, attempt)
-                try:
-                    await self._sio.connect(url, transports=["websocket"])
-                except socketio.exceptions.ConnectionError:
-                    remaining = self._reconnect_attempts - attempt - 1
-                    sleep_time = self._backoff_factor * (2**attempt)
-                    _LOGGER.exception(
-                        "Received error on connection attempt, %s retries remaining, sleeping %ss",
-                        remaining,
-                        sleep_time,
+                # Try to connect
+                _LOGGER.debug(
+                    "Connecting to %s (will try %s times)",
+                    url,
+                    self._reconnect_attempts,
+                )
+                for attempt in range(self._reconnect_attempts):
+                    _LOGGER.debug(
+                        "Connecting to %s (attempt #%s)", url, attempt
                     )
-                    if remaining > 0:
-                        await asyncio.sleep(sleep_time)
-                    else:
-                        _LOGGER.warning(
-                            "Failed to connect after %s attempts, falling through to refresh token",
-                            self._reconnect_attempts,
+                    try:
+                        connect_task = asyncio.create_task(
+                            self._sio.connect(url, transports=["websocket"])
                         )
-                else:
-                    _LOGGER.info("Successfully connected to %s", url)
-                    await self._dev_data()
-                    await self._sio.wait()
-                    _LOGGER.info("Socket loop exited, disconnecting")
-                    await self._sio.disconnect()
-                    _LOGGER.debug("Breaking loop to refresh token")
-                    break
+                        try:
+                            await asyncio.shield(connect_task)
+                        except asyncio.CancelledError:
+                            _LOGGER.debug(
+                                "HA stops during connection, scheduled cleaning..."
+                            )
+                            if not connect_task.done():
 
-            # Refresh token
-            await self._session.check_refresh_auth()
+                                async def _cleanup_dangling_socket(task_to_cleanup: asyncio.Task=connect_task) -> None:
+                                    try:
+                                        await task_to_cleanup
+                                        await self._sio.disconnect()
+                                    except (AttributeError, RuntimeError, OSError, ConnectionError) as e:
+                                        _LOGGER.debug(
+                                            "Error occurred while _cleanup_dangling_socket: %s",
+                                            e,
+                                        )
+                                asyncio.create_task(_cleanup_dangling_socket())
 
-            # Update the query string with the new access token
-            encoded_token = urllib.parse.quote(
-                self._session.access_token,
-                safe="~()*!.'",
-            )
-            url = f"{self._session.api_host}/?token={encoded_token}&dev_id={self._device_id}"
+                            raise
+                        _LOGGER.info("Successfully connected to %s", url)
+                        await self._dev_data()
+                        await self._sio.wait()
+                        _LOGGER.debug(
+                            "Exiting wait(), forcing socketio cleanup..."
+                        )
+                        try:
+                            if (
+                                hasattr(self._sio, "eio")
+                                and hasattr(self._sio.eio, "ws")
+                                and self._sio.eio.ws
+                            ) and not self._sio.eio.ws.closed:
+                                _LOGGER.debug(
+                                    "Manually closing the orphaned WebSocket"
+                                )
+                                await self._sio.eio.ws.close()
+                        except (AttributeError, RuntimeError, OSError, ConnectionError) as e:
+                            _LOGGER.debug(
+                                "Error occurred while manually closing the WebSocket: %s",
+                                e,
+                            )
+
+                        with contextlib.suppress(Exception):
+                            await self._sio.disconnect()
+                    except socketio.exceptions.ConnectionError:
+                        remaining = self._reconnect_attempts - attempt - 1
+                        sleep_time = self._backoff_factor * (2**attempt)
+                        _LOGGER.exception(
+                            "Received error on connection attempt, %s retries remaining, sleeping %ss",
+                            remaining,
+                            sleep_time,
+                        )
+                        if remaining > 0:
+                            await asyncio.sleep(sleep_time)
+                        else:
+                            _LOGGER.warning(
+                                "Failed to connect after %s attempts, falling through to refresh token",
+                                self._reconnect_attempts,
+                            )
+                    else:
+                        _LOGGER.debug("Breaking loop to refresh token")
+                        break
+                await self._session.check_refresh_auth()
+        except asyncio.CancelledError:
+            _LOGGER.debug("WebSocket loop cancelled by Home Assistant")
+            raise
+        finally:
+            _LOGGER.debug("Cleaning up socketio...")
+            await self.shutdown()
 
     async def cancel(self) -> None:
         """Disconnecting and cancelling tasks."""
         _LOGGER.debug("Disconnecting and cancelling tasks")
         self._loop_should_exit = True
-        await self._sio.disconnect()
-        self._ping_task.cancel()
+        if hasattr(self, "_ping_task") and not self._ping_task.done():
+            self._ping_task.cancel()
+        try:
+            await asyncio.shield(self._sio.disconnect())
+        except (asyncio.CancelledError, OSError) as e:
+            _LOGGER.debug("Silent error on disconnect: %s", e)
+
+    async def shutdown(self) -> None:
+        """Shutdown the socket session."""
+        self._loop_should_exit = True
+        if hasattr(self, "_ping_task") and not self._ping_task.done():
+            self._ping_task.cancel()
+
+        try:
+            await asyncio.shield(self._sio.disconnect())
+        except (asyncio.CancelledError, OSError) as e:
+            _LOGGER.debug("Silent error on disconnect: %s", e)
 
     @property
     def namespace(self) -> SmartboxAPIV2Namespace:
