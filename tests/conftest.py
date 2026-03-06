@@ -76,7 +76,6 @@ def async_session(reseller, mocker):
 
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             """Context manager exit, no special handling needed."""
-            pass
 
         async def json(self):
             path = "unknown"

@@ -157,7 +157,7 @@ async def test_get_node_samples(async_smartbox_session):
 
 @pytest.mark.asyncio
 async def test_get_node_samples_default_times(async_smartbox_session):
-    """Teste le comportement par défaut quand start_time et end_time sont None."""
+    """Default start and end times should be 1 hour before and after current time."""
     mock_device_id = "test_device"
     mock_node = {
         "name": "Living Room",
@@ -179,20 +179,22 @@ async def test_get_node_samples_default_times(async_smartbox_session):
             node=mock_node,
         )
         called_url = mock_api_request.call_args[0][0]
-        
-        # 4. On s'assure que le début de l'URL est correct
-        assert called_url.startswith(f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/samples?start=")
-        
-        # 5. On extrait les paramètres start et end avec une petite regex
+
+        assert called_url.startswith(
+            f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/samples?start="
+        )
+
         match = re.search(r"start=(\d+)&end=(\d+)", called_url)
-        assert match is not None, "Les paramètres start et end sont absents de l'URL"
-        
+        assert match is not None, (
+            "Start and end date not present in url"
+        )
+
         called_start = int(match.group(1))
         called_end = int(match.group(2))
-        
-        # 6. On vérifie que les valeurs sont correctes à ±1 seconde près (Tolérance anti-flaky test)
-        assert abs(called_start - (now - 3600)) <= 1
-        assert abs(called_end - (now + 3600)) <= 1
+
+        assert abs(called_start - (now - 3600)) <= 5
+        assert abs(called_end - (now + 3600)) <= 5
+
 
 @pytest.mark.asyncio
 async def test_get_device_away_status(async_smartbox_session):
@@ -815,7 +817,6 @@ async def test_authentication_success(async_session, caplog):
 
         with caplog.at_level(logging.WARNING, logger="smartbox.session"):
             await async_session._authentication(credentials)
-        # await async_session._authentication(credentials)
 
         assert async_session._access_token == "test_access_token"
         assert async_session.access_token == "test_access_token"

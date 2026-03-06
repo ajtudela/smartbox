@@ -89,8 +89,6 @@ class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
 class SocketSession:
     """Smartbox SocketSession class."""
 
-    _background_tasks: set[asyncio.Task] = set()
-
     def __init__(
         self,
         session: AsyncSmartboxSession,
@@ -109,6 +107,7 @@ class SocketSession:
         self._ping_interval = ping_interval
         self._reconnect_attempts = reconnect_attempts
         self._backoff_factor = backoff_factor
+        self._background_tasks: set[asyncio.Task] = set()
 
         if verbose:
             self._sio = socketio.AsyncClient(
