@@ -89,6 +89,8 @@ class SmartboxAPIV2Namespace(socketio.AsyncClientNamespace):
 class SocketSession:
     """Smartbox SocketSession class."""
 
+    _background_tasks: set[asyncio.Task] = set()
+
     def __init__(
         self,
         session: AsyncSmartboxSession,
@@ -143,7 +145,9 @@ class SocketSession:
 
                 def sigint_handler() -> None:
                     _LOGGER.debug("Caught SIGINT, cancelling loop")
-                    asyncio.ensure_future(self.cancel())
+                    task = asyncio.ensure_future(self.cancel())
+                    self._background_tasks.add(task)
+                    task.add_done_callback(self._background_tasks.discard)
 
                 event_loop.add_signal_handler(signal.SIGINT, sigint_handler)
 
@@ -193,14 +197,15 @@ class SocketSession:
                             AttributeError,
                             RuntimeError,
                             OSError,
-                            ConnectionError,
                         ) as e:
                             _LOGGER.debug(
                                 "Error occurred while _cleanup_dangling_socket: %s",
                                 e,
                             )
 
-                    asyncio.create_task(_cleanup_dangling_socket())
+                    task = asyncio.create_task(_cleanup_dangling_socket())
+                    self._background_tasks.add(task)
+                    task.add_done_callback(self._background_tasks.discard)
 
                 raise
             _LOGGER.info("Successfully connected to %s", url)
@@ -224,7 +229,7 @@ class SocketSession:
             ) and not self._sio.eio.ws.closed:
                 _LOGGER.debug("Manually closing the orphaned WebSocket")
                 await self._sio.eio.ws.close()
-        except (AttributeError, RuntimeError, OSError, ConnectionError) as e:
+        except (AttributeError, RuntimeError, OSError) as e:
             _LOGGER.debug(
                 "Error occurred while manually closing the WebSocket: %s",
                 e,

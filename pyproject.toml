@@ -1,7 +1,7 @@
 [project]
 name = "smartbox"
 version = "2.5.0"
-requires-python = ">=3.14"
+requires-python = ">=3.14.2"
 authors = [
   { name="Alberto Tudela", email="ajtudela@gmail.com" },
   { name="Delmael", email="delmael@outlook.com" },
@@ -136,3 +136,18 @@ max-complexity = 25
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.tox]
+env_list = ["3.14"]
+
+[tool.tox.env_run_base]
+isolated_build = true
+description = "Run test under {base_python}"
+dependency_groups = ["dev"]
+commands = [["python", "-m", "pytest", "--cov=smartbox", "--cov-append", "--cov-report=term", "--cov-report=xml", "--junitxml=junit.xml"]]
+
+[tool.sonar]
+"sonar.python.version" = "3.14"
+"python.coverage.reportPaths" = "coverage.xml"
+"sonar.tests" = "tests"
+"python.xunit.reportPath" = "junit.xml"

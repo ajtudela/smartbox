@@ -1,6 +1,9 @@
 import datetime
 import json
+import logging
 import math
+import re
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -151,6 +154,45 @@ async def test_get_node_samples(async_smartbox_session):
                 )
                 async_smartbox_session.raw_response = True
 
+
+@pytest.mark.asyncio
+async def test_get_node_samples_default_times(async_smartbox_session):
+    """Teste le comportement par défaut quand start_time et end_time sont None."""
+    mock_device_id = "test_device"
+    mock_node = {
+        "name": "Living Room",
+        "addr": 1,
+        "type": "htr",
+        "installed": True,
+        "lost": False,
+    }
+
+    with patch.object(
+        async_smartbox_session,
+        "_api_request",
+        new_callable=AsyncMock,
+    ) as mock_api_request:
+        mock_api_request.return_value = {"samples": []}
+        now = int(time.time())
+        await async_smartbox_session.get_node_samples(
+            device_id=mock_device_id,
+            node=mock_node,
+        )
+        called_url = mock_api_request.call_args[0][0]
+        
+        # 4. On s'assure que le début de l'URL est correct
+        assert called_url.startswith(f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/samples?start=")
+        
+        # 5. On extrait les paramètres start et end avec une petite regex
+        match = re.search(r"start=(\d+)&end=(\d+)", called_url)
+        assert match is not None, "Les paramètres start et end sont absents de l'URL"
+        
+        called_start = int(match.group(1))
+        called_end = int(match.group(2))
+        
+        # 6. On vérifie que les valeurs sont correctes à ±1 seconde près (Tolérance anti-flaky test)
+        assert abs(called_start - (now - 3600)) <= 1
+        assert abs(called_end - (now + 3600)) <= 1
 
 @pytest.mark.asyncio
 async def test_get_device_away_status(async_smartbox_session):
@@ -746,7 +788,7 @@ async def test_async_session_init_defaults(reseller):
 
 
 @pytest.mark.asyncio
-async def test_authentication_success(async_session):
+async def test_authentication_success(async_session, caplog):
     credentials = {
         "grant_type": "password",
         "username": "test_user",
@@ -755,7 +797,7 @@ async def test_authentication_success(async_session):
     token_response = {
         "access_token": "test_access_token",
         "refresh_token": "test_refresh_token",
-        "expires_in": 3600,
+        "expires_in": 5,
         "token_type": "test_token_type",
     }
 
@@ -771,13 +813,18 @@ async def test_authentication_success(async_session):
         mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
-        await async_session._authentication(credentials)
+        with caplog.at_level(logging.WARNING, logger="smartbox.session"):
+            await async_session._authentication(credentials)
+        # await async_session._authentication(credentials)
 
         assert async_session._access_token == "test_access_token"
         assert async_session.access_token == "test_access_token"
         assert async_session._refresh_token == "test_refresh_token"
         assert async_session.refresh_token == "test_refresh_token"
         assert async_session._expires_at > datetime.datetime.now(datetime.UTC)
+
+        assert "below minimum lifetime" in caplog.text
+        assert "will refresh again on next operation" in caplog.text
 
         mock_post.assert_called_once_with(
             url=f"{async_session._api_host}/client/token",
@@ -1500,11 +1547,15 @@ async def test_async_session_context_manager_success():
         password="test_password",
         websession=mock_client,
     )
+    mock_socket = AsyncMock()
+    session._socket = mock_socket
 
     async with session as s:
         assert s is session
         mock_client.close.assert_not_called()
+        mock_socket.disconnect.assert_not_called()
     mock_client.close.assert_awaited_once()
+    mock_socket.disconnect.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -1516,6 +1567,8 @@ async def test_async_session_context_manager_with_exception():
         password="test_password",
         websession=mock_client,
     )
+    mock_socket = AsyncMock()
+    session._socket = mock_socket
 
     class DummyError(Exception):
         """Dummy exception for testing context manager error handling."""
@@ -1525,3 +1578,4 @@ async def test_async_session_context_manager_with_exception():
             msg = "This is a test error to check context manager exception handling."
             raise DummyError(msg)
     mock_client.close.assert_awaited_once()
+    mock_socket.disconnect.assert_awaited_once()
