@@ -27,6 +27,7 @@ from smartbox.models import (
     Nodes,
     NodeSetup,
     NodeStatus,
+    NodeVersion,
     Samples,
     SmartboxNodeType,
     Token,
@@ -538,6 +539,25 @@ class AsyncSmartboxSession(AsyncSession):
             data=setup_data,
             path=f"devs/{device_id}/{_node.type}/{_node.addr}/setup",
         )
+
+    async def get_node_version(
+        self,
+        device_id: str,
+        node: dict[str, Any],
+    ) -> dict[str, Any] | NodeVersion:
+        """Get a node setup."""
+        _node: Node = Node.model_validate(node)
+        response = await self._api_request(
+            f"devs/{device_id}/{_node.type}/{_node.addr}/version",
+        )
+        _LOGGER.debug("(%s) Version config data %s", _node.type, response)
+        if self.raw_response is True:
+            return response
+        try:
+            return NodeVersion.model_validate(response)
+        except ValidationError:
+            _LOGGER.exception("Version config validation error %s", response)
+            raise
 
 
 class Session:
