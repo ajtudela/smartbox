@@ -1384,6 +1384,50 @@ async def test_get_node_setup(async_smartbox_session, caplog):
 
 
 @pytest.mark.asyncio
+async def test_get_node_version(async_smartbox_session, caplog):
+    for mock_device in await async_smartbox_session.get_devices():
+        mock_device_id = mock_device["dev_id"]
+        for mock_node in await async_smartbox_session.get_nodes(mock_device_id):
+            with patch.object(
+                async_smartbox_session,
+                "_api_request",
+                new_callable=AsyncMock,
+            ) as mock_api_request:
+                url = f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/version"
+                mock_api_request.return_value = await fake_get_request(
+                    mock_api_request,
+                    url,
+                )
+
+                async_smartbox_session.raw_response = True
+                version = await async_smartbox_session.get_node_version(
+                    device_id=mock_device_id,
+                    node=mock_node,
+                )
+                assert version == mock_api_request.return_value
+                mock_api_request.assert_called_with(url)
+
+                async_smartbox_session.raw_response = False
+                version_model = await async_smartbox_session.get_node_version(
+                    device_id=mock_device_id,
+                    node=mock_node,
+                )
+                assert version_model.fw_version == version["fw_version"]
+                assert version_model.hw_version == version["hw_version"]
+                assert version_model.uid == version["uid"]
+                assert version_model.pid == version["pid"]
+
+                with pytest.raises(ValidationError):
+                    mock_api_request.return_value = {"fw_version": "1.0.0"}
+                    await async_smartbox_session.get_node_version(
+                        device_id=mock_device_id,
+                        node=mock_node,
+                    )
+                assert "Version config validation error" in caplog.text
+                async_smartbox_session.raw_response = True
+
+
+@pytest.mark.asyncio
 async def test_get_homes(async_smartbox_session):
     with patch.object(
         async_smartbox_session,
