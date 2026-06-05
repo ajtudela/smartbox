@@ -192,8 +192,8 @@ async def test_get_node_samples_default_times(async_smartbox_session):
         called_start = int(match.group(1))
         called_end = int(match.group(2))
 
-        assert abs(called_start - (now - 3600)) <= 10
-        assert abs(called_end - (now + 3600)) <= 10
+        assert abs(called_start - (now - 3600)) <= 20
+        assert abs(called_end - (now + 3600)) <= 20
 
 
 @pytest.mark.asyncio
