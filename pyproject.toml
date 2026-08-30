@@ -36,9 +36,6 @@ smartbox = "smartbox.cmd:smartbox"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv.workspace]
-members = ["smartbox"]
-
 [dependency-groups]
 dev = [
     "pre-commit",
@@ -78,7 +75,7 @@ ignore_missing_imports = true
 disable_error_code = ["arg-type"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 fix = true
 line-length = 80
 
@@ -93,7 +90,10 @@ ignore = [
     "FBT002",
     "PLR0913",
     "A005",
-    "COM812"
+    "COM812",
+    "TC001", # keep type-only imports at module scope, not in a TYPE_CHECKING block
+    "TC002",
+    "TC003",
 ]
 
 
@@ -132,12 +132,6 @@ max-complexity = 25
     "B018",
 ]
 "src/smartbox/cmd.py" = ["T201","ANN001"]
-
-[tool.setuptools.package-data]
-"pkgname" = ["py.typed"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.tox]
 env_list = ["3.14"]
