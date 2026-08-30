@@ -153,7 +153,10 @@ class SocketSession:
     async def _dev_data(self) -> None:
         """Send first dev data."""
         if not self._api_v2_ns.connected:
-            _LOGGER.debug("Namespace disconnected, not sending ping")
+            _LOGGER.debug(
+                "Namespace disconnected, not sending dev_data event",
+            )
+            return
         _LOGGER.debug("Sending dev_data event")
         await self._sio.emit("dev_data", namespace=_API_V2_NAMESPACE)
 
