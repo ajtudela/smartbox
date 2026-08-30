@@ -433,10 +433,16 @@ class AsyncSmartboxSession(AsyncSession):
         self,
         device_id: str,
         node: dict[str, Any],
-        start_time: int | None = int(time.time() - 3600),
-        end_time: int | None = int(time.time() + 3600),
+        start_time: int | None = None,
+        end_time: int | None = None,
     ) -> dict[str, Any] | Samples:
-        """Get samples (history) from node."""
+        """Get samples (history) from node.
+
+        ``start_time``/``end_time`` default to one hour before/after the moment
+        the call is made. They must default to ``None`` here: a call-time
+        expression would be evaluated once at import and freeze the window to
+        process start-up.
+        """
         if start_time is None:
             start_time = int(time.time() - 3600)
         if end_time is None:

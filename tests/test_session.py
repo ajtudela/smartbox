@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import json
 import logging
 import math
@@ -153,6 +154,17 @@ async def test_get_node_samples(async_smartbox_session):
                     samples["samples"][0]["counter"]
                 )
                 async_smartbox_session.raw_response = True
+
+
+def test_get_node_samples_defaults_are_none(async_smartbox_session):
+    """Defaults must be ``None``.
+
+    A call-time expression as a default is evaluated once when the module is
+    imported, freezing the sample window to process start-up.
+    """
+    sig = inspect.signature(async_smartbox_session.get_node_samples)
+    assert sig.parameters["start_time"].default is None
+    assert sig.parameters["end_time"].default is None
 
 
 @pytest.mark.asyncio
