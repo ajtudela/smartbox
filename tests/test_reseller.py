@@ -46,11 +46,20 @@ def test_reseller_invalid_data():
         ).reseller
 
 
+@pytest.mark.network
 @pytest.mark.asyncio
 async def test_all_resellers():
+    """Hit every reseller's real API. Deselected by default (``-m network``).
+
+    This makes ~24 unmocked HTTP calls to third-party servers, so it must not
+    run on every push: a reseller outage would break CI without any code change.
+    Run it on demand with ``pytest -m network``.
+    """
     for key in AvailableResellers.resellers:
-        _session = AsyncSmartboxSession(username="", password="", api_name=key)
-        check = await _session.health_check()
-        assert check is not None
-        version = await _session.api_version()
-        assert "major" in version
+        async with AsyncSmartboxSession(
+            username="", password="", api_name=key
+        ) as _session:
+            check = await _session.health_check()
+            assert check is not None
+            version = await _session.api_version()
+            assert "major" in version

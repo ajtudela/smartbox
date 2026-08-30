@@ -1,6 +1,6 @@
 [project]
 name = "smartbox"
-version = "2.5.2"
+version = "2.5.3"
 requires-python = ">=3.14.2"
 authors = [
   { name="Alberto Tudela", email="ajtudela@gmail.com" },
@@ -18,13 +18,11 @@ classifiers = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
-    "aiohttp",
+    "aiohttp>=3,<4",
     "asyncclick",
     "jq",
-    "pydantic",
-    "python-socketio",
-    "requests",
-    "websocket-client",
+    "pydantic>=2,<3",
+    "python-socketio>=5,<6",
 ]
 
 [project.urls]
@@ -37,9 +35,6 @@ smartbox = "smartbox.cmd:smartbox"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.uv.workspace]
-members = ["smartbox"]
 
 [dependency-groups]
 dev = [
@@ -60,6 +55,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "module"
+addopts = "-m 'not network'"
+markers = [
+    "network: tests that make real HTTP calls to reseller servers (deselected by default; run with -m network)",
+]
 
 [tool.mypy]
 warn_unused_configs = true
@@ -76,7 +75,7 @@ ignore_missing_imports = true
 disable_error_code = ["arg-type"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 fix = true
 line-length = 80
 
@@ -91,7 +90,10 @@ ignore = [
     "FBT002",
     "PLR0913",
     "A005",
-    "COM812"
+    "COM812",
+    "TC001", # keep type-only imports at module scope, not in a TYPE_CHECKING block
+    "TC002",
+    "TC003",
 ]
 
 
@@ -130,12 +132,6 @@ max-complexity = 25
     "B018",
 ]
 "src/smartbox/cmd.py" = ["T201","ANN001"]
-
-[tool.setuptools.package-data]
-"pkgname" = ["py.typed"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.tox]
 env_list = ["3.14"]

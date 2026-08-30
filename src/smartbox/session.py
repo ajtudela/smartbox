@@ -2,6 +2,7 @@
 
 import asyncio
 import datetime
+from http import HTTPStatus
 import json
 import logging
 import time
@@ -36,6 +37,7 @@ from smartbox.reseller import AvailableResellers, SmartboxReseller
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
+_DEFAULT_TIMEOUT = 30  # Total timeout per HTTP request (seconds)
 _MIN_TOKEN_LIFETIME = (
     60  # Minimum time left before expiry before we refresh (seconds)
 )
@@ -58,6 +60,7 @@ class AsyncSession:
         basic_auth_credentials: str | None = None,
         x_serial_id: int | None = None,
         x_referer: str | None = None,
+        timeout: float = _DEFAULT_TIMEOUT,
     ) -> None:
         """Init the session."""
         self._reseller = AvailableResellers(
@@ -70,6 +73,7 @@ class AsyncSession:
         self._basic_auth_credentials: str | None = basic_auth_credentials
         self._retry_attempts: int = retry_attempts
         self._backoff_factor: float = backoff_factor
+        self._timeout: float = timeout
         self._username: str = username
         self._password: str = password
         self._access_token: str = ""
@@ -78,6 +82,9 @@ class AsyncSession:
             datetime.UTC
         )
         self._client_session: ClientSession | None = websession
+        # Track ownership: a caller-injected session (e.g. Home Assistant's
+        # shared one) must never be closed by us.
+        self._owns_client_session: bool = websession is None
         self.raw_response: bool = raw_response
         self._headers: dict[str, str] = {
             "Authorization": f"Bearer {self._access_token}",
@@ -89,10 +96,11 @@ class AsyncSession:
             self._headers.update({"x-referer": self.reseller.web_url})
 
     async def __aenter__(self) -> Self:
-        """Async context manager entry."""
-        _LOGGER.debug(
-            "__aenter__ of AsyncSmartboxSession, authenticating and creating client session if not provided",
-        )
+        """Async context manager entry.
+
+        Authentication and client-session creation are lazy and happen on the
+        first API call, not here.
+        """
         return self
 
     async def __aexit__(
@@ -102,14 +110,18 @@ class AsyncSession:
         exc_tb: object,
     ) -> None:
         """Async context manager exit."""
-        _LOGGER.debug(
-            "Async context manager exit, closing client session and socket if exists"
-        )
-        if self._client_session:
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the HTTP client session if this session owns it.
+
+        A caller-injected ``ClientSession`` (e.g. Home Assistant's shared
+        session) is left untouched: closing it would break every other consumer
+        that shares it.
+        """
+        if self._owns_client_session and self._client_session:
             await self._client_session.close()
-        # Cleanup socket if exists
-        if hasattr(self, "_socket") and self._socket:
-            await self._socket.disconnect()
+            self._client_session = None
 
     @property
     def reseller(self) -> SmartboxReseller:
@@ -145,7 +157,11 @@ class AsyncSession:
     def client(self) -> ClientSession:
         """Return the underlying http client."""
         if not self._client_session:
-            self._client_session = ClientSession()
+            # Without an explicit timeout aiohttp waits its 5-minute default,
+            # long enough to stack overlapping refreshes in a coordinator.
+            self._client_session = ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self._timeout),
+            )
         return self._client_session
 
     async def health_check(self) -> dict[str, Any]:
@@ -212,10 +228,13 @@ class AsyncSession:
                     ) + datetime.timedelta(
                         seconds=rtoken.expires_in,
                     )
+                    # Never log the token itself: debug logs are routinely
+                    # attached to GitHub issues and a leaked access token is
+                    # valid for hours. The last 4 chars are enough to correlate.
                     _LOGGER.debug(
-                        "Authenticated session (%s), access_token=%s, expires at %s",
+                        "Authenticated session (%s), token ...%s, expires at %s",
                         credentials["grant_type"],
-                        self.access_token,
+                        self._access_token[-4:],
                         self.expiry_time,
                     )
                 except ValidationError as e:
@@ -268,6 +287,8 @@ class AsyncSession:
         ) as e:
             raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
+            if e.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                raise InvalidAuthError(e) from e
             _LOGGER.exception(
                 "ClientResponseError: %s, status: %s",
                 e.message,
@@ -299,6 +320,8 @@ class AsyncSession:
         ) as e:
             raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
+            if e.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                raise InvalidAuthError(e) from e
             _LOGGER.exception(
                 "Smartbox Error: %s, status: %s",
                 e.message,
@@ -433,10 +456,16 @@ class AsyncSmartboxSession(AsyncSession):
         self,
         device_id: str,
         node: dict[str, Any],
-        start_time: int | None = int(time.time() - 3600),
-        end_time: int | None = int(time.time() + 3600),
+        start_time: int | None = None,
+        end_time: int | None = None,
     ) -> dict[str, Any] | Samples:
-        """Get samples (history) from node."""
+        """Get samples (history) from node.
+
+        ``start_time``/``end_time`` default to one hour before/after the moment
+        the call is made. They must default to ``None`` here: a call-time
+        expression would be evaluated once at import and freeze the window to
+        process start-up.
+        """
         if start_time is None:
             start_time = int(time.time() - 3600)
         if end_time is None:
@@ -526,14 +555,14 @@ class AsyncSmartboxSession(AsyncSession):
         """Set a node setup."""
         _node: Node = Node.model_validate(node)
         data = {k: v for k, v in setup_args.items() if v is not None}
-        # setup seems to require all settings to be re-posted, so get current
-        # values and update
-        setup_data: dict[str, Any] = {}
-        node_setup = await self.get_node_setup(device_id, node)
-        if not isinstance(node_setup, dict):
-            setup_data = node_setup.model_dump(mode="json")
-        else:
-            setup_data = node_setup
+        # The setup endpoint requires the whole configuration to be re-posted,
+        # even for unchanged fields. The read-modify-write below must therefore
+        # keep the payload intact: going through the Pydantic model would drop
+        # every key the model does not declare and wipe it on the device, so we
+        # always read the raw setup here regardless of ``raw_response``.
+        setup_data = await self._api_request(
+            f"devs/{device_id}/{_node.type}/{_node.addr}/setup",
+        )
         setup_data.update(data)
         await self._api_post(
             data=setup_data,

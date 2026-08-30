@@ -153,7 +153,10 @@ class SocketSession:
     async def _dev_data(self) -> None:
         """Send first dev data."""
         if not self._api_v2_ns.connected:
-            _LOGGER.debug("Namespace disconnected, not sending ping")
+            _LOGGER.debug(
+                "Namespace disconnected, not sending dev_data event",
+            )
+            return
         _LOGGER.debug("Sending dev_data event")
         await self._sio.emit("dev_data", namespace=_API_V2_NAMESPACE)
 
@@ -265,8 +268,12 @@ class SocketSession:
 
                     remaining = self._reconnect_attempts - attempt - 1
                     sleep_time = self._backoff_factor * (2**attempt)
-                    _LOGGER.exception(
-                        "Received error on connection attempt, %s retries remaining, sleeping %ss",
+                    # ``_attempt_connection`` already swallowed the
+                    # ``ConnectionError``, so there is no active exception here:
+                    # ``exception()`` would append a bogus "NoneType: None"
+                    # traceback. A planned retry is a warning, not an error.
+                    _LOGGER.warning(
+                        "Connection attempt failed, %s retries remaining, sleeping %ss",
                         remaining,
                         sleep_time,
                     )

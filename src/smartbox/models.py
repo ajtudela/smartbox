@@ -1,8 +1,9 @@
 """Pydantic model of smartbox."""
 
 from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, ConfigDict, RootModel
 
 
 class SmartboxNodeType(StrEnum):
@@ -50,6 +51,10 @@ class NodeExtraOptions(BaseModel):
 class PmoSetup(BaseModel):
     """Pmo node setup."""
 
+    # Keep unknown keys: the setup endpoint requires the full payload to be
+    # re-posted, so any field the device returns must survive a round-trip.
+    model_config = ConfigDict(extra="allow")
+
     circuit_type: int
     power_limit: int
     reverse: bool
@@ -57,6 +62,10 @@ class PmoSetup(BaseModel):
 
 class DefaultNodeSetup(BaseModel):
     """NodeSetup model."""
+
+    # Keep unknown keys: the setup endpoint requires the full payload to be
+    # re-posted, so any field the device returns must survive a round-trip.
+    model_config = ConfigDict(extra="allow")
 
     sync_status: str
     control_mode: int
@@ -79,8 +88,8 @@ class NodeSetup(RootModel[DefaultNodeSetup | PmoSetup]):
 
     root: DefaultNodeSetup | PmoSetup
 
-    def __getattr__(self, name: str) -> DefaultNodeSetup | PmoSetup:
-        """Get the root model directly."""
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        """Proxy attribute access to the resolved root model."""
         return getattr(self.root, name)
 
 
@@ -94,31 +103,39 @@ class NodeVersion(BaseModel):
 
 
 class DefaultNodeStatus(BaseModel):
-    """Default Node Status."""
+    """Fallback node status.
 
-    mtemp: str
-    units: str
-    sync_status: str
-    locked: bool
-    mode: str
-    error_code: str
+    As the last arm of the ``NodeStatus`` union this must tolerate whatever a
+    given firmware or reseller returns: every field is optional and unknown keys
+    are kept, so a status is degraded rather than rejected. Type-specific models
+    keep their own fields required.
+    """
 
-    eco_temp: str
-    comf_temp: str
-    act_duty: int
-    pcb_temp: str
-    power_pcb_temp: str
-    presence: bool
-    window_open: bool
-    true_radiant_active: bool
-    boost: bool
-    boost_end_min: int
-    boost_end_day: int
-    stemp: str
-    power: str
-    duty: int
-    ice_temp: str
-    active: bool
+    model_config = ConfigDict(extra="allow")
+
+    mtemp: str | None = None
+    units: str | None = None
+    sync_status: str | None = None
+    locked: bool | None = None
+    mode: str | None = None
+    error_code: str | None = None
+
+    eco_temp: str | None = None
+    comf_temp: str | None = None
+    act_duty: int | None = None
+    pcb_temp: str | None = None
+    power_pcb_temp: str | None = None
+    presence: bool | None = None
+    window_open: bool | None = None
+    true_radiant_active: bool | None = None
+    boost: bool | None = None
+    boost_end_min: int | None = None
+    boost_end_day: int | None = None
+    stemp: str | None = None
+    power: str | None = None
+    duty: int | None = None
+    ice_temp: str | None = None
+    active: bool | None = None
 
 
 class HtrModNodeStatus(DefaultNodeStatus):
@@ -159,10 +176,8 @@ class NodeStatus(
 
     root: AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus
 
-    def __getattr__(
-        self, name: str
-    ) -> AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus:
-        """Get the root model directly."""
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        """Proxy attribute access to the resolved root model."""
         return getattr(self.root, name)
 
 
@@ -223,7 +238,7 @@ class Homes(RootModel[list[Home]]):
 
 
 class Sample(BaseModel):
-    """Pmo Sample model."""
+    """Default sample model."""
 
     t: int
     counter: float
@@ -231,7 +246,7 @@ class Sample(BaseModel):
 
 
 class PmoSample(BaseModel):
-    """Default Sample."""
+    """Pmo sample model."""
 
     t: int
     counter: float

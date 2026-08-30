@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import json
 import logging
 import math
@@ -11,8 +12,13 @@ from aiohttp import ClientSession
 from pydantic import ValidationError
 import pytest
 
-from smartbox import APIUnavailableError, InvalidAuthError, SmartboxError
-from smartbox.models import DefaultNodeSetup, NodeSetup
+from smartbox import (
+    APIUnavailableError,
+    InvalidAuthError,
+    ResellerNotExistError,
+    SmartboxError,
+)
+from smartbox.models import DefaultNodeSetup
 from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
     _DEFAULT_RETRY_ATTEMPTS,
@@ -99,11 +105,24 @@ async def test_get_node_status(async_smartbox_session, caplog):
                         mock_node,
                     )
                     assert status_model.act_duty == status["act_duty"]
+
+                # A sparse payload carrying an unknown key is now degraded to
+                # the fallback model, not rejected.
+                mock_api_request.return_value = {
+                    "sync_status": "synced",
+                    "mode": "auto",
+                    "brand_new_field": 123,
+                }
+                degraded = await async_smartbox_session.get_node_status(
+                    mock_device["dev_id"],
+                    mock_node,
+                )
+                assert degraded.sync_status == "synced"
+                assert degraded.brand_new_field == 123
+
+                # A wrong type on a known field is still a validation error.
                 with pytest.raises(ValidationError):
-                    mock_api_request.return_value = {
-                        "sync_status": "synced",
-                        "mode": "auto",
-                    }
+                    mock_api_request.return_value = {"act_duty": "not-an-int"}
                     await async_smartbox_session.get_node_status(
                         mock_device["dev_id"],
                         mock_node,
@@ -153,6 +172,17 @@ async def test_get_node_samples(async_smartbox_session):
                     samples["samples"][0]["counter"]
                 )
                 async_smartbox_session.raw_response = True
+
+
+def test_get_node_samples_defaults_are_none(async_smartbox_session):
+    """Defaults must be ``None``.
+
+    A call-time expression as a default is evaluated once when the module is
+    imported, freezing the sample window to process start-up.
+    """
+    sig = inspect.signature(async_smartbox_session.get_node_samples)
+    assert sig.parameters["start_time"].default is None
+    assert sig.parameters["end_time"].default is None
 
 
 @pytest.mark.asyncio
@@ -624,16 +654,22 @@ async def test_set_node_setup(async_smartbox_session):
     with (
         patch.object(
             async_smartbox_session,
-            "get_node_setup",
+            "_api_request",
             new_callable=AsyncMock,
-        ) as mock_get_node_setup,
+        ) as mock_api_request,
         patch.object(
             async_smartbox_session,
             "_api_post",
             new_callable=AsyncMock,
         ) as mock_api_post,
     ):
-        mock_get_node_setup.return_value = {"setting2": "value2"}
+        # The raw setup carries a key the Pydantic models do not declare
+        # (``counter_offset``). It must survive the read-modify-write cycle and
+        # be re-posted unchanged, otherwise it would be wiped on the device.
+        mock_api_request.return_value = {
+            "setting2": "value2",
+            "counter_offset": 42,
+        }
         mock_api_post.return_value = None
 
         result = await async_smartbox_session.set_node_setup(
@@ -642,49 +678,25 @@ async def test_set_node_setup(async_smartbox_session):
             setup_args=setup_args,
         )
         assert result is None
-        mock_api_post.assert_called_once_with(
-            data={"setting1": "value1", "setting2": "value2"},
-            path=f"devs/{mock_device_id}/{mock_node['type']}/{mock_node['addr']}/setup",
+        setup_path = (
+            f"devs/{mock_device_id}/{mock_node['type']}/"
+            f"{mock_node['addr']}/setup"
         )
-        data = {
-            "sync_status": "synced",
-            "control_mode": 1,
-            "units": "C",
-            "power": "on",
-            "offset": "0.5",
-            "away_mode": 0,
-            "away_offset": "1.0",
-            "modified_auto_span": 10,
-            "window_mode_enabled": True,
-            "true_radiant_enabled": True,
-            "user_duty_factor": 5,
-            "flash_version": "1.0.0",
-            "factory_options": {
-                "temp_compensation_enabled": True,
-                "window_mode_available": True,
-                "true_radiant_available": True,
-                "duty_limit": 10,
-                "boost_config": 1,
-                "button_double_press": True,
-                "prog_resolution": 5,
-                "bbc_value": 2,
-                "bbc_available": True,
-                "lst_value": 3,
-                "lst_available": True,
-                "fil_pilote_available": True,
-                "backlight_time": 30,
-                "button_down_code": 1,
-                "button_up_code": 2,
-                "button_mode_code": 3,
-                "button_prog_code": 4,
-                "button_off_code": 5,
-                "button_boost_code": 6,
-                "splash_screen_type": 1,
+        mock_api_request.assert_awaited_once_with(setup_path)
+        mock_api_post.assert_called_once_with(
+            data={
+                "setting1": "value1",
+                "setting2": "value2",
+                "counter_offset": 42,
             },
-            "extra_options": {"boost_temp": "22.5", "boost_time": 60},
-        }
-        setup = NodeSetup(**data)
-        mock_get_node_setup.return_value = setup
+            path=setup_path,
+        )
+
+        # The internal read stays raw even when the session is in typed mode.
+        mock_api_request.reset_mock()
+        mock_api_post.reset_mock()
+        async_smartbox_session.raw_response = False
+        mock_api_request.return_value = {"counter_offset": 7}
 
         result = await async_smartbox_session.set_node_setup(
             device_id=mock_device_id,
@@ -692,6 +704,11 @@ async def test_set_node_setup(async_smartbox_session):
             setup_args=setup_args,
         )
         assert result is None
+        mock_api_post.assert_called_once_with(
+            data={"setting1": "value1", "counter_offset": 7},
+            path=setup_path,
+        )
+        async_smartbox_session.raw_response = True
 
 
 def test_session_set_node_setup(session):
@@ -762,7 +779,26 @@ async def test_async_session_init():
     assert session._client_session == websession
     assert session._headers["x-serialid"] == str(serial_id)
     assert session._headers["x-referer"] == referer
+    assert math.isclose(session._timeout, 30)
     await websession.close()
+
+
+@pytest.mark.asyncio
+async def test_async_session_custom_timeout_reaches_client_session(reseller):
+    """A custom ``timeout`` must be applied to the created ``ClientSession``."""
+    session = AsyncSession(
+        api_name="test_api",
+        username="test_user",
+        password="test_password",
+        timeout=5,
+    )
+    assert math.isclose(session._timeout, 5)
+
+    with patch("smartbox.session.ClientSession") as mock_client_session:
+        _ = session.client
+
+    _, kwargs = mock_client_session.call_args
+    assert math.isclose(kwargs["timeout"].total, 5)
 
 
 @pytest.mark.asyncio
@@ -837,6 +873,37 @@ async def test_authentication_success(async_session, caplog):
             },
             data=credentials,
         )
+
+
+@pytest.mark.asyncio
+async def test_authentication_does_not_log_token(async_session, caplog):
+    """The access token must never reach the logs, not even at DEBUG."""
+    credentials = {
+        "grant_type": "password",
+        "username": "test_user",
+        "password": "test_password",
+    }
+    secret_token = "super-secret-access-token-value"  # noqa: S105
+    token_response = {
+        "access_token": secret_token,
+        "refresh_token": "test_refresh_token",
+        "expires_in": 3600,
+        "token_type": "test_token_type",
+    }
+
+    with patch.object(async_session.client, "post") as mock_post:
+        mock_response = MagicMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+        mock_response.json = AsyncMock(return_value=token_response)
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
+
+        with caplog.at_level(logging.DEBUG, logger="smartbox.session"):
+            await async_session._authentication(credentials)
+
+    assert async_session.access_token == secret_token
+    assert secret_token not in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1340,6 +1407,57 @@ async def test_api_post_client_response_error(async_session):
         )
 
 
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.asyncio
+async def test_api_request_auth_error_maps_to_invalid_auth(
+    async_session, status
+):
+    """A 401/403 on a data request must surface as ``InvalidAuthError``."""
+    with (
+        patch.object(
+            async_session, "check_refresh_auth", new_callable=AsyncMock
+        ),
+        patch.object(async_session.client, "get") as mock_get,
+    ):
+        mock_get.side_effect = aiohttp.ClientResponseError(
+            request_info=None,
+            history=None,
+            status=status,
+            message="Unauthorized",
+        )
+        with pytest.raises(InvalidAuthError):
+            await async_session._api_request("test_path")
+
+
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.asyncio
+async def test_api_post_auth_error_maps_to_invalid_auth(async_session, status):
+    """A 401/403 on a data post must surface as ``InvalidAuthError``."""
+    with (
+        patch.object(
+            async_session, "check_refresh_auth", new_callable=AsyncMock
+        ),
+        patch.object(async_session.client, "post") as mock_post,
+    ):
+        mock_post.side_effect = aiohttp.ClientResponseError(
+            request_info=None,
+            history=None,
+            status=status,
+            message="Forbidden",
+        )
+        with pytest.raises(InvalidAuthError):
+            await async_session._api_post({"key": "value"}, "test_path")
+
+
+def test_error_hierarchy_has_common_root():
+    """Every public error must be catchable as ``SmartboxError``."""
+    assert issubclass(InvalidAuthError, SmartboxError)
+    assert issubclass(APIUnavailableError, SmartboxError)
+    assert issubclass(ResellerNotExistError, SmartboxError)
+    # APIUnavailableError keeps aiohttp compatibility for now.
+    assert issubclass(APIUnavailableError, aiohttp.ClientConnectionError)
+
+
 @pytest.mark.asyncio
 async def test_get_node_setup(async_smartbox_session, caplog):
     for mock_device in await async_smartbox_session.get_devices():
@@ -1584,43 +1702,59 @@ async def test_get_deviceconnected_status(async_smartbox_session):
 
 
 @pytest.mark.asyncio
-async def test_async_session_context_manager_success():
-    """Testing __aenter__ and __aexit__."""
+async def test_async_session_context_manager_keeps_injected_session():
+    """An injected ClientSession must not be closed on exit."""
     mock_client = AsyncMock(spec=ClientSession)
     session = AsyncSession(
         username="test_user",
         password="test_password",
         websession=mock_client,
     )
-    mock_socket = AsyncMock()
-    session._socket = mock_socket
+    assert session._owns_client_session is False
 
     async with session as s:
         assert s is session
         mock_client.close.assert_not_called()
-        mock_socket.disconnect.assert_not_called()
+    mock_client.close.assert_not_called()
+    assert session._client_session is mock_client
+
+
+@pytest.mark.asyncio
+async def test_async_session_context_manager_closes_owned_session():
+    """A session created by us is closed on exit."""
+    mock_client = AsyncMock(spec=ClientSession)
+    session = AsyncSession(username="test_user", password="test_password")
+    assert session._owns_client_session is True
+
+    with patch(
+        "smartbox.session.ClientSession",
+        return_value=mock_client,
+    ):
+        assert session.client is mock_client
+
+    async with session:
+        mock_client.close.assert_not_called()
     mock_client.close.assert_awaited_once()
-    mock_socket.disconnect.assert_awaited_once()
+    assert session._client_session is None
 
 
 @pytest.mark.asyncio
 async def test_async_session_context_manager_with_exception():
-    """Testing that __aexit__ cleans up properly even in case of a crash."""
+    """__aexit__ still closes an owned session when the body raises."""
     mock_client = AsyncMock(spec=ClientSession)
-    session = AsyncSession(
-        username="test_user",
-        password="test_password",
-        websession=mock_client,
-    )
-    mock_socket = AsyncMock()
-    session._socket = mock_socket
+    session = AsyncSession(username="test_user", password="test_password")
+
+    with patch(
+        "smartbox.session.ClientSession",
+        return_value=mock_client,
+    ):
+        assert session.client is mock_client
 
     class DummyError(Exception):
         """Dummy exception for testing context manager error handling."""
 
     with pytest.raises(DummyError):
         async with session:
-            msg = "This is a test error to check context manager exception handling."
+            msg = "test error to check context manager exception handling"
             raise DummyError(msg)
     mock_client.close.assert_awaited_once()
-    mock_socket.disconnect.assert_awaited_once()

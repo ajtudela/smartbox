@@ -4,7 +4,6 @@ import json
 import logging
 from typing import Any
 
-from aiohttp import ClientSession
 import asyncclick as click
 
 from smartbox.reseller import AvailableResellers
@@ -17,6 +16,28 @@ _LOGGER = logging.getLogger(__name__)
 def _pretty_print(data: dict[str, Any]) -> None:
     """Pretty print json."""
     print(json.dumps(data, indent=4, sort_keys=True))
+
+
+def _find_device(
+    devices: list[dict[str, Any]], device_id: str
+) -> dict[str, Any]:
+    """Return the device with ``device_id`` or a friendly CLI error."""
+    device = next((d for d in devices if d["dev_id"] == device_id), None)
+    if device is None:
+        msg = f"Device {device_id!r} not found"
+        raise click.BadParameter(msg)
+    return device
+
+
+def _find_node(
+    nodes: list[dict[str, Any]], node_addr: int
+) -> dict[str, Any]:
+    """Return the node with ``node_addr`` or a friendly CLI error."""
+    node = next((n for n in nodes if n["addr"] == node_addr), None)
+    if node is None:
+        msg = f"Node {node_addr!r} not found"
+        raise click.BadParameter(msg)
+    return node
 
 
 @click.group(chain=True)
@@ -61,10 +82,13 @@ async def smartbox(
         basic_auth_credentials=basic_auth_creds,
         username=username,
         password=password,
-        websession=ClientSession(),
         x_referer=x_referer,
         x_serial_id=x_serial_id,
     )
+    # Let the session own and lazily create its ClientSession, and close it when
+    # the CLI context tears down, so no "Unclosed client session" warning is
+    # emitted and the long-running ``socket`` command cleans up on SIGINT.
+    ctx.call_on_close(session.close)
     ctx.obj["session"] = session
     ctx.obj["verbose"] = verbose
 
@@ -149,16 +173,16 @@ async def status(ctx) -> None:
 async def node_samples(
     ctx,
     device_id: str,
-    node_addr: str,
+    node_addr: int,
     start_time: int,
     end_time: int,
 ) -> None:
     """Show node temperatures and consumption history."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
     nodes = await session.get_nodes(device["dev_id"])
-    node = next(n for n in nodes if n["addr"] == node_addr)
+    node = _find_node(nodes, node_addr)
 
     node_samples = await session.get_node_samples(
         device_id,
@@ -193,15 +217,15 @@ async def node_samples(
 async def set_status(
     ctx,
     device_id: str,
-    node_addr: str,
+    node_addr: int,
     **kwargs: dict[str, Any],
 ) -> None:
     """Set node status."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
     nodes = await session.get_nodes(device["dev_id"])
-    node = next(n for n in nodes if n["addr"] == node_addr)
+    node = _find_node(nodes, node_addr)
 
     await session.set_node_status(device["dev_id"], node, kwargs)
 
@@ -247,15 +271,15 @@ async def setup(ctx) -> None:
 async def set_setup(
     ctx,
     device_id: str,
-    node_addr: str,
+    node_addr: int,
     **kwargs: dict[str, Any],
 ) -> None:
     """Set node setup options."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
     nodes = await session.get_nodes(device["dev_id"])
-    node = next(n for n in nodes if n["addr"] == node_addr)
+    node = _find_node(nodes, node_addr)
 
     # Only pass specified options
     setup_kwargs = {k: v for k, v in kwargs.items() if v is not None}
@@ -313,7 +337,7 @@ async def set_device_away_status(
     """Set device away status."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
 
     await session.set_device_away_status(device["dev_id"], kwargs)
 
@@ -346,7 +370,7 @@ async def set_device_power_limit(ctx, device_id: str, power_limit: int) -> None:
     """Set device power limit."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
 
     await session.set_device_power_limit(device["dev_id"], power_limit)
 

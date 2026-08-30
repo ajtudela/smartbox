@@ -45,6 +45,19 @@ async def test_api_version(runner, mock_session):
 
 
 @pytest.mark.asyncio
+async def test_session_closed_on_teardown(runner, mock_session):
+    """The CLI must close the session it created when the context tears down."""
+    version_future = asyncio.Future()
+    version_future.set_result({"major": "1"})
+    mock_session.return_value.api_version.return_value = version_future
+
+    result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "api-version"])
+
+    assert result.exit_code == 0
+    mock_session.return_value.close.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_devices(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,
@@ -98,6 +111,26 @@ async def test_socket(runner, mocker, mock_session):
         [*DEFAULT_ARGS, "socket", "-d", "1"],
     )
     assert result.exit_code == 0
+
+
+@pytest.mark.asyncio
+async def test_set_status_unknown_device_reports_bad_parameter(
+    runner, mock_session
+):
+    """An unknown -d must give a friendly error, not a StopIteration traceback."""
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "set-status", "-d", "does-not-exist", "-n", "1"],
+    )
+
+    assert result.exit_code != 0
+    assert not isinstance(result.exception, StopIteration)
+    assert "does-not-exist" in result.output
+    mock_session.return_value.set_node_status.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -135,12 +135,13 @@ class AvailableResellers:
                 msg = f"This reseller {self._api_url} is not yet available or some arguments are missing."
                 raise ResellerNotExistError(msg)
             try:
+                # Do not log ``basic_auth``: it is the reseller credential and
+                # is deliberately not distributed to preserve that layer.
                 _LOGGER.debug(
-                    "Creating a new reseller api_url (%s), name=%s,  web_url %s, basic_auth=%s, serial_id=%s",
+                    "Creating a new reseller api_url (%s), name=%s, web_url=%s, serial_id=%s",
                     self._api_url,
                     self._name,
                     self._web_url,
-                    self._basic_auth,
                     self._serial_id,
                 )
                 reseller = SmartboxReseller(
