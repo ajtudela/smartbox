@@ -102,31 +102,39 @@ class NodeVersion(BaseModel):
 
 
 class DefaultNodeStatus(BaseModel):
-    """Default Node Status."""
+    """Fallback node status.
 
-    mtemp: str
-    units: str
-    sync_status: str
-    locked: bool
-    mode: str
-    error_code: str
+    As the last arm of the ``NodeStatus`` union this must tolerate whatever a
+    given firmware or reseller returns: every field is optional and unknown keys
+    are kept, so a status is degraded rather than rejected. Type-specific models
+    keep their own fields required.
+    """
 
-    eco_temp: str
-    comf_temp: str
-    act_duty: int
-    pcb_temp: str
-    power_pcb_temp: str
-    presence: bool
-    window_open: bool
-    true_radiant_active: bool
-    boost: bool
-    boost_end_min: int
-    boost_end_day: int
-    stemp: str
-    power: str
-    duty: int
-    ice_temp: str
-    active: bool
+    model_config = ConfigDict(extra="allow")
+
+    mtemp: str | None = None
+    units: str | None = None
+    sync_status: str | None = None
+    locked: bool | None = None
+    mode: str | None = None
+    error_code: str | None = None
+
+    eco_temp: str | None = None
+    comf_temp: str | None = None
+    act_duty: int | None = None
+    pcb_temp: str | None = None
+    power_pcb_temp: str | None = None
+    presence: bool | None = None
+    window_open: bool | None = None
+    true_radiant_active: bool | None = None
+    boost: bool | None = None
+    boost_end_min: int | None = None
+    boost_end_day: int | None = None
+    stemp: str | None = None
+    power: str | None = None
+    duty: int | None = None
+    ice_temp: str | None = None
+    active: bool | None = None
 
 
 class HtrModNodeStatus(DefaultNodeStatus):

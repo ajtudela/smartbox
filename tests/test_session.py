@@ -105,11 +105,24 @@ async def test_get_node_status(async_smartbox_session, caplog):
                         mock_node,
                     )
                     assert status_model.act_duty == status["act_duty"]
+
+                # A sparse payload carrying an unknown key is now degraded to
+                # the fallback model, not rejected.
+                mock_api_request.return_value = {
+                    "sync_status": "synced",
+                    "mode": "auto",
+                    "brand_new_field": 123,
+                }
+                degraded = await async_smartbox_session.get_node_status(
+                    mock_device["dev_id"],
+                    mock_node,
+                )
+                assert degraded.sync_status == "synced"
+                assert degraded.brand_new_field == 123
+
+                # A wrong type on a known field is still a validation error.
                 with pytest.raises(ValidationError):
-                    mock_api_request.return_value = {
-                        "sync_status": "synced",
-                        "mode": "auto",
-                    }
+                    mock_api_request.return_value = {"act_duty": "not-an-int"}
                     await async_smartbox_session.get_node_status(
                         mock_device["dev_id"],
                         mock_node,
