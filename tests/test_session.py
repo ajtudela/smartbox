@@ -1240,6 +1240,7 @@ async def test_api_request_client_connection_error(async_session):
             async_session.client,
             "get",
         ) as mock_get,
+        patch("smartbox.session.asyncio.sleep", new_callable=AsyncMock),
     ):
         mock_get.side_effect = aiohttp.ClientConnectionError()
 
@@ -1247,7 +1248,9 @@ async def test_api_request_client_connection_error(async_session):
             await async_session._api_request(path)
 
         mock_check_refresh_auth.assert_called_once()
-        mock_get.assert_called_once_with(
+        # every attempt hits the same URL; the connection error is retried.
+        assert mock_get.call_count == _DEFAULT_RETRY_ATTEMPTS + 1
+        mock_get.assert_called_with(
             f"{async_session._api_host}/api/v2/{path}",
             headers=async_session._headers,
         )
@@ -1268,11 +1271,12 @@ async def test_api_request_client_response_error(async_session):
             "get",
         ) as mock_get,
     ):
+        # 400 is a client error: raised straight away, never retried.
         mock_get.side_effect = aiohttp.ClientResponseError(
             request_info=None,
             history=None,
-            status=500,
-            message="Internal Server Error",
+            status=400,
+            message="Bad Request",
         )
 
         with pytest.raises(SmartboxError):
@@ -1426,6 +1430,7 @@ async def test_api_post_client_connection_error(async_session):
             async_session.client,
             "post",
         ) as mock_post,
+        patch("smartbox.session.asyncio.sleep", new_callable=AsyncMock),
     ):
         mock_post.side_effect = aiohttp.ClientConnectionError()
 
@@ -1433,7 +1438,8 @@ async def test_api_post_client_connection_error(async_session):
             await async_session._api_post(data, path)
 
         mock_check_refresh_auth.assert_called_once()
-        mock_post.assert_called_once_with(
+        assert mock_post.call_count == _DEFAULT_RETRY_ATTEMPTS + 1
+        mock_post.assert_called_with(
             f"{async_session._api_host}/api/v2/{path}",
             data=json.dumps(data),
             headers=async_session._headers,
@@ -1456,11 +1462,12 @@ async def test_api_post_client_response_error(async_session):
             "post",
         ) as mock_post,
     ):
+        # 400 is a client error: raised straight away, never retried.
         mock_post.side_effect = aiohttp.ClientResponseError(
             request_info=None,
             history=None,
-            status=500,
-            message="Internal Server Error",
+            status=400,
+            message="Bad Request",
         )
 
         with pytest.raises(SmartboxError):
@@ -1472,6 +1479,65 @@ async def test_api_post_client_response_error(async_session):
             data=json.dumps(data),
             headers=async_session._headers,
         )
+
+
+def _ok_response(payload):
+    resp = MagicMock()
+    resp.__aenter__.return_value = resp
+    resp.__aexit__.return_value = None
+    resp.raise_for_status = MagicMock()
+    resp.json = AsyncMock(return_value=payload)
+    return resp
+
+
+@pytest.mark.asyncio
+async def test_api_request_retries_transient_then_succeeds(async_session):
+    with (
+        patch.object(
+            async_session, "check_refresh_auth", new_callable=AsyncMock
+        ),
+        patch.object(async_session.client, "get") as mock_get,
+        patch(
+            "smartbox.session.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        mock_get.side_effect = [
+            aiohttp.ClientResponseError(
+                request_info=None, history=None, status=503, message="busy"
+            ),
+            _ok_response({"ok": True}),
+        ]
+        result = await async_session._api_request("test_path")
+
+    assert result == {"ok": True}
+    assert mock_get.call_count == 2
+    mock_sleep.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_api_request_retry_honours_retry_after_header(async_session):
+    with (
+        patch.object(
+            async_session, "check_refresh_auth", new_callable=AsyncMock
+        ),
+        patch.object(async_session.client, "get") as mock_get,
+        patch(
+            "smartbox.session.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep,
+    ):
+        mock_get.side_effect = [
+            aiohttp.ClientResponseError(
+                request_info=None,
+                history=None,
+                status=503,
+                message="busy",
+                headers={"Retry-After": "7"},
+            ),
+            _ok_response({"ok": True}),
+        ]
+        await async_session._api_request("test_path")
+
+    mock_sleep.assert_awaited_once_with(7.0)
 
 
 @pytest.mark.parametrize("status", [401, 403])

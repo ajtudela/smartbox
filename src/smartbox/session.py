@@ -44,6 +44,31 @@ _DEFAULT_TIMEOUT = 30  # Total timeout per HTTP request (seconds)
 _MIN_TOKEN_LIFETIME = (
     60  # Minimum time left before expiry before we refresh (seconds)
 )
+# Response statuses worth retrying: rate limiting and transient server faults.
+_RETRYABLE_STATUS = frozenset(
+    {
+        HTTPStatus.TOO_MANY_REQUESTS,
+        HTTPStatus.INTERNAL_SERVER_ERROR,
+        HTTPStatus.BAD_GATEWAY,
+        HTTPStatus.SERVICE_UNAVAILABLE,
+        HTTPStatus.GATEWAY_TIMEOUT,
+    }
+)
+
+
+def _retry_after_seconds(headers: object) -> float | None:
+    """Return the ``Retry-After`` delay in seconds, if given as an integer."""
+    get = getattr(headers, "get", None)
+    if get is None:
+        return None
+    raw = get("Retry-After")
+    if raw is None:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except (TypeError, ValueError):
+        # HTTP-date form is not handled; fall back to exponential backoff.
+        return None
 
 # The status model is picked by node type, which is reliable, rather than by the
 # shape of the response, which is not. Keyed by the enum's string value so an
@@ -280,66 +305,101 @@ class AsyncSession:
                 },
             )
 
+    async def _send(
+        self,
+        method: str,
+        api_url: str,
+        data: str | None,
+    ) -> dict[str, Any]:
+        """Send one request to the v2 API, retrying transient failures.
+
+        Connection errors and 429/5xx responses are retried up to
+        ``self._retry_attempts`` times with exponential backoff
+        (``self._backoff_factor * 2 ** attempt``), honouring a numeric
+        ``Retry-After`` header when present. A 401/403 becomes
+        ``InvalidAuthError`` and any other 4xx a ``SmartboxError``, both
+        immediately.
+        """
+        last_error: SmartboxError | None = None
+        last_cause: BaseException | None = None
+        for attempt in range(self._retry_attempts + 1):
+            try:
+                request = (
+                    self.client.post(
+                        api_url, headers=self._headers, data=data
+                    )
+                    if method == "POST"
+                    else self.client.get(api_url, headers=self._headers)
+                )
+                async with request as response:
+                    response.raise_for_status()
+                    body = await response.json()
+                    _LOGGER.debug("Response %s.", body)
+                    return body
+            except (
+                aiohttp.ClientConnectionError,
+                aiohttp.ClientConnectorError,
+            ) as e:
+                last_error, last_cause = APIUnavailableError(e), e
+                reason = type(e).__name__
+                delay = self._backoff_factor * (2**attempt)
+            except aiohttp.ClientResponseError as e:
+                if e.status in (
+                    HTTPStatus.UNAUTHORIZED,
+                    HTTPStatus.FORBIDDEN,
+                ):
+                    raise InvalidAuthError(e) from e
+                if e.status not in _RETRYABLE_STATUS:
+                    _LOGGER.exception(
+                        "%s %s: %s, status: %s",
+                        method,
+                        api_url,
+                        e.message,
+                        e.status,
+                    )
+                    raise SmartboxError(e) from e
+                last_error, last_cause = SmartboxError(e), e
+                reason = f"HTTP {e.status}"
+                delay = _retry_after_seconds(e.headers) or (
+                    self._backoff_factor * (2**attempt)
+                )
+
+            if attempt >= self._retry_attempts:
+                break
+            _LOGGER.warning(
+                "%s %s failed (%s); retrying in %.1fs (%s/%s)",
+                method,
+                api_url,
+                reason,
+                delay,
+                attempt + 1,
+                self._retry_attempts,
+            )
+            await asyncio.sleep(delay)
+
+        if last_error is not None:
+            raise last_error from last_cause
+        msg = "retry loop exited without a result"  # unreachable
+        raise SmartboxError(msg)
+
     async def _api_request(self, path: str) -> dict[str, Any]:
-        """Make a GET request."""
+        """Make a GET request to the v2 API (transient failures retried)."""
         await self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
-        try:
-            _LOGGER.debug("Getting %s.", api_url)
-            async with self.client.get(
-                api_url, headers=self._headers
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
-                _LOGGER.debug("Response %s.", data)
-                return data
-        except (
-            aiohttp.ClientConnectionError,
-            aiohttp.ClientConnectorError,
-        ) as e:
-            raise APIUnavailableError(e) from e
-        except aiohttp.ClientResponseError as e:
-            if e.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
-                raise InvalidAuthError(e) from e
-            _LOGGER.exception(
-                "ClientResponseError: %s, status: %s",
-                e.message,
-                e.status,
-            )
-            raise SmartboxError(e) from e
+        _LOGGER.debug("Getting %s.", api_url)
+        return await self._send("GET", api_url, None)
 
     async def _api_post(
         self,
         data: dict[str, Any],
         path: str,
     ) -> dict[str, Any]:
-        """Make a POST request."""
+        """Make a POST request to the v2 API (transient failures retried)."""
         await self.check_refresh_auth()
         api_url = f"{self._api_host}/api/v2/{path}"
-        try:
-            data_str = json.dumps(data)
-            _LOGGER.debug("Posting %s to %s.", data_str, api_url)
-            async with self.client.post(
-                api_url, headers=self._headers, data=data_str
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
-                _LOGGER.debug("Response %s.", data)
-                return data
-        except (
-            aiohttp.ClientConnectionError,
-            aiohttp.ClientConnectorError,
-        ) as e:
-            raise APIUnavailableError(e) from e
-        except aiohttp.ClientResponseError as e:
-            if e.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
-                raise InvalidAuthError(e) from e
-            _LOGGER.exception(
-                "Smartbox Error: %s, status: %s",
-                e.message,
-                e.status,
-            )
-            raise SmartboxError(e) from e
+        data_str = json.dumps(data)
+        _LOGGER.debug("Posting %s to %s.", data_str, api_url)
+        return await self._send("POST", api_url, data_str)
 
 
 class AsyncSmartboxSession(AsyncSession):
