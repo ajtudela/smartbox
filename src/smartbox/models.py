@@ -1,6 +1,7 @@
 """Pydantic model of smartbox."""
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, RootModel
 
@@ -87,8 +88,8 @@ class NodeSetup(RootModel[DefaultNodeSetup | PmoSetup]):
 
     root: DefaultNodeSetup | PmoSetup
 
-    def __getattr__(self, name: str) -> DefaultNodeSetup | PmoSetup:
-        """Get the root model directly."""
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        """Proxy attribute access to the resolved root model."""
         return getattr(self.root, name)
 
 
@@ -175,10 +176,8 @@ class NodeStatus(
 
     root: AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus
 
-    def __getattr__(
-        self, name: str
-    ) -> AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus:
-        """Get the root model directly."""
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        """Proxy attribute access to the resolved root model."""
         return getattr(self.root, name)
 
 
@@ -239,7 +238,7 @@ class Homes(RootModel[list[Home]]):
 
 
 class Sample(BaseModel):
-    """Pmo Sample model."""
+    """Default sample model."""
 
     t: int
     counter: float
@@ -247,7 +246,7 @@ class Sample(BaseModel):
 
 
 class PmoSample(BaseModel):
-    """Default Sample."""
+    """Pmo sample model."""
 
     t: int
     counter: float
