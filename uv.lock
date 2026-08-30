@@ -925,7 +925,7 @@ wheels = [
 
 [[package]]
 name = "smartbox"
-version = "2.5.1"
+version = "2.5.2"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -933,8 +933,6 @@ dependencies = [
     { name = "jq" },
     { name = "pydantic" },
     { name = "python-socketio" },
-    { name = "requests" },
-    { name = "websocket-client" },
 ]
 
 [package.dev-dependencies]
@@ -955,13 +953,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp" },
+    { name = "aiohttp", specifier = ">=3,<4" },
     { name = "asyncclick" },
     { name = "jq" },
-    { name = "pydantic" },
-    { name = "python-socketio" },
-    { name = "requests" },
-    { name = "websocket-client" },
+    { name = "pydantic", specifier = ">=2,<3" },
+    { name = "python-socketio", specifier = ">=5,<6" },
 ]
 
 [package.metadata.requires-dev]
@@ -1083,15 +1079,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e1/0d/4e93c8e6d1001a75763f87d8f5ecda8ebc7f4aa2153dddfaf4ae8892821a/virtualenv-21.4.2.tar.gz", hash = "sha256:38e6ee0a555615c0ea9da2ac7e9998fe8dc3b911dd33ad8eaad2020957653b0c", size = 7613326, upload-time = "2026-05-31T17:01:22.827Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bf/c4/557dc082be035381b85fdb2b74e21d3d21b57750b74f2b47a32f3a639ff9/virtualenv-21.4.2-py3-none-any.whl", hash = "sha256:854210ca524a1a4d0d744734f4acbc721c3ffe163b85bbf5d56d14d5ae2f0fae", size = 7594079, upload-time = "2026-05-31T17:01:20.735Z" },
-]
-
-[[package]]
-name = "websocket-client"
-version = "1.9.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2c/41/aa4bf9664e4cda14c3b39865b12251e8e7d239f4cd0e3cc1b6c2ccde25c1/websocket_client-1.9.0.tar.gz", hash = "sha256:9e813624b6eb619999a97dc7958469217c3176312b3a16a4bd1bc7e08a46ec98", size = 70576, upload-time = "2025-10-07T21:16:36.495Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/34/db/b10e48aa8fff7407e67470363eac595018441cf32d5e1001567a7aeba5d2/websocket_client-1.9.0-py3-none-any.whl", hash = "sha256:af248a825037ef591efbf6ed20cc5faa03d3b47b9e5a2230a529eeee1c1fc3ef", size = 82616, upload-time = "2025-10-07T21:16:34.951Z" },
 ]
 
 [[package]]
