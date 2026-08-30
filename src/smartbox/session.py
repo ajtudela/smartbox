@@ -37,6 +37,7 @@ from smartbox.reseller import AvailableResellers, SmartboxReseller
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
+_DEFAULT_TIMEOUT = 30  # Total timeout per HTTP request (seconds)
 _MIN_TOKEN_LIFETIME = (
     60  # Minimum time left before expiry before we refresh (seconds)
 )
@@ -59,6 +60,7 @@ class AsyncSession:
         basic_auth_credentials: str | None = None,
         x_serial_id: int | None = None,
         x_referer: str | None = None,
+        timeout: float = _DEFAULT_TIMEOUT,
     ) -> None:
         """Init the session."""
         self._reseller = AvailableResellers(
@@ -71,6 +73,7 @@ class AsyncSession:
         self._basic_auth_credentials: str | None = basic_auth_credentials
         self._retry_attempts: int = retry_attempts
         self._backoff_factor: float = backoff_factor
+        self._timeout: float = timeout
         self._username: str = username
         self._password: str = password
         self._access_token: str = ""
@@ -154,7 +157,11 @@ class AsyncSession:
     def client(self) -> ClientSession:
         """Return the underlying http client."""
         if not self._client_session:
-            self._client_session = ClientSession()
+            # Without an explicit timeout aiohttp waits its 5-minute default,
+            # long enough to stack overlapping refreshes in a coordinator.
+            self._client_session = ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self._timeout),
+            )
         return self._client_session
 
     async def health_check(self) -> dict[str, Any]:

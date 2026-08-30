@@ -779,7 +779,26 @@ async def test_async_session_init():
     assert session._client_session == websession
     assert session._headers["x-serialid"] == str(serial_id)
     assert session._headers["x-referer"] == referer
+    assert math.isclose(session._timeout, 30)
     await websession.close()
+
+
+@pytest.mark.asyncio
+async def test_async_session_custom_timeout_reaches_client_session(reseller):
+    """A custom ``timeout`` must be applied to the created ``ClientSession``."""
+    session = AsyncSession(
+        api_name="test_api",
+        username="test_user",
+        password="test_password",
+        timeout=5,
+    )
+    assert math.isclose(session._timeout, 5)
+
+    with patch("smartbox.session.ClientSession") as mock_client_session:
+        _ = session.client
+
+    _, kwargs = mock_client_session.call_args
+    assert math.isclose(kwargs["timeout"].total, 5)
 
 
 @pytest.mark.asyncio
