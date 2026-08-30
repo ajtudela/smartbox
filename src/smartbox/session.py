@@ -526,14 +526,14 @@ class AsyncSmartboxSession(AsyncSession):
         """Set a node setup."""
         _node: Node = Node.model_validate(node)
         data = {k: v for k, v in setup_args.items() if v is not None}
-        # setup seems to require all settings to be re-posted, so get current
-        # values and update
-        setup_data: dict[str, Any] = {}
-        node_setup = await self.get_node_setup(device_id, node)
-        if not isinstance(node_setup, dict):
-            setup_data = node_setup.model_dump(mode="json")
-        else:
-            setup_data = node_setup
+        # The setup endpoint requires the whole configuration to be re-posted,
+        # even for unchanged fields. The read-modify-write below must therefore
+        # keep the payload intact: going through the Pydantic model would drop
+        # every key the model does not declare and wipe it on the device, so we
+        # always read the raw setup here regardless of ``raw_response``.
+        setup_data = await self._api_request(
+            f"devs/{device_id}/{_node.type}/{_node.addr}/setup",
+        )
         setup_data.update(data)
         await self._api_post(
             data=setup_data,

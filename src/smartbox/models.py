@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, ConfigDict, RootModel
 
 
 class SmartboxNodeType(StrEnum):
@@ -50,6 +50,10 @@ class NodeExtraOptions(BaseModel):
 class PmoSetup(BaseModel):
     """Pmo node setup."""
 
+    # Keep unknown keys: the setup endpoint requires the full payload to be
+    # re-posted, so any field the device returns must survive a round-trip.
+    model_config = ConfigDict(extra="allow")
+
     circuit_type: int
     power_limit: int
     reverse: bool
@@ -57,6 +61,10 @@ class PmoSetup(BaseModel):
 
 class DefaultNodeSetup(BaseModel):
     """NodeSetup model."""
+
+    # Keep unknown keys: the setup endpoint requires the full payload to be
+    # re-posted, so any field the device returns must survive a round-trip.
+    model_config = ConfigDict(extra="allow")
 
     sync_status: str
     control_mode: int
