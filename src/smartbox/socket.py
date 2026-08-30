@@ -108,6 +108,11 @@ class SocketSession:
         self._reconnect_attempts = reconnect_attempts
         self._backoff_factor = backoff_factor
         self._background_tasks: set[asyncio.Task] = set()
+        # All mutable run state lives here, not in ``run()``, so every accessor
+        # can rely on it existing.
+        self._ping_task: asyncio.Task | None = None
+        self._loop_should_exit = False
+        self._running = False
 
         if verbose:
             self._sio = socketio.AsyncClient(
@@ -238,9 +243,17 @@ class SocketSession:
             )
 
     async def run(self) -> None:
-        """Run the websocket."""
-        self._ping_task = self._sio.start_background_task(self._send_ping)
+        """Run the websocket until cancelled or shut down.
+
+        A second concurrent call is refused: it would start a second ping task
+        and orphan the first.
+        """
+        if self._running:
+            _LOGGER.warning("run() called while already running, ignoring")
+            return
+        self._running = True
         self._loop_should_exit = False
+        self._ping_task = self._sio.start_background_task(self._send_ping)
 
         _LOGGER.debug("Starting main loop")
         try:
@@ -291,28 +304,23 @@ class SocketSession:
         finally:
             _LOGGER.debug("Cleaning up socketio...")
             await self.shutdown()
-
-    async def cancel(self) -> None:
-        """Disconnecting and cancelling tasks."""
-        _LOGGER.debug("Disconnecting and cancelling tasks")
-        self._loop_should_exit = True
-        if hasattr(self, "_ping_task") and not self._ping_task.done():
-            self._ping_task.cancel()
-        try:
-            await asyncio.shield(self._sio.disconnect())
-        except (asyncio.CancelledError, OSError) as e:
-            _LOGGER.debug("Silent error on disconnect: %s", e)
+            self._running = False
 
     async def shutdown(self) -> None:
-        """Shutdown the socket session."""
+        """Stop the loop, cancel the ping task and disconnect. Idempotent."""
         self._loop_should_exit = True
-        if hasattr(self, "_ping_task") and not self._ping_task.done():
+        if self._ping_task is not None and not self._ping_task.done():
             self._ping_task.cancel()
-
+        self._ping_task = None
         try:
             await asyncio.shield(self._sio.disconnect())
         except (asyncio.CancelledError, OSError) as e:
             _LOGGER.debug("Silent error on disconnect: %s", e)
+
+    async def cancel(self) -> None:
+        """Alias of :meth:`shutdown`."""
+        _LOGGER.debug("Disconnecting and cancelling tasks")
+        await self.shutdown()
 
     @property
     def namespace(self) -> SmartboxAPIV2Namespace:
