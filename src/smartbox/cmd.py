@@ -335,6 +335,49 @@ async def setup(ctx) -> None:
             _pretty_print(setup)
 
 
+@smartbox.command(help="Show node weekly schedule (prog)")
+@click.pass_context
+async def node_prog(ctx) -> None:
+    """Show the weekly heating schedule of every node."""
+    session = ctx.obj["session"]
+    devices = await session.get_devices()
+
+    for device in devices:
+        print(f"{device['name']} (dev_id: {device['dev_id']})")
+        nodes = await session.get_nodes(device["dev_id"])
+
+        for node in nodes:
+            print(f"{node['name']} (addr: {node['addr']})")
+            prog = await session.get_node_prog(device["dev_id"], node)
+            _pretty_print(prog)
+
+
+@smartbox.command(help="Show device manager/system firmware version")
+@click.pass_context
+async def device_version(ctx) -> None:
+    """Show the manager/system firmware version of every device."""
+    session = ctx.obj["session"]
+    devices = await session.get_devices()
+
+    for device in devices:
+        print(f"{device['name']} (dev_id: {device['dev_id']})")
+        version = await session.get_device_version(device["dev_id"])
+        _pretty_print(version)
+
+
+@smartbox.command(help="Show device heater-system setup")
+@click.pass_context
+async def htr_system_setup(ctx) -> None:
+    """Show the heater-system configuration of every device."""
+    session = ctx.obj["session"]
+    devices = await session.get_devices()
+
+    for device in devices:
+        print(f"{device['name']} (dev_id: {device['dev_id']})")
+        setup = await session.get_htr_system_setup(device["dev_id"])
+        _pretty_print(setup)
+
+
 @smartbox.command(help="Set node setup options")
 @click.option(
     "-d",

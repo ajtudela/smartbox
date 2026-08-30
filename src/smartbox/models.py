@@ -118,6 +118,46 @@ class NodeVersion(BaseModel):
     pid: str
 
 
+class NodeProg(BaseModel):
+    """Weekly heating schedule of a node.
+
+    ``prog`` maps a weekday index (``"0"``..``"6"``) to 24 hourly slot values.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    sync_status: str | None = None
+    prog: dict[str, list[int]] | None = None
+
+
+class DeviceVersion(BaseModel):
+    """Manager/system firmware version of a device (``mgr/version``)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    fw_version: str | None = None
+    hw_version: str | None = None
+    product_id: str | None = None
+
+
+class HtrSystemExtraNrgConf(BaseModel):
+    """The ``extra_nrg_conf`` block of the heater-system setup."""
+
+    model_config = ConfigDict(extra="allow")
+
+    enabled: bool | None = None
+
+
+class HtrSystemSetup(BaseModel):
+    """Heater-system configuration of a device (``htr_system/setup``)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    power_limit: int | None = None
+    refresh_period: int | None = None
+    extra_nrg_conf: HtrSystemExtraNrgConf | None = None
+
+
 class DefaultNodeStatus(BaseModel):
     """Node status shared by every node type.
 

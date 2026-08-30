@@ -329,6 +329,60 @@ async def test_set_setup(runner, mock_session):
 
 
 @pytest.mark.asyncio
+async def test_node_prog(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    nodes_future = asyncio.Future()
+    nodes_future.set_result([{"name": "Node1", "addr": 1}])
+    mock_session.return_value.get_nodes.return_value = nodes_future
+
+    prog_future = asyncio.Future()
+    prog_future.set_result({"prog": {"0": [0]}})
+    mock_session.return_value.get_node_prog.return_value = prog_future
+
+    result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "node-prog"])
+    assert result.exit_code == 0
+    assert "prog" in result.output
+    mock_session.return_value.get_node_prog.assert_called_once_with(
+        "1", {"name": "Node1", "addr": 1}
+    )
+
+
+@pytest.mark.asyncio
+async def test_device_version(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    version_future = asyncio.Future()
+    version_future.set_result({"fw_version": "1.2"})
+    mock_session.return_value.get_device_version.return_value = version_future
+
+    result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "device-version"])
+    assert result.exit_code == 0
+    assert "fw_version" in result.output
+    mock_session.return_value.get_device_version.assert_called_once_with("1")
+
+
+@pytest.mark.asyncio
+async def test_htr_system_setup(runner, mock_session):
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    setup_future = asyncio.Future()
+    setup_future.set_result({"power_limit": 2000})
+    mock_session.return_value.get_htr_system_setup.return_value = setup_future
+
+    result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "htr-system-setup"])
+    assert result.exit_code == 0
+    assert "power_limit" in result.output
+    mock_session.return_value.get_htr_system_setup.assert_called_once_with("1")
+
+
+@pytest.mark.asyncio
 async def test_set_device_away_status(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])

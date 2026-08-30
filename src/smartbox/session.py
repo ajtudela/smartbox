@@ -20,12 +20,15 @@ from smartbox.models import (
     DeviceAwayStatus,
     DeviceConnected,
     Devices,
+    DeviceVersion,
     Guests,
     Home,
     Homes,
     HtrModNodeStatus,
     HtrNodeStatus,
+    HtrSystemSetup,
     Node,
+    NodeProg,
     Nodes,
     NodeVersion,
     PmoSetup,
@@ -604,6 +607,43 @@ class AsyncSmartboxSession(AsyncSession):
         except ValidationError:
             _LOGGER.exception("Version config validation error %s", response)
             raise
+
+    async def get_node_prog(
+        self,
+        device_id: str,
+        node: dict[str, Any],
+    ) -> dict[str, Any] | NodeProg:
+        """Get a node's weekly heating schedule."""
+        _node: Node = Node.model_validate(node)
+        response = await self._api_request(
+            f"devs/{device_id}/{_node.type}/{_node.addr}/prog",
+        )
+        _LOGGER.debug("(%s) Prog data %s", _node.type, response)
+        if self.raw_response is True:
+            return response
+        return NodeProg.model_validate(response)
+
+    async def get_device_version(
+        self,
+        device_id: str,
+    ) -> dict[str, Any] | DeviceVersion:
+        """Get the manager/system firmware version of a device."""
+        response = await self._api_request(f"devs/{device_id}/mgr/version")
+        if self.raw_response is True:
+            return response
+        return DeviceVersion.model_validate(response)
+
+    async def get_htr_system_setup(
+        self,
+        device_id: str,
+    ) -> dict[str, Any] | HtrSystemSetup:
+        """Get the heater-system configuration of a device."""
+        response = await self._api_request(
+            f"devs/{device_id}/htr_system/setup"
+        )
+        if self.raw_response is True:
+            return response
+        return HtrSystemSetup.model_validate(response)
 
 
 class Session:

@@ -1627,6 +1627,60 @@ async def test_get_node_version(async_smartbox_session, caplog):
 
 
 @pytest.mark.asyncio
+async def test_get_node_prog(async_smartbox_session):
+    node = {"name": "n", "addr": 2, "type": "htr", "installed": True}
+    raw = {"sync_status": "ok", "prog": {str(d): [0] * 24 for d in range(7)}}
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = raw
+        got = await async_smartbox_session.get_node_prog("dev", node)
+        assert got == raw
+        mock_api_request.assert_called_once_with("devs/dev/htr/2/prog")
+
+        async_smartbox_session.raw_response = False
+        model = await async_smartbox_session.get_node_prog("dev", node)
+    async_smartbox_session.raw_response = True
+    assert model.sync_status == "ok"
+    assert model.prog["6"] == [0] * 24
+
+
+@pytest.mark.asyncio
+async def test_get_device_version(async_smartbox_session):
+    raw = {"fw_version": "1.2", "hw_version": "3", "product_id": "p"}
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = raw
+        got = await async_smartbox_session.get_device_version("dev")
+        assert got == raw
+        mock_api_request.assert_called_once_with("devs/dev/mgr/version")
+
+        async_smartbox_session.raw_response = False
+        model = await async_smartbox_session.get_device_version("dev")
+    async_smartbox_session.raw_response = True
+    assert model.fw_version == "1.2"
+
+
+@pytest.mark.asyncio
+async def test_get_htr_system_setup(async_smartbox_session):
+    raw = {"power_limit": 2000, "refresh_period": 60, "extra_nrg_conf": {"enabled": True}}
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = raw
+        got = await async_smartbox_session.get_htr_system_setup("dev")
+        assert got == raw
+        mock_api_request.assert_called_once_with("devs/dev/htr_system/setup")
+
+        async_smartbox_session.raw_response = False
+        model = await async_smartbox_session.get_htr_system_setup("dev")
+    async_smartbox_session.raw_response = True
+    assert model.power_limit == 2000
+    assert model.extra_nrg_conf.enabled is True
+
+
+@pytest.mark.asyncio
 async def test_get_homes(async_smartbox_session):
     with patch.object(
         async_smartbox_session,
