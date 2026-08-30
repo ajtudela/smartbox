@@ -60,6 +60,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "module"
+addopts = "-m 'not network'"
+markers = [
+    "network: tests that make real HTTP calls to reseller servers (deselected by default; run with -m network)",
+]
 
 [tool.mypy]
 warn_unused_configs = true
