@@ -513,19 +513,24 @@ class AsyncSmartboxSession(AsyncSession):
     async def get_device_power_limit(
         self, device_id: str, node: dict[str, Any] | None = None
     ) -> int:
-        """Get device power limit."""
-        power_param = "power_limit"
-        url = f"devs/{device_id}/htr_system/{power_param}"
+        """Get the power limit (watts) of the device, or of a ``pmo`` node.
 
-        if node is not None and (
-            (_node := Node.model_validate(node))
+        Read and write both use the ``power_limit`` resource. The ``pmo`` path
+        mirrors ``set_device_power_limit`` but has not been checked against a
+        real ``pmo`` device (see api-notes.md).
+        """
+        url = f"devs/{device_id}/htr_system/power_limit"
+        if (
+            node is not None
+            and (_node := Node.model_validate(node))
             and _node.type == SmartboxNodeType.PMO
         ):
-            power_param = "power"
-            url = f"devs/{device_id}/{_node.type}/{_node.addr}/{power_param}"
+            url = f"devs/{device_id}/{_node.type}/{_node.addr}/power_limit"
 
         resp = await self._api_request(url)
-        return int(resp[power_param])
+        # The value may come back as an int or as a string that is not always a
+        # plain integer literal, so parse defensively.
+        return int(float(resp["power_limit"]))
 
     async def set_device_power_limit(
         self,

@@ -365,13 +365,23 @@ async def test_get_device_power_limit(async_smartbox_session):
             "devs/test_device/htr_system/power_limit",
         )
 
-        mock_api_request.return_value = {"power": "100"}
+        # pmo reads from the same ``power_limit`` resource it writes to.
+        mock_api_request.return_value = {"power_limit": "100"}
         power_limit = await async_smartbox_session.get_device_power_limit(
             device_id="test_device", node=mock_node
         )
         assert power_limit == power
         mock_api_request.assert_called_with(
-            "devs/test_device/pmo/1/power",
+            "devs/test_device/pmo/1/power_limit",
+        )
+
+        # a decimal value as a string is parsed defensively.
+        mock_api_request.return_value = {"power_limit": "100.0"}
+        assert (
+            await async_smartbox_session.get_device_power_limit(
+                device_id="test_device"
+            )
+            == power
         )
 
 

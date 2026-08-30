@@ -156,6 +156,9 @@ GET: `{samples: [{t, counter, temp}, ...]}`. `start` and `end` unix-timestamp qu
 
 POST: not accepted (`{"error": {"code": 2}}`).
 
+### /api/v2/devs/<dev_id>/pmo/<node_addr>/power_limit
+The power limit of a `pmo` (power monitor) node — the per-node counterpart of `htr_system/power_limit`. Unverified: the only device available for testing has no `pmo` node. `get_device_power_limit`/`set_device_power_limit` use this path (read and write both on `power_limit`, mirroring `htr_system`); confirm the resource name against a real `pmo` device.
+
 ## Reseller / firmware variation
 The `api-hjm` `htr` `status` and `setup` payloads above diverge from the fields the Pydantic models declare: `status.error_code` is an integer (not a string), `status` omits `act_duty` and `power_pcb_temp` and adds `easy`, `runback`, `version`; `setup` omits `flash_version`, `user_duty_factor` and `extra_options`, adds `revision`, `priority`, `max_stemp_limit`, and its `factory_options` object has a different, smaller set of keys. Treat every response model as a lower bound on what a given reseller returns.
 
