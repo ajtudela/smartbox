@@ -118,6 +118,9 @@ class AsyncSession:
         self._expires_at: datetime.datetime = datetime.datetime.now(
             datetime.UTC
         )
+        # Serialise token refresh so a burst of concurrent requests does not
+        # each fire its own ``_authentication`` on the shared token fields.
+        self._auth_lock = asyncio.Lock()
         self._client_session: ClientSession | None = websession
         # Track ownership: a caller-injected session (e.g. Home Assistant's
         # shared one) must never be closed by us.
@@ -285,25 +288,44 @@ class AsyncSession:
         except aiohttp.ClientResponseError as e:
             raise InvalidAuthError(e) from e
 
+    def _password_grant(self) -> dict[str, str]:
+        return {
+            "grant_type": "password",
+            "username": self._username,
+            "password": self._password,
+        }
+
+    def _refresh_grant(self) -> dict[str, str]:
+        return {
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+        }
+
+    def _token_expiring(self) -> bool:
+        remaining = self._expires_at - datetime.datetime.now(datetime.UTC)
+        return remaining < datetime.timedelta(seconds=_MIN_TOKEN_LIFETIME)
+
     async def check_refresh_auth(self) -> None:
-        """Do we have to refresh auth."""
-        if self._access_token == "":
-            await self._authentication(
-                {
-                    "grant_type": "password",
-                    "username": self._username,
-                    "password": self._password,
-                },
-            )
-        elif (
-            self._expires_at - datetime.datetime.now(datetime.UTC)
-        ) < datetime.timedelta(seconds=_MIN_TOKEN_LIFETIME):
-            await self._authentication(
-                {
-                    "grant_type": "refresh_token",
-                    "refresh_token": self._refresh_token,
-                },
-            )
+        """Authenticate or refresh the token if needed.
+
+        Guarded by a lock and re-checked inside it, so N concurrent requests
+        arriving with the token about to expire trigger a single refresh. When
+        the refresh token itself is rejected, fall back to the password grant
+        instead of failing every request until the process restarts.
+        """
+        async with self._auth_lock:
+            if self._access_token and not self._token_expiring():
+                return
+            if not self._access_token:
+                await self._authentication(self._password_grant())
+                return
+            try:
+                await self._authentication(self._refresh_grant())
+            except InvalidAuthError:
+                _LOGGER.debug(
+                    "Refresh token rejected, falling back to password grant",
+                )
+                await self._authentication(self._password_grant())
 
     async def _send(
         self,

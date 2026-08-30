@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import inspect
 import json
@@ -1846,6 +1847,54 @@ async def test_check_refresh_auth_token_valid(async_session):
     ) as mock_authentication:
         await async_session.check_refresh_auth()
         mock_authentication.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_check_refresh_auth_concurrent_refreshes_once(async_session):
+    """A burst of callers with an expiring token triggers a single refresh."""
+    async_session._access_token = "old"
+    async_session._refresh_token = "r"
+    async_session._expires_at = datetime.datetime.now(datetime.UTC)
+
+    async def fake_auth(_credentials):
+        await asyncio.sleep(0)
+        async_session._access_token = "new"
+        async_session._expires_at = datetime.datetime.now(
+            datetime.UTC
+        ) + datetime.timedelta(seconds=3600)
+
+    with patch.object(
+        async_session, "_authentication", side_effect=fake_auth
+    ) as mock_authentication:
+        await asyncio.gather(
+            *(async_session.check_refresh_auth() for _ in range(8))
+        )
+
+    mock_authentication.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_check_refresh_auth_falls_back_to_password(async_session):
+    """A rejected refresh token retries with the password grant."""
+    async_session._access_token = "old"
+    async_session._refresh_token = "revoked"
+    async_session._expires_at = datetime.datetime.now(datetime.UTC)
+
+    with patch.object(
+        async_session,
+        "_authentication",
+        new_callable=AsyncMock,
+        side_effect=[InvalidAuthError("nope"), None],
+    ) as mock_authentication:
+        await async_session.check_refresh_auth()
+
+    assert mock_authentication.call_count == 2
+    assert mock_authentication.call_args_list[0].args[0]["grant_type"] == (
+        "refresh_token"
+    )
+    assert mock_authentication.call_args_list[1].args[0]["grant_type"] == (
+        "password"
+    )
 
 
 @pytest.mark.asyncio
