@@ -45,6 +45,19 @@ async def test_api_version(runner, mock_session):
 
 
 @pytest.mark.asyncio
+async def test_session_closed_on_teardown(runner, mock_session):
+    """The CLI must close the session it created when the context tears down."""
+    version_future = asyncio.Future()
+    version_future.set_result({"major": "1"})
+    mock_session.return_value.api_version.return_value = version_future
+
+    result = await runner.invoke(smartbox, [*DEFAULT_ARGS, "api-version"])
+
+    assert result.exit_code == 0
+    mock_session.return_value.close.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_devices(runner, async_smartbox_session):
     result = await runner.invoke(
         smartbox,

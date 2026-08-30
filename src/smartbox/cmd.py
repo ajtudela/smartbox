@@ -4,7 +4,6 @@ import json
 import logging
 from typing import Any
 
-from aiohttp import ClientSession
 import asyncclick as click
 
 from smartbox.reseller import AvailableResellers
@@ -61,10 +60,13 @@ async def smartbox(
         basic_auth_credentials=basic_auth_creds,
         username=username,
         password=password,
-        websession=ClientSession(),
         x_referer=x_referer,
         x_serial_id=x_serial_id,
     )
+    # Let the session own and lazily create its ClientSession, and close it when
+    # the CLI context tears down, so no "Unclosed client session" warning is
+    # emitted and the long-running ``socket`` command cleans up on SIGINT.
+    ctx.call_on_close(session.close)
     ctx.obj["session"] = session
     ctx.obj["verbose"] = verbose
 
