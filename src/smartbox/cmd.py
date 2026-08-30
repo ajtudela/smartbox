@@ -173,7 +173,7 @@ async def status(ctx) -> None:
 async def node_samples(
     ctx,
     device_id: str,
-    node_addr: str,
+    node_addr: int,
     start_time: int,
     end_time: int,
 ) -> None:
@@ -217,7 +217,7 @@ async def node_samples(
 async def set_status(
     ctx,
     device_id: str,
-    node_addr: str,
+    node_addr: int,
     **kwargs: dict[str, Any],
 ) -> None:
     """Set node status."""
@@ -271,7 +271,7 @@ async def setup(ctx) -> None:
 async def set_setup(
     ctx,
     device_id: str,
-    node_addr: str,
+    node_addr: int,
     **kwargs: dict[str, Any],
 ) -> None:
     """Set node setup options."""
