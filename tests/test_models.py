@@ -5,11 +5,32 @@ from smartbox.models import (
     GuestUser,
     HtrModNodeStatus,
     HtrNodeStatus,
+    Node,
     NodeExtraOptions,
     NodeFactoryOptions,
     NodeSetup,
     NodeStatus,
+    SmartboxNodeType,
 )
+
+
+def test_node_known_type_is_enum():
+    node = Node.model_validate(
+        {"name": "n", "addr": 1, "type": "htr", "installed": True}
+    )
+    assert node.type is SmartboxNodeType.HTR
+
+
+def test_node_unknown_type_is_kept_as_string():
+    """An unrecognised node type must not raise; it is kept verbatim."""
+    node = Node.model_validate(
+        {"name": "n", "addr": 4, "type": "some_new_type", "installed": True}
+    )
+    assert node.type == "some_new_type"
+    assert not isinstance(node.type, SmartboxNodeType)
+    assert f"devs/d/{node.type}/{node.addr}/status" == (
+        "devs/d/some_new_type/4/status"
+    )
 
 
 def test_node_factory_options():

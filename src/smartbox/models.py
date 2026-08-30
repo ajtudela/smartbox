@@ -3,11 +3,16 @@
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class SmartboxNodeType(StrEnum):
-    """Node type."""
+    """Known node types.
+
+    The list is not exhaustive: the third-party API adds types without notice,
+    so ``Node.type`` is ``SmartboxNodeType | str`` and an unrecognised type is
+    kept verbatim (URL building still works, only the typed models narrow).
+    """
 
     HTR = "htr"
     THM = "thm"
@@ -186,7 +191,9 @@ class Node(BaseModel):
 
     name: str
     addr: int
-    type: SmartboxNodeType
+    # left-to-right so a known type deserialises to the enum and only a genuinely
+    # unknown one falls through to a plain string.
+    type: SmartboxNodeType | str = Field(union_mode="left_to_right")
     installed: bool
     lost: bool | None = False
 
