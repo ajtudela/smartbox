@@ -30,7 +30,7 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
       - name: Lint with ruff
-        run: uv run ruff check src/smartbox
+        run: uv run ruff check src/smartbox tests
 
   typechecker:
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
       - name: Typecheck with mypy
-        run: uv run mypy src/smartbox
+        run: uv run mypy src/smartbox tests
 
   build:
     runs-on: ubuntu-latest
