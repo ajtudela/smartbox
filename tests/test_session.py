@@ -839,6 +839,37 @@ async def test_authentication_success(async_session, caplog):
 
 
 @pytest.mark.asyncio
+async def test_authentication_does_not_log_token(async_session, caplog):
+    """The access token must never reach the logs, not even at DEBUG."""
+    credentials = {
+        "grant_type": "password",
+        "username": "test_user",
+        "password": "test_password",
+    }
+    secret_token = "super-secret-access-token-value"  # noqa: S105
+    token_response = {
+        "access_token": secret_token,
+        "refresh_token": "test_refresh_token",
+        "expires_in": 3600,
+        "token_type": "test_token_type",
+    }
+
+    with patch.object(async_session.client, "post") as mock_post:
+        mock_response = MagicMock()
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = None
+        mock_response.json = AsyncMock(return_value=token_response)
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
+
+        with caplog.at_level(logging.DEBUG, logger="smartbox.session"):
+            await async_session._authentication(credentials)
+
+    assert async_session.access_token == secret_token
+    assert secret_token not in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_authentication_invalid_response(async_session):
     credentials = {
         "grant_type": "password",

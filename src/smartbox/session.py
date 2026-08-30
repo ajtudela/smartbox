@@ -212,10 +212,13 @@ class AsyncSession:
                     ) + datetime.timedelta(
                         seconds=rtoken.expires_in,
                     )
+                    # Never log the token itself: debug logs are routinely
+                    # attached to GitHub issues and a leaked access token is
+                    # valid for hours. The last 4 chars are enough to correlate.
                     _LOGGER.debug(
-                        "Authenticated session (%s), access_token=%s, expires at %s",
+                        "Authenticated session (%s), token ...%s, expires at %s",
                         credentials["grant_type"],
-                        self.access_token,
+                        self._access_token[-4:],
                         self.expiry_time,
                     )
                 except ValidationError as e:
