@@ -114,6 +114,26 @@ async def test_socket(runner, mocker, mock_session):
 
 
 @pytest.mark.asyncio
+async def test_set_status_unknown_device_reports_bad_parameter(
+    runner, mock_session
+):
+    """An unknown -d must give a friendly error, not a StopIteration traceback."""
+    devices_future = asyncio.Future()
+    devices_future.set_result([{"name": "Device1", "dev_id": "1"}])
+    mock_session.return_value.get_devices.return_value = devices_future
+
+    result = await runner.invoke(
+        smartbox,
+        [*DEFAULT_ARGS, "set-status", "-d", "does-not-exist", "-n", "1"],
+    )
+
+    assert result.exit_code != 0
+    assert not isinstance(result.exception, StopIteration)
+    assert "does-not-exist" in result.output
+    mock_session.return_value.set_node_status.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_set_status(runner, mock_session):
     devices_future = asyncio.Future()
     devices_future.set_result([{"name": "Device1", "dev_id": "1"}])

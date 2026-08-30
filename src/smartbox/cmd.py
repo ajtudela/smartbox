@@ -18,6 +18,28 @@ def _pretty_print(data: dict[str, Any]) -> None:
     print(json.dumps(data, indent=4, sort_keys=True))
 
 
+def _find_device(
+    devices: list[dict[str, Any]], device_id: str
+) -> dict[str, Any]:
+    """Return the device with ``device_id`` or a friendly CLI error."""
+    device = next((d for d in devices if d["dev_id"] == device_id), None)
+    if device is None:
+        msg = f"Device {device_id!r} not found"
+        raise click.BadParameter(msg)
+    return device
+
+
+def _find_node(
+    nodes: list[dict[str, Any]], node_addr: int
+) -> dict[str, Any]:
+    """Return the node with ``node_addr`` or a friendly CLI error."""
+    node = next((n for n in nodes if n["addr"] == node_addr), None)
+    if node is None:
+        msg = f"Node {node_addr!r} not found"
+        raise click.BadParameter(msg)
+    return node
+
+
 @click.group(chain=True)
 @click.option("-a", "--api-name", required=False, help="API name")
 @click.option(
@@ -158,9 +180,9 @@ async def node_samples(
     """Show node temperatures and consumption history."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
     nodes = await session.get_nodes(device["dev_id"])
-    node = next(n for n in nodes if n["addr"] == node_addr)
+    node = _find_node(nodes, node_addr)
 
     node_samples = await session.get_node_samples(
         device_id,
@@ -201,9 +223,9 @@ async def set_status(
     """Set node status."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
     nodes = await session.get_nodes(device["dev_id"])
-    node = next(n for n in nodes if n["addr"] == node_addr)
+    node = _find_node(nodes, node_addr)
 
     await session.set_node_status(device["dev_id"], node, kwargs)
 
@@ -255,9 +277,9 @@ async def set_setup(
     """Set node setup options."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
     nodes = await session.get_nodes(device["dev_id"])
-    node = next(n for n in nodes if n["addr"] == node_addr)
+    node = _find_node(nodes, node_addr)
 
     # Only pass specified options
     setup_kwargs = {k: v for k, v in kwargs.items() if v is not None}
@@ -315,7 +337,7 @@ async def set_device_away_status(
     """Set device away status."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
 
     await session.set_device_away_status(device["dev_id"], kwargs)
 
@@ -348,7 +370,7 @@ async def set_device_power_limit(ctx, device_id: str, power_limit: int) -> None:
     """Set device power limit."""
     session = ctx.obj["session"]
     devices = await session.get_devices()
-    device = next(d for d in devices if d["dev_id"] == device_id)
+    device = _find_device(devices, device_id)
 
     await session.set_device_power_limit(device["dev_id"], power_limit)
 
