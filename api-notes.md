@@ -10,6 +10,24 @@ The GET payloads and POST behaviour below were exercised against a live device o
 ### Basic Auth Credential
 Initial authentication to the smartbox REST API is protected by HTTP Basic Auth, in addition to the user's username and password which are then used to obtain an access token. In order not to undermine the security layer it provides, and also because it might change over time or vary between implementations, **the token is not provided here and system owners need to find it themselves**.
 
+#### Capturing it from the reseller's web app
+
+This is the easiest route and needs no extra tools.
+
+1. Open your reseller's web app (its `web_url`, e.g. `https://app.helki.com/`) in a desktop browser and open the developer tools (`F12`) on the **Network** tab. Tick "Preserve log".
+2. Log in with your normal username and password.
+3. In the network list find the `POST` request to `.../api/v2/client/token` (filter by `token`). Select it and look at **Request Headers**:
+   * `authorization: Basic <base64string>` — everything after `Basic ` (the `<base64string>`) is the credential. Pass it **verbatim**, still base64-encoded, as `-b`/`--basic-auth-creds` or `SMARTBOX_BASIC_AUTH_CREDS`. (It decodes to `client_id:client_secret`, but the library does not need it decoded.)
+   * `x-serialid: <number>` — the value for `-i`/`--x-serial-id`.
+   * `x-referer: <url>` — the value for `-r`/`--x-referer` (often the web app URL itself).
+4. The request URL host is `api-<name>.helki.com`; the `api-<name>` part is your `-a`/`--api-name` (e.g. host `api-foo.helki.com` -> `api-foo`, host `api.helki.com` -> `api`). The same value appears as "API Host" under the app's *Version* menu.
+
+#### Capturing it from the mobile app
+
+Route the phone through an intercepting HTTPS proxy (mitmproxy, Charles, HTTP Toolkit) with its CA certificate trusted on the device, then trigger a login and read the same `client/token` request as above. These apps generally do not pin certificates, but a proxy that the OS/app rejects will show nothing — the web-app method is more reliable.
+
+Treat all of these as secrets: the Basic Auth credential and a live `x-serialid` identify your reseller integration, and a captured `access_token` is valid for ~4 hours.
+
 ### /api/v2/client/token
 Obtain (and refresh) the bearer access token.
 

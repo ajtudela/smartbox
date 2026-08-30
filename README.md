@@ -64,7 +64,7 @@ Use the `smartbox` tool to read status information from your heaters (nodes) and
 These are only needed when your reseller is not built into the package:
 
 * `-a`/`--api-name`: the API name for your heater vendor, from the 'API Host' entry under the 'Version' menu of the mobile/web app. For a host `api-foo.xxxx` or `api.xxxx` use `api-foo` or `api`.
-* `-b`/`--basic-auth-creds`: the HTTP Basic Auth credential used for the initial authentication, as a base64 string (see 'Basic Auth Credential' in [api-notes.md](./api-notes.md)).
+* `-b`/`--basic-auth-creds`: the HTTP Basic Auth credential used for the initial authentication, as a base64 string. See [Basic Auth Credential](./api-notes.md#basic-auth-credential) in api-notes.md for how to capture it.
 * `-r`/`--x-referer`: the `x-referer` header value.
 * `-i`/`--x-serial-id`: the `x-serialid` header value.
 
@@ -179,7 +179,7 @@ Open an issue at <https://github.com/ajtudela/smartbox/issues>. Templates are pr
 
 * **Bug report** — a command or method misbehaves. Include the `smartbox` command you ran (or the code), the full output with `-v`/`--verbose`, and your reseller. **Redact the access token and any Basic Auth credential** before pasting logs.
 * **Feature request** — a missing endpoint or option.
-* **New reseller** — your heater vendor is not in the built-in list. The template lists exactly which values to collect from the mobile/web app (`api-name`, `x-referer`, `x-serial-id`, Basic Auth credential); once added, everyone using that vendor benefits.
+* **New reseller** — your heater vendor is not in the built-in list. The template asks for `api-name`, `x-referer`, `x-serial-id` and the Basic Auth credential; see ["Capturing it from the reseller's web app"](./api-notes.md#capturing-it-from-the-resellers-web-app) in api-notes.md for how to read them from the login request. Once added, everyone using that vendor benefits.
 
 For questions about the API itself rather than this library, see [api-notes.md](./api-notes.md).
 
