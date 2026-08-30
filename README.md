@@ -5,48 +5,68 @@
 [![PyPI license](https://img.shields.io/pypi/l/smartbox.svg)](https://pypi.python.org/pypi/smartbox/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/smartbox.svg)](https://pypi.python.org/pypi/smartbox/)
 
-Python API to control heating 'smart boxes'
-
+Python API to control heating 'smart boxes' (Helki and its resellers: Elnur, Haverland, Climastar, Technotherm, HJM, ...). It wraps the REST API and the socket.io channel, and ships a `smartbox` command line tool.
 
 ## Installation
 
-## Install
-
-To install smartbox simply run:
-
     pip install smartbox
 
-Depending on your permissions you might be required to use sudo.
-Once installed you can simply add `smartbox` to your Python 3 scripts by including:
+The package is importable as `smartbox` and ships `py.typed`.
 
-    import smartbox
+## Library usage
 
+`AsyncSmartboxSession` is the entry point. Use it as an async context manager so its HTTP client is closed for you; when you already have an `aiohttp.ClientSession` (for example Home Assistant's shared one) pass it as `websession=` and it will not be closed on exit.
 
+```python
+import asyncio
+from smartbox import AsyncSmartboxSession
 
-## `smartbox` Command Line Tool
-### Mandatory options
-You can use the `smartbox` tool to get status information from your heaters
-(nodes) and change settings.
+async def main() -> None:
+    async with AsyncSmartboxSession(
+        api_name="api",            # or SMARTBOX_API_NAME
+        username="you@example.com",
+        password="secret",
+        raw_response=False,        # return Pydantic models instead of dicts
+    ) as session:
+        for device in await session.get_devices():
+            for node in await session.get_nodes(device.dev_id):
+                status = await session.get_node_status(device.dev_id, node.model_dump())
+                print(device.name, node.name, status.mtemp, status.stemp)
 
-A few common options are required for all commands:
-* `-u`/`--username`: Your username as used for the mobile app/web app.
-* `-p`/`--password`: Your password as used for the mobile app/web app.
+asyncio.run(main())
+```
 
+With `raw_response=True` (the default) every method returns the raw `dict`/`list` from the API. With `raw_response=False` they return models from `smartbox.models` (`HtrNodeStatus`, `DefaultNodeSetup`, ...); the models are lenient (unknown keys kept, fields optional) because the API is undocumented and varies by reseller.
 
-Verbose logging can be enabled with the `-v`/`--verbose` flag.
+Constructor options worth knowing: `timeout` (per-request seconds, default 30), `retry_attempts`/`backoff_factor` (transient 5xx / connection errors are retried with exponential backoff), `x_referer` / `x_serial_id` / `basic_auth_credentials` for a reseller that is not built in.
 
-### Optional options
-These options are useful if your reseller is not configured.
+For live updates over socket.io use `UpdateManager`:
 
-* `-b`/`--base-auth-creds`: An HTTP Basic Auth credential used to do initial
-  authentication with the server. Use the base64 encoded string directly. See
-  'Basic Auth Credential' section below for more details.
-* `-a`/`--api-name`: The API name for your heater vendor. This is visible in
-  the 'API Host' entry in the 'Version' menu item in the mobile app/web app. If
-  the host name is of the form `api-foo.xxxx` or `api.xxxx` use the values
-  `api-foo` or `api` respectively. The reseller has to be declared in the package.
-* `-r`/`--x-referer`: The referer of your request.
-* `-i`/`--x-serial-id`: The serial-id of your request.
+```python
+from smartbox import AsyncSmartboxSession, UpdateManager
+
+async with AsyncSmartboxSession(...) as session:
+    manager = UpdateManager(session, device_id)
+    manager.subscribe_to_node_status(
+        lambda node_type, addr, status: print(node_type, addr, status)
+    )
+    await manager.run()   # runs until cancelled
+```
+
+## `smartbox` command line tool
+
+Use the `smartbox` tool to read status information from your heaters (nodes) and change settings.
+
+### Options
+
+`-u`/`--username` and `-p`/`--password` (your mobile-app / web-app credentials) are required for every command except `resellers`. `-v`/`--verbose` enables debug logging.
+
+These are only needed when your reseller is not built into the package:
+
+* `-a`/`--api-name`: the API name for your heater vendor, from the 'API Host' entry under the 'Version' menu of the mobile/web app. For a host `api-foo.xxxx` or `api.xxxx` use `api-foo` or `api`.
+* `-b`/`--basic-auth-creds`: the HTTP Basic Auth credential used for the initial authentication, as a base64 string (see 'Basic Auth Credential' in [api-notes.md](./api-notes.md)).
+* `-r`/`--x-referer`: the `x-referer` header value.
+* `-i`/`--x-serial-id`: the `x-serialid` header value.
 
 ### Configuration via environment variables / `.env`
 
@@ -67,119 +87,87 @@ The `smartbox` command also reads a `.env` file (searched for in the working dir
     # edit .env
     smartbox devices
 
-## Availables commands
-### Listing smartbox devices
+### Commands
 
-    smartbox <auth options...> devices
+In the examples below `<auth options...>` stands for the options above (or nothing, when they come from `.env`).
 
-### Listing smartbox nodes
-The `nodes` command lists nodes across all devices.
+Read-only, across every device/node:
 
-    smartbox <auth options...> nodes
+| Command | What it shows |
+| --- | --- |
+| `devices` | the devices the account can see |
+| `homes` | devices grouped into homes |
+| `nodes` | the nodes of each device |
+| `status` | live status of every node |
+| `setup` | configuration of every node |
+| `node-prog` | weekly heating schedule of every node |
+| `device-away-status` | away status of every device |
+| `device-connected-status` | whether each device is online |
+| `device-power-limit` | power limit (watts) of every device |
+| `device-version` | manager/system firmware version of every device |
+| `htr-system-setup` | heater-system configuration of every device |
+| `health-check` | whether the API is alive |
+| `api-version` | API build info |
+| `resellers` | resellers with a built-in configuration |
 
-### Getting node status
-The `status` command lists status across all nodes and devices.
+```
+smartbox <auth options...> status
+smartbox <auth options...> node-prog
+```
 
-    smartbox <auth options...> status
+`guests` needs a home id:
 
-### Setting node status
-The `set-status` command can be used to change a status item on a particular
-node.
+    smartbox <auth options...> guests -h <home id>
 
-    smartbox <auth options...> set-status <-d/--device-id> <device id> <-n/--node-addr> <node> <name>=<value> [<name>=<value> ...]
+`node-samples` reads the temperature/consumption history of one node (`-s`/`-e` default to one hour before/after now):
 
-### Getting node setup
-The `setup` command lists setup across all nodes and devices.
+    smartbox <auth options...> node-samples -d <device id> -n <node addr> [-s <start unix ts>] [-e <end unix ts>]
 
-    smartbox <auth options...> setup
+Writes take named options, one per field to change:
 
-### Setting node setup
-The `set-setup` command can be used to change a setup item on a particular
-node.
+    smartbox <auth options...> set-status -d <device id> -n <node addr> [--mode auto] [--stemp 21.5 --units C] [--locked false]
+    smartbox <auth options...> set-setup  -d <device id> -n <node addr> [--control-mode 1] [--offset 0.0] [--units C] [--true-radiant-enabled true] [--window-mode-enabled false] [--priority low]
+    smartbox <auth options...> set-device-away-status -d <device id> [--away true] [--enabled true] [--forced false]
+    smartbox <auth options...> set-device-power-limit -d <device id> <watts>
 
-    smartbox <auth options...> set-setup <-d/--device-id> <device id> <-n/--node-addr> <node> <name>=<value> [<name>=<value> ...]
+`socket` opens a long-lived socket.io connection and prints `dev_data` and `update` events until interrupted:
 
-### Setting node samples
+    smartbox <auth options...> socket -d <device id>
 
-The `node-samples` command can be used to get the historical data (temperature and consumption) of a node.
-
-    smartbox <auth options...> node-samples <-d/--device-id> <device id> <-n/--node-addr> <node> <-s/--start-time> <start time>  <-e/--end-time> <end time>
-
-### Getting device away status
-The `device-away-status` command lists the away status across all devices.
-
-    smartbox <auth options...> device-away-status
-
-### Setting device away status
-The `set-device-away-status` command can be used to change the away status on a
-particular device.
-
-    smartbox <auth options...> set-device-away-status <-d/--device-id> <device id> <name>=<value> [<name>=<value> ...]
-
-### Getting device power limit
-The `device-power-limit` command lists the power limit (in watts) across all
-devices.
-
-    smartbox <auth options...> device-power-limit
-
-### Setting device power limit
-The `set-device-power-limit` command can be used to change the power limit (in
-watts) on a particular device.
-
-    smartbox <auth options...> set-device-power-limit <-d/--device-id> <device id> <limit>
-
-
-### Health check
-The `health-check` command can be used to know if the API is alived
-
-    smartbox <auth options...> health-check
-
-### List available resellers
-The `resellers` command can be used to know which resellers has an automatic configuration.
-If your reseller is not present you can raise an issue in github, or use the optional options.
-
-    smartbox <auth options...> resellers
-
-
-See [api-notes.md](./api-notes.md) for notes on REST and socket.io endpoints.
-
-
+See [api-notes.md](./api-notes.md) for notes on the REST and socket.io endpoints.
 
 ## Development
 
 Prerequisites:
 
     uv
-    python >=3.13
+    python >=3.14.2
 
 Clone the repo, install dependencies and install pre-commit hooks:
 
-    git clone
+    git clone https://github.com/ajtudela/smartbox
     cd smartbox
     uv sync
     pre-commit install
 
 ## Testing
 
-To run the full suite simply run the following command from within the virtual environment:
+Run the full suite:
 
-    pytest
+    uv run pytest
 
-or
+Generate a coverage XML (e.g. for use in an editor):
 
-    python -m pytest tests/
+    uv run pytest --cov-report xml:cov.xml --cov smartbox --cov-append tests/
 
-To generate code coverage xml (e.g. for use in VSCode) run
+`tox` runs the tests against the installed package:
 
-    python -m pytest --cov-report xml:cov.xml --cov smartbox --cov-append tests/
+    uv run tox
+    uv run tox -e py           # the single environment declared in pyproject.toml
 
-Another way to run the tests is by using `tox`. This runs the tests against the installed package and multiple versions of python.
+## Changelog
 
-    tox
-
-or by specifying a python version
-
-    tox -e py313
+Release notes are kept in [CHANGELOG.md](./CHANGELOG.md).
 
 # Support
 [![Buy a coffee to ajtudela][buymeacoffee-shield]][buymeacoffee-ajtudela]
