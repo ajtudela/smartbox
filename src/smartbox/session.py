@@ -2,6 +2,7 @@
 
 import asyncio
 import datetime
+from http import HTTPStatus
 import json
 import logging
 import time
@@ -279,6 +280,8 @@ class AsyncSession:
         ) as e:
             raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
+            if e.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                raise InvalidAuthError(e) from e
             _LOGGER.exception(
                 "ClientResponseError: %s, status: %s",
                 e.message,
@@ -310,6 +313,8 @@ class AsyncSession:
         ) as e:
             raise APIUnavailableError(e) from e
         except aiohttp.ClientResponseError as e:
+            if e.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                raise InvalidAuthError(e) from e
             _LOGGER.exception(
                 "Smartbox Error: %s, status: %s",
                 e.message,

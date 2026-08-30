@@ -12,7 +12,12 @@ from aiohttp import ClientSession
 from pydantic import ValidationError
 import pytest
 
-from smartbox import APIUnavailableError, InvalidAuthError, SmartboxError
+from smartbox import (
+    APIUnavailableError,
+    InvalidAuthError,
+    ResellerNotExistError,
+    SmartboxError,
+)
 from smartbox.models import DefaultNodeSetup
 from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
@@ -1368,6 +1373,57 @@ async def test_api_post_client_response_error(async_session):
             data=json.dumps(data),
             headers=async_session._headers,
         )
+
+
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.asyncio
+async def test_api_request_auth_error_maps_to_invalid_auth(
+    async_session, status
+):
+    """A 401/403 on a data request must surface as ``InvalidAuthError``."""
+    with (
+        patch.object(
+            async_session, "check_refresh_auth", new_callable=AsyncMock
+        ),
+        patch.object(async_session.client, "get") as mock_get,
+    ):
+        mock_get.side_effect = aiohttp.ClientResponseError(
+            request_info=None,
+            history=None,
+            status=status,
+            message="Unauthorized",
+        )
+        with pytest.raises(InvalidAuthError):
+            await async_session._api_request("test_path")
+
+
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.asyncio
+async def test_api_post_auth_error_maps_to_invalid_auth(async_session, status):
+    """A 401/403 on a data post must surface as ``InvalidAuthError``."""
+    with (
+        patch.object(
+            async_session, "check_refresh_auth", new_callable=AsyncMock
+        ),
+        patch.object(async_session.client, "post") as mock_post,
+    ):
+        mock_post.side_effect = aiohttp.ClientResponseError(
+            request_info=None,
+            history=None,
+            status=status,
+            message="Forbidden",
+        )
+        with pytest.raises(InvalidAuthError):
+            await async_session._api_post({"key": "value"}, "test_path")
+
+
+def test_error_hierarchy_has_common_root():
+    """Every public error must be catchable as ``SmartboxError``."""
+    assert issubclass(InvalidAuthError, SmartboxError)
+    assert issubclass(APIUnavailableError, SmartboxError)
+    assert issubclass(ResellerNotExistError, SmartboxError)
+    # APIUnavailableError keeps aiohttp compatibility for now.
+    assert issubclass(APIUnavailableError, aiohttp.ClientConnectionError)
 
 
 @pytest.mark.asyncio
