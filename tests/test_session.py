@@ -18,7 +18,14 @@ from smartbox import (
     ResellerNotExistError,
     SmartboxError,
 )
-from smartbox.models import DefaultNodeSetup
+from smartbox.models import (
+    AcmNodeStatus,
+    DefaultNodeSetup,
+    DefaultNodeStatus,
+    HtrModNodeStatus,
+    HtrNodeStatus,
+    PmoSetup,
+)
 from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
     _DEFAULT_RETRY_ATTEMPTS,
@@ -129,6 +136,66 @@ async def test_get_node_status(async_smartbox_session, caplog):
                     )
                 async_smartbox_session.raw_response = True
                 assert "Status config validation error" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("node_type", "expected"),
+    [
+        ("htr", HtrNodeStatus),
+        ("htr_mod", HtrModNodeStatus),
+        ("acm", AcmNodeStatus),
+        ("pmo", DefaultNodeStatus),
+        ("brand_new", DefaultNodeStatus),
+    ],
+)
+@pytest.mark.asyncio
+async def test_get_node_status_model_selected_by_type(
+    async_smartbox_session, node_type, expected
+):
+    """The typed model is chosen from ``node['type']``, not the response shape."""
+    node = {"name": "n", "addr": 1, "type": node_type, "installed": True}
+    async_smartbox_session.raw_response = False
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = {"sync_status": "ok", "mode": "auto"}
+        result = await async_smartbox_session.get_node_status("dev", node)
+    async_smartbox_session.raw_response = True
+    assert type(result) is expected
+
+
+@pytest.mark.parametrize(
+    ("node_type", "expected"),
+    [("pmo", PmoSetup), ("htr", DefaultNodeSetup), ("brand_new", DefaultNodeSetup)],
+)
+@pytest.mark.asyncio
+async def test_get_node_setup_model_selected_by_type(
+    async_smartbox_session, node_type, expected
+):
+    """``pmo`` -> PmoSetup, anything else -> DefaultNodeSetup."""
+    node = {"name": "n", "addr": 1, "type": node_type, "installed": True}
+    async_smartbox_session.raw_response = False
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = {"sync_status": "ok"}
+        result = await async_smartbox_session.get_node_setup("dev", node)
+    async_smartbox_session.raw_response = True
+    assert type(result) is expected
+
+
+@pytest.mark.asyncio
+async def test_get_node_status_accepts_integer_error_code(async_smartbox_session):
+    """Some resellers return ``error_code`` as an int, not a string."""
+    node = {"name": "n", "addr": 1, "type": "htr", "installed": True}
+    async_smartbox_session.raw_response = False
+    with patch.object(
+        async_smartbox_session, "_api_request", new_callable=AsyncMock
+    ) as mock_api_request:
+        mock_api_request.return_value = {"sync_status": "ok", "error_code": 0}
+        result = await async_smartbox_session.get_node_status("dev", node)
+    async_smartbox_session.raw_response = True
+    assert result.error_code == 0
 
 
 @pytest.mark.asyncio
@@ -883,7 +950,7 @@ async def test_authentication_does_not_log_token(async_session, caplog):
         "username": "test_user",
         "password": "test_password",
     }
-    secret_token = "super-secret-access-token-value"  # noqa: S105
+    secret_token = "super-secret-access-token-value"
     token_response = {
         "access_token": secret_token,
         "refresh_token": "test_refresh_token",
@@ -1489,11 +1556,25 @@ async def test_get_node_setup(async_smartbox_session, caplog):
                 )
                 if isinstance(setup_model, DefaultNodeSetup):
                     assert setup_model.away_mode == setup["away_mode"]
+
+                # A sparse payload with an unknown key is degraded, not rejected.
+                mock_api_request.return_value = {
+                    "sync_status": "synced",
+                    "brand_new_field": 123,
+                }
+                degraded = await async_smartbox_session.get_node_setup(
+                    device_id=mock_device_id, node=mock_node
+                )
+                assert degraded.brand_new_field == 123
+
+                # A wrong type on a known field is still a validation error.
+                bad_field = (
+                    "power_limit"
+                    if mock_node["type"] == "pmo"
+                    else "control_mode"
+                )
                 with pytest.raises(ValidationError):
-                    mock_api_request.return_value = {
-                        "sync_status": "synced",
-                        "control_mode": 1,
-                    }
+                    mock_api_request.return_value = {bad_field: "not-an-int"}
                     await async_smartbox_session.get_node_setup(
                         device_id=mock_device_id, node=mock_node
                     )

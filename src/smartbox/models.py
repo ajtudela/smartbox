@@ -21,75 +21,86 @@ class SmartboxNodeType(StrEnum):
     PMO = "pmo"
 
 
-class NodeFactoryOptions(BaseModel):
-    """NodeFactoryOptions model."""
+# The models below describe what a smartbox device *usually* returns, but the
+# API is undocumented, third-party and varies by reseller and firmware, so every
+# field is optional and unknown keys are kept (``extra="allow"``). The models are
+# a shape hint, not a schema: a status/setup is degraded, never rejected. Once
+# more resellers have been sampled a small verified core could be tightened back.
 
-    temp_compensation_enabled: bool
-    window_mode_available: bool
-    true_radiant_available: bool
-    duty_limit: int
-    boost_config: int
-    button_double_press: bool
-    prog_resolution: int
-    bbc_value: int
-    bbc_available: bool
-    lst_value: int
-    lst_available: bool
-    fil_pilote_available: bool
-    backlight_time: int
-    button_down_code: int
-    button_up_code: int
-    button_mode_code: int
-    button_prog_code: int
-    button_off_code: int
-    button_boost_code: int
-    splash_screen_type: int
+
+class NodeFactoryOptions(BaseModel):
+    """NodeFactoryOptions model. Field set varies widely between resellers."""
+
+    model_config = ConfigDict(extra="allow")
+
+    temp_compensation_enabled: bool | None = None
+    window_mode_available: bool | None = None
+    true_radiant_available: bool | None = None
+    duty_limit: int | None = None
+    boost_config: int | None = None
+    button_double_press: bool | None = None
+    prog_resolution: int | None = None
+    bbc_value: int | None = None
+    bbc_available: bool | None = None
+    lst_value: int | None = None
+    lst_available: bool | None = None
+    fil_pilote_available: bool | None = None
+    backlight_time: int | None = None
+    button_down_code: int | None = None
+    button_up_code: int | None = None
+    button_mode_code: int | None = None
+    button_prog_code: int | None = None
+    button_off_code: int | None = None
+    button_boost_code: int | None = None
+    splash_screen_type: int | None = None
 
 
 class NodeExtraOptions(BaseModel):
     """NodeExtraOptions model."""
 
-    boost_temp: str
-    boost_time: int
+    model_config = ConfigDict(extra="allow")
+
+    boost_temp: str | None = None
+    boost_time: int | None = None
 
 
 class PmoSetup(BaseModel):
     """Pmo node setup."""
 
-    # Keep unknown keys: the setup endpoint requires the full payload to be
-    # re-posted, so any field the device returns must survive a round-trip.
     model_config = ConfigDict(extra="allow")
 
-    circuit_type: int
-    power_limit: int
-    reverse: bool
+    circuit_type: int | None = None
+    power_limit: int | None = None
+    reverse: bool | None = None
 
 
 class DefaultNodeSetup(BaseModel):
-    """NodeSetup model."""
+    """Node setup for every non-``pmo`` node type."""
 
-    # Keep unknown keys: the setup endpoint requires the full payload to be
-    # re-posted, so any field the device returns must survive a round-trip.
     model_config = ConfigDict(extra="allow")
 
-    sync_status: str
-    control_mode: int
-    units: str
-    power: str
-    offset: str
-    away_mode: int
-    away_offset: str
-    modified_auto_span: int
-    window_mode_enabled: bool
-    true_radiant_enabled: bool
-    user_duty_factor: int
-    flash_version: str
-    factory_options: NodeFactoryOptions
-    extra_options: NodeExtraOptions
+    sync_status: str | None = None
+    control_mode: int | None = None
+    units: str | None = None
+    power: str | None = None
+    offset: str | None = None
+    away_mode: int | None = None
+    away_offset: str | None = None
+    modified_auto_span: int | None = None
+    window_mode_enabled: bool | None = None
+    true_radiant_enabled: bool | None = None
+    user_duty_factor: int | None = None
+    flash_version: str | None = None
+    factory_options: NodeFactoryOptions | None = None
+    extra_options: NodeExtraOptions | None = None
 
 
 class NodeSetup(RootModel[DefaultNodeSetup | PmoSetup]):
-    """NodeSetup model."""
+    """Lenient wrapper kept for backwards compatibility.
+
+    ``get_node_setup`` returns the concrete ``PmoSetup`` / ``DefaultNodeSetup``
+    selected by node type; this root model still validates a bare setup blob.
+    """
 
     root: DefaultNodeSetup | PmoSetup
 
@@ -108,12 +119,10 @@ class NodeVersion(BaseModel):
 
 
 class DefaultNodeStatus(BaseModel):
-    """Fallback node status.
+    """Node status shared by every node type.
 
-    As the last arm of the ``NodeStatus`` union this must tolerate whatever a
-    given firmware or reseller returns: every field is optional and unknown keys
-    are kept, so a status is degraded rather than rejected. Type-specific models
-    keep their own fields required.
+    Every field is optional and unknown keys are kept, so a status from an
+    uncommon firmware or reseller is degraded rather than rejected.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -123,7 +132,8 @@ class DefaultNodeStatus(BaseModel):
     sync_status: str | None = None
     locked: bool | None = None
     mode: str | None = None
-    error_code: str | None = None
+    # Observed as a string on most devices and an integer on others.
+    error_code: str | int | None = None
 
     eco_temp: str | None = None
     comf_temp: str | None = None
@@ -143,43 +153,38 @@ class DefaultNodeStatus(BaseModel):
     active: bool | None = None
 
 
-class HtrModNodeStatus(DefaultNodeStatus):
-    """NodeStatus for htr_mod node."""
-
-    on: bool
-    selected_temp: str
-    comfort_temp: str
-    eco_offset: str
-    ice_temp: str
-    active: bool
-
-
 class HtrNodeStatus(DefaultNodeStatus):
-    """NodeStatus for HTR node."""
+    """Status of an ``htr`` node.
 
-    stemp: str
-    active: bool
-    power: str
-    duty: int
+    An ``htr`` node exposes the shared fields with nothing extra; the class
+    exists so ``get_node_status`` can hand back a type-named object.
+    """
+
+
+class HtrModNodeStatus(DefaultNodeStatus):
+    """Status of an ``htr_mod`` (modulating) node."""
+
+    on: bool | None = None
+    selected_temp: str | None = None
+    comfort_temp: str | None = None
+    eco_offset: str | None = None
 
 
 class AcmNodeStatus(DefaultNodeStatus):
-    """NodeStatus for acm node."""
+    """Status of an ``acm`` (accumulator) node."""
 
-    stemp: str
-    charging: bool
-    charge_level: int
-    power: str
+    charging: bool | None = None
+    charge_level: int | None = None
 
 
-class NodeStatus(
-    RootModel[
-        AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus
-    ]
-):
-    """NodeStatus model."""
+class NodeStatus(RootModel[DefaultNodeStatus]):
+    """Lenient wrapper kept for backwards compatibility.
 
-    root: AcmNodeStatus | HtrNodeStatus | HtrModNodeStatus | DefaultNodeStatus
+    ``get_node_status`` returns the concrete type-specific model; this root
+    model still validates a bare status blob.
+    """
+
+    root: DefaultNodeStatus
 
     def __getattr__(self, name: str) -> Any:  # noqa: ANN401
         """Proxy attribute access to the resolved root model."""

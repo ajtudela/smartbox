@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from smartbox.error import APIUnavailableError, InvalidAuthError, SmartboxError
 from smartbox.models import (
     AcmNodeStatus,
+    DefaultNodeSetup,
     DefaultNodeStatus,
     DeviceAwayStatus,
     DeviceConnected,
@@ -26,9 +27,8 @@ from smartbox.models import (
     HtrNodeStatus,
     Node,
     Nodes,
-    NodeSetup,
-    NodeStatus,
     NodeVersion,
+    PmoSetup,
     Samples,
     SmartboxNodeType,
     Token,
@@ -41,6 +41,15 @@ _DEFAULT_TIMEOUT = 30  # Total timeout per HTTP request (seconds)
 _MIN_TOKEN_LIFETIME = (
     60  # Minimum time left before expiry before we refresh (seconds)
 )
+
+# The status model is picked by node type, which is reliable, rather than by the
+# shape of the response, which is not. Keyed by the enum's string value so an
+# unknown ``Node.type`` (a plain str) still looks up cleanly.
+_STATUS_MODELS: dict[str, type[DefaultNodeStatus]] = {
+    SmartboxNodeType.ACM: AcmNodeStatus,
+    SmartboxNodeType.HTR: HtrNodeStatus,
+    SmartboxNodeType.HTR_MOD: HtrModNodeStatus,
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -488,15 +497,13 @@ class AsyncSmartboxSession(AsyncSession):
         self,
         device_id: str,
         node: dict[str, Any],
-    ) -> (
-        dict[str, Any]
-        | AcmNodeStatus
-        | HtrNodeStatus
-        | HtrModNodeStatus
-        | DefaultNodeStatus
-        | None
-    ):
-        """Get a node status."""
+    ) -> dict[str, Any] | DefaultNodeStatus:
+        """Get a node status.
+
+        In typed mode the model is chosen by ``node["type"]`` (``HtrNodeStatus``,
+        ``HtrModNodeStatus``, ``AcmNodeStatus``) and falls back to
+        ``DefaultNodeStatus`` for any other type.
+        """
         _node: Node = Node.model_validate(node)
         response = await self._api_request(
             f"devs/{device_id}/{_node.type}/{_node.addr}/status",
@@ -504,8 +511,9 @@ class AsyncSmartboxSession(AsyncSession):
         _LOGGER.debug("(%s) Status config data %s", _node.type, response)
         if self.raw_response is True:
             return response
+        model = _STATUS_MODELS.get(_node.type, DefaultNodeStatus)
         try:
-            return NodeStatus.model_validate(response).root
+            return model.model_validate(response)
         except ValidationError:
             _LOGGER.exception("Status config validation error %s", response)
             raise
@@ -531,8 +539,12 @@ class AsyncSmartboxSession(AsyncSession):
         self,
         device_id: str,
         node: dict[str, Any],
-    ) -> dict[str, Any] | NodeSetup:
-        """Get a node setup."""
+    ) -> dict[str, Any] | DefaultNodeSetup | PmoSetup:
+        """Get a node setup.
+
+        In typed mode ``pmo`` nodes return ``PmoSetup`` and every other type
+        returns ``DefaultNodeSetup``.
+        """
         _node: Node = Node.model_validate(node)
         response = await self._api_request(
             f"devs/{device_id}/{_node.type}/{_node.addr}/setup",
@@ -540,8 +552,13 @@ class AsyncSmartboxSession(AsyncSession):
         _LOGGER.debug("(%s) Setup config data %s", _node.type, response)
         if self.raw_response is True:
             return response
+        model: type[DefaultNodeSetup | PmoSetup] = (
+            PmoSetup
+            if _node.type == SmartboxNodeType.PMO
+            else DefaultNodeSetup
+        )
         try:
-            return NodeSetup.model_validate(response)
+            return model.model_validate(response)
         except ValidationError:
             _LOGGER.exception("Setup config validation error %s", response)
             raise
