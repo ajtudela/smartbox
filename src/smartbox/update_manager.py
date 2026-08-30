@@ -201,86 +201,54 @@ class UpdateManager:
             lambda p: callback(int(p)),
         )
 
+    def _subscribe_to_node_field(
+        self,
+        field: str,
+        callback: Callable[[str, int, dict[str, Any]], None],
+    ) -> None:
+        """Wire ``callback(node_type, addr, value)`` for one node field.
+
+        ``field`` is ``status`` / ``setup`` / ``version``; the same callback is
+        fed both from the initial ``dev_data`` snapshot and from later updates.
+        """
+
+        def on_dev_data(data: dict[str, Any]) -> None:
+            callback(data["type"], int(data["addr"]), data[field])
+
+        def on_update(
+            data: dict[str, Any], node_type: str, addr: str
+        ) -> None:
+            callback(node_type, int(addr), data)
+
+        self.subscribe_to_dev_data(
+            f"(.nodes[] | {{addr, type, {field}}})?", on_dev_data
+        )
+        self.subscribe_to_updates(
+            rf"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/{field}",
+            self.BODY_PATH,
+            on_update,
+        )
+
     def subscribe_to_node_status(
         self,
         callback: Callable[[str, int, dict[str, Any]], None],
     ) -> None:
         """Subscribe to node status updates."""
-
-        def dev_data_wrapper(data: dict[str, Any]) -> None:
-            (callback(data["type"], int(data["addr"]), data["status"]),)  # type: ignore[func-returns-value]
-
-        self.subscribe_to_dev_data(
-            "(.nodes[] | {addr, type, status})?",
-            dev_data_wrapper,
-        )
-
-        def update_wrapper(
-            data: dict[str, Any],
-            node_type: str,
-            addr: str,
-        ) -> None:
-            (callback(node_type, int(addr), data),)  # type: ignore[func-returns-value]
-
-        self.subscribe_to_updates(
-            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/status",
-            self.BODY_PATH,
-            update_wrapper,
-        )
+        self._subscribe_to_node_field("status", callback)
 
     def subscribe_to_node_setup(
         self,
         callback: Callable[[str, int, dict[str, Any]], None],
     ) -> None:
         """Subscribe to node setup updates."""
-
-        def dev_data_wrapper(data: dict[str, Any]) -> None:
-            (callback(data["type"], int(data["addr"]), data["setup"]),)  # type: ignore[func-returns-value]
-
-        self.subscribe_to_dev_data(
-            "(.nodes[] | {addr, type, setup})?",
-            dev_data_wrapper,
-        )
-
-        def update_wrapper(
-            data: dict[str, Any],
-            node_type: str,
-            addr: str,
-        ) -> None:
-            (callback(node_type, int(addr), data),)  # type: ignore[func-returns-value]
-
-        self.subscribe_to_updates(
-            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/setup",
-            self.BODY_PATH,
-            update_wrapper,
-        )
+        self._subscribe_to_node_field("setup", callback)
 
     def subscribe_to_node_version(
         self,
         callback: Callable[[str, int, dict[str, Any]], None],
     ) -> None:
         """Subscribe to node version updates."""
-
-        def dev_data_wrapper(data: dict[str, Any]) -> None:
-            (callback(data["type"], int(data["addr"]), data["version"]),)  # type: ignore[func-returns-value]
-
-        self.subscribe_to_dev_data(
-            "(.nodes[] | {addr, type, version})?",
-            dev_data_wrapper,
-        )
-
-        def update_wrapper(
-            data: dict[str, Any],
-            node_type: str,
-            addr: str,
-        ) -> None:
-            (callback(node_type, int(addr), data),)  # type: ignore[func-returns-value]
-
-        self.subscribe_to_updates(
-            r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/version",
-            self.BODY_PATH,
-            update_wrapper,
-        )
+        self._subscribe_to_node_field("version", callback)
 
     def _dev_data_cb(self, data: dict[str, Any]) -> None:
         for sub in self._dev_data_subscriptions:
