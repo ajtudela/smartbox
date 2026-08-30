@@ -1614,43 +1614,59 @@ async def test_get_deviceconnected_status(async_smartbox_session):
 
 
 @pytest.mark.asyncio
-async def test_async_session_context_manager_success():
-    """Testing __aenter__ and __aexit__."""
+async def test_async_session_context_manager_keeps_injected_session():
+    """An injected ClientSession must not be closed on exit."""
     mock_client = AsyncMock(spec=ClientSession)
     session = AsyncSession(
         username="test_user",
         password="test_password",
         websession=mock_client,
     )
-    mock_socket = AsyncMock()
-    session._socket = mock_socket
+    assert session._owns_client_session is False
 
     async with session as s:
         assert s is session
         mock_client.close.assert_not_called()
-        mock_socket.disconnect.assert_not_called()
+    mock_client.close.assert_not_called()
+    assert session._client_session is mock_client
+
+
+@pytest.mark.asyncio
+async def test_async_session_context_manager_closes_owned_session():
+    """A session created by us is closed on exit."""
+    mock_client = AsyncMock(spec=ClientSession)
+    session = AsyncSession(username="test_user", password="test_password")
+    assert session._owns_client_session is True
+
+    with patch(
+        "smartbox.session.ClientSession",
+        return_value=mock_client,
+    ):
+        assert session.client is mock_client
+
+    async with session:
+        mock_client.close.assert_not_called()
     mock_client.close.assert_awaited_once()
-    mock_socket.disconnect.assert_awaited_once()
+    assert session._client_session is None
 
 
 @pytest.mark.asyncio
 async def test_async_session_context_manager_with_exception():
-    """Testing that __aexit__ cleans up properly even in case of a crash."""
+    """__aexit__ still closes an owned session when the body raises."""
     mock_client = AsyncMock(spec=ClientSession)
-    session = AsyncSession(
-        username="test_user",
-        password="test_password",
-        websession=mock_client,
-    )
-    mock_socket = AsyncMock()
-    session._socket = mock_socket
+    session = AsyncSession(username="test_user", password="test_password")
+
+    with patch(
+        "smartbox.session.ClientSession",
+        return_value=mock_client,
+    ):
+        assert session.client is mock_client
 
     class DummyError(Exception):
         """Dummy exception for testing context manager error handling."""
 
     with pytest.raises(DummyError):
         async with session:
-            msg = "This is a test error to check context manager exception handling."
+            msg = "test error to check context manager exception handling"
             raise DummyError(msg)
     mock_client.close.assert_awaited_once()
-    mock_socket.disconnect.assert_awaited_once()

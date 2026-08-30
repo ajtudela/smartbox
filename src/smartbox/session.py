@@ -78,6 +78,9 @@ class AsyncSession:
             datetime.UTC
         )
         self._client_session: ClientSession | None = websession
+        # Track ownership: a caller-injected session (e.g. Home Assistant's
+        # shared one) must never be closed by us.
+        self._owns_client_session: bool = websession is None
         self.raw_response: bool = raw_response
         self._headers: dict[str, str] = {
             "Authorization": f"Bearer {self._access_token}",
@@ -89,10 +92,11 @@ class AsyncSession:
             self._headers.update({"x-referer": self.reseller.web_url})
 
     async def __aenter__(self) -> Self:
-        """Async context manager entry."""
-        _LOGGER.debug(
-            "__aenter__ of AsyncSmartboxSession, authenticating and creating client session if not provided",
-        )
+        """Async context manager entry.
+
+        Authentication and client-session creation are lazy and happen on the
+        first API call, not here.
+        """
         return self
 
     async def __aexit__(
@@ -102,14 +106,18 @@ class AsyncSession:
         exc_tb: object,
     ) -> None:
         """Async context manager exit."""
-        _LOGGER.debug(
-            "Async context manager exit, closing client session and socket if exists"
-        )
-        if self._client_session:
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the HTTP client session if this session owns it.
+
+        A caller-injected ``ClientSession`` (e.g. Home Assistant's shared
+        session) is left untouched: closing it would break every other consumer
+        that shares it.
+        """
+        if self._owns_client_session and self._client_session:
             await self._client_session.close()
-        # Cleanup socket if exists
-        if hasattr(self, "_socket") and self._socket:
-            await self._socket.disconnect()
+            self._client_session = None
 
     @property
     def reseller(self) -> SmartboxReseller:
