@@ -8,8 +8,22 @@ def get_fixture_path(filename: str) -> pathlib.Path:
 
 
 def load_fixture(filename):
-    """Load a fixture."""
-    return get_fixture_path(filename).read_text(encoding="utf-8")
+    """Load a fixture.
+
+    Some fixtures are git symlinks to a sibling file. On a checkout without
+    symlink support (Windows without developer mode) they are materialised as a
+    one-line text file holding the relative target path; follow it transparently.
+    """
+    path = get_fixture_path(filename)
+    text = path.read_text(encoding="utf-8")
+    stripped = text.strip()
+    if (
+        "\n" not in stripped
+        and stripped.endswith(".json")
+        and not stripped.startswith(("{", "["))
+    ):
+        return (path.parent / stripped).resolve().read_text(encoding="utf-8")
+    return text
 
 
 async def fake_get_request(*args, **kwargs):

@@ -587,5 +587,5 @@ def cli() -> None:
 
 
 # For debugging
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     cli()

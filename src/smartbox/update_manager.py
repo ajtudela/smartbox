@@ -215,9 +215,7 @@ class UpdateManager:
         def on_dev_data(data: dict[str, Any]) -> None:
             callback(data["type"], int(data["addr"]), data[field])
 
-        def on_update(
-            data: dict[str, Any], node_type: str, addr: str
-        ) -> None:
+        def on_update(data: dict[str, Any], node_type: str, addr: str) -> None:
             callback(node_type, int(addr), data)
 
         self.subscribe_to_dev_data(

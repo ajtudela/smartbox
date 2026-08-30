@@ -31,8 +31,20 @@ from smartbox.session import (
     _DEFAULT_BACKOFF_FACTOR,
     _DEFAULT_RETRY_ATTEMPTS,
     AsyncSession,
+    _retry_after_seconds,
 )
 from tests.common import fake_get_request
+
+
+def test_retry_after_seconds():
+    assert _retry_after_seconds(None) is None
+    assert _retry_after_seconds({}) is None
+    assert _retry_after_seconds({"Retry-After": "3"}) == 3.0
+    assert _retry_after_seconds({"Retry-After": "-5"}) == 0.0
+    assert (
+        _retry_after_seconds({"Retry-After": "Wed, 21 Oct 2099 07:28:00 GMT"})
+        is None
+    )
 
 
 @pytest.mark.asyncio
@@ -167,7 +179,11 @@ async def test_get_node_status_model_selected_by_type(
 
 @pytest.mark.parametrize(
     ("node_type", "expected"),
-    [("pmo", PmoSetup), ("htr", DefaultNodeSetup), ("brand_new", DefaultNodeSetup)],
+    [
+        ("pmo", PmoSetup),
+        ("htr", DefaultNodeSetup),
+        ("brand_new", DefaultNodeSetup),
+    ],
 )
 @pytest.mark.asyncio
 async def test_get_node_setup_model_selected_by_type(
@@ -186,7 +202,9 @@ async def test_get_node_setup_model_selected_by_type(
 
 
 @pytest.mark.asyncio
-async def test_get_node_status_accepts_integer_error_code(async_smartbox_session):
+async def test_get_node_status_accepts_integer_error_code(
+    async_smartbox_session,
+):
     """Some resellers return ``error_code`` as an int, not a string."""
     node = {"name": "n", "addr": 1, "type": "htr", "installed": True}
     async_smartbox_session.raw_response = False
@@ -283,9 +301,7 @@ async def test_get_node_samples_default_times(async_smartbox_session):
         )
 
         match = re.search(r"start=(\d+)&end=(\d+)", called_url)
-        assert match is not None, (
-            "Start and end date not present in url"
-        )
+        assert match is not None, "Start and end date not present in url"
 
         called_start = int(match.group(1))
         called_end = int(match.group(2))
@@ -1741,7 +1757,11 @@ async def test_get_device_version(async_smartbox_session):
 
 @pytest.mark.asyncio
 async def test_get_htr_system_setup(async_smartbox_session):
-    raw = {"power_limit": 2000, "refresh_period": 60, "extra_nrg_conf": {"enabled": True}}
+    raw = {
+        "power_limit": 2000,
+        "refresh_period": 60,
+        "extra_nrg_conf": {"enabled": True},
+    }
     with patch.object(
         async_smartbox_session, "_api_request", new_callable=AsyncMock
     ) as mock_api_request:

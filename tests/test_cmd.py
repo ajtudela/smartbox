@@ -1,9 +1,18 @@
 import asyncio
 import os
+from pathlib import Path
 
 import pytest
 
-from smartbox.cmd import _find_dotenv, _load_env_file, smartbox
+from smartbox import cmd as cmd_module
+from smartbox.cmd import (
+    _find_dotenv,
+    _find_node,
+    _load_dotenv,
+    _load_env_file,
+    cli,
+    smartbox,
+)
 
 DEFAULT_ARGS = [
     "-a",
@@ -57,6 +66,43 @@ def test_find_dotenv_walks_up_from_cwd(tmp_path, monkeypatch):
     monkeypatch.chdir(nested)
 
     assert _find_dotenv() == tmp_path / ".env"
+
+
+def test_find_dotenv_returns_none_when_absent(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(Path, "is_file", lambda _self: False)
+    assert _find_dotenv() is None
+
+
+def test_load_env_file_missing_file_is_ignored(tmp_path, caplog):
+    _load_env_file(tmp_path / "does-not-exist.env")  # no raise
+    assert "Could not read env file" in caplog.text
+
+
+def test_load_dotenv_loads_when_found(tmp_path, monkeypatch):
+    monkeypatch.delenv("SMARTBOX_TEST_KEY", raising=False)
+    (tmp_path / ".env").write_text("SMARTBOX_TEST_KEY=1", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    _load_dotenv()
+    assert os.environ.get("SMARTBOX_TEST_KEY") == "1"
+
+
+def test_load_dotenv_noop_when_absent(monkeypatch):
+    monkeypatch.setattr(cmd_module, "_find_dotenv", lambda: None)
+    _load_dotenv()  # must not raise
+
+
+def test_find_node_unknown_addr_raises_bad_parameter():
+    with pytest.raises(cmd_module.click.BadParameter):
+        _find_node([{"name": "n", "addr": 1}], 99)
+
+
+def test_cli_loads_dotenv_then_runs(mocker):
+    load = mocker.patch("smartbox.cmd._load_dotenv")
+    group = mocker.patch("smartbox.cmd.smartbox")
+    cli()
+    load.assert_called_once_with()
+    group.assert_called_once_with()
 
 
 @pytest.mark.asyncio
@@ -153,7 +199,9 @@ async def test_cli_flag_overrides_env(runner, mock_session):
 
 
 @pytest.mark.asyncio
-async def test_cli_missing_credentials_errors(runner, mock_session, monkeypatch):
+async def test_cli_missing_credentials_errors(
+    runner, mock_session, monkeypatch
+):
     """No flags and no env for username/password is a usage error, not a crash."""
     monkeypatch.delenv("SMARTBOX_USERNAME", raising=False)
     monkeypatch.delenv("SMARTBOX_PASSWORD", raising=False)
@@ -219,6 +267,11 @@ async def test_socket(runner, mocker, mock_session):
         [*DEFAULT_ARGS, "socket", "-d", "1"],
     )
     assert result.exit_code == 0
+
+    # exercise the dev_data / update print callbacks passed to SocketSession
+    _, _, on_dev_data, on_update, *_ = mock_socket_session.call_args.args
+    on_dev_data({"nodes": []})
+    on_update({"path": "/x"})
 
 
 @pytest.mark.asyncio

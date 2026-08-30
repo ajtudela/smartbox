@@ -60,6 +60,10 @@ markers = [
     "network: tests that make real HTTP calls to reseller servers (deselected by default; run with -m network)",
 ]
 
+[tool.coverage.report]
+fail_under = 95
+exclude_also = ["if __name__ == .__main__.:"]
+
 [tool.mypy]
 warn_unused_configs = true
 

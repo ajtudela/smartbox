@@ -45,6 +45,30 @@ def test_update_subscription():
     callback.assert_called_once_with("value")
 
 
+def test_update_subscription_non_matching_path_returns_false():
+    sub = UpdateSubscription(r"^/wanted", ".data", MagicMock())
+    assert sub.match({"path": "/other", "data": 1}) is False
+
+
+def test_dev_data_subscription_jq_error_is_logged(caplog):
+    callback = MagicMock()
+    # `.a.b` on a scalar makes jq raise ValueError.
+    sub = DevDataSubscription(".a | .b", callback)
+    with caplog.at_level(logging.ERROR, logger="smartbox.update_manager"):
+        sub.match({"a": 1})
+    callback.assert_not_called()
+    assert "Error evaluating jq on dev data" in caplog.text
+
+
+def test_update_subscription_jq_error_is_logged(caplog):
+    callback = MagicMock()
+    sub = UpdateSubscription(r"^/p", ".a | .b", callback)
+    with caplog.at_level(logging.ERROR, logger="smartbox.update_manager"):
+        assert sub.match({"path": "/p", "a": 1}) is False
+    callback.assert_not_called()
+    assert "Error evaluating jq on update" in caplog.text
+
+
 def test_update_manager_subscribe_to_dev_data(update_manager):
     callback = MagicMock()
     update_manager.subscribe_to_dev_data(".data", callback)
@@ -73,7 +97,29 @@ def test_update_manager_update_cb(update_manager):
     callback.assert_called_once_with("value")
 
 
-def test_update_manager_update_cb_missing_path_logs_once(update_manager, caplog):
+def test_update_manager_update_cb_no_match_logs_debug(update_manager, caplog):
+    update_manager.subscribe_to_updates(r"^/wanted", ".data", MagicMock())
+    with caplog.at_level(logging.DEBUG, logger="smartbox.update_manager"):
+        update_manager._update_cb({"path": "/other", "data": 1})
+    assert "No matches for update" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_update_manager_run_and_cancel_delegate(update_manager):
+    update_manager._socket_session = MagicMock()
+    update_manager._socket_session.run = AsyncMock()
+    update_manager._socket_session.cancel = AsyncMock()
+
+    await update_manager.run()
+    await update_manager.cancel()
+
+    update_manager._socket_session.run.assert_awaited_once()
+    update_manager._socket_session.cancel.assert_awaited_once()
+
+
+def test_update_manager_update_cb_missing_path_logs_once(
+    update_manager, caplog
+):
     """A payload without "path" must be logged once, not once per subscription."""
     callback = MagicMock()
     update_manager.subscribe_to_updates(r"^/a", ".data", callback)

@@ -230,7 +230,7 @@ class SocketSession:
                 await self._sio.disconnect()
         except socketio.exceptions.ConnectionError:
             return None
-        if connected_at is None:
+        if connected_at is None:  # pragma: no cover - defensive
             return None
         return time.monotonic() - connected_at
 

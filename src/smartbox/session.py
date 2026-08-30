@@ -66,9 +66,10 @@ def _retry_after_seconds(headers: object) -> float | None:
         return None
     try:
         return max(0.0, float(raw))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         # HTTP-date form is not handled; fall back to exponential backoff.
         return None
+
 
 # The status model is picked by node type, which is reliable, rather than by the
 # shape of the response, which is not. Keyed by the enum's string value so an
@@ -347,9 +348,7 @@ class AsyncSession:
         for attempt in range(self._retry_attempts + 1):
             try:
                 request = (
-                    self.client.post(
-                        api_url, headers=self._headers, data=data
-                    )
+                    self.client.post(api_url, headers=self._headers, data=data)
                     if method == "POST"
                     else self.client.get(api_url, headers=self._headers)
                 )
@@ -401,8 +400,8 @@ class AsyncSession:
 
         if last_error is not None:
             raise last_error from last_cause
-        msg = "retry loop exited without a result"  # unreachable
-        raise SmartboxError(msg)
+        msg = "retry loop exited without a result"  # pragma: no cover
+        raise SmartboxError(msg)  # pragma: no cover - unreachable
 
     async def _api_request(self, path: str) -> dict[str, Any]:
         """Make a GET request to the v2 API (transient failures retried)."""
@@ -643,9 +642,7 @@ class AsyncSmartboxSession(AsyncSession):
         if self.raw_response is True:
             return response
         model: type[DefaultNodeSetup | PmoSetup] = (
-            PmoSetup
-            if _node.type == SmartboxNodeType.PMO
-            else DefaultNodeSetup
+            PmoSetup if _node.type == SmartboxNodeType.PMO else DefaultNodeSetup
         )
         try:
             return model.model_validate(response)
@@ -725,9 +722,7 @@ class AsyncSmartboxSession(AsyncSession):
         device_id: str,
     ) -> dict[str, Any] | HtrSystemSetup:
         """Get the heater-system configuration of a device."""
-        response = await self._api_request(
-            f"devs/{device_id}/htr_system/setup"
-        )
+        response = await self._api_request(f"devs/{device_id}/htr_system/setup")
         if self.raw_response is True:
             return response
         return HtrSystemSetup.model_validate(response)
