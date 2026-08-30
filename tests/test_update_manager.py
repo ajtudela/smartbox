@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -70,6 +71,19 @@ def test_update_manager_update_cb(update_manager):
     input_data = {"path": "/path", "data": "value"}
     update_manager._update_cb(input_data)
     callback.assert_called_once_with("value")
+
+
+def test_update_manager_update_cb_missing_path_logs_once(update_manager, caplog):
+    """A payload without "path" must be logged once, not once per subscription."""
+    callback = MagicMock()
+    update_manager.subscribe_to_updates(r"^/a", ".data", callback)
+    update_manager.subscribe_to_updates(r"^/b", ".data", callback)
+
+    with caplog.at_level(logging.ERROR, logger="smartbox.update_manager"):
+        update_manager._update_cb({"data": "value"})
+
+    assert caplog.text.count("Path not found in update data") == 1
+    callback.assert_not_called()
 
 
 def test_update_manager_socket_session(update_manager):

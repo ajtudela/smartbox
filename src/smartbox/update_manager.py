@@ -287,11 +287,13 @@ class UpdateManager:
             sub.match(data)
 
     def _update_cb(self, data: dict[str, Any]) -> None:
+        # The "path" check does not depend on the subscription: keep it out of
+        # the loop so a malformed message logs once, not once per subscription.
+        if "path" not in data:
+            _LOGGER.error("Path not found in update data: %s", data)
+            return
         matched = False
         for sub in self._update_subscriptions:
-            if "path" not in data:
-                _LOGGER.error("Path not found in update data: %s", data)
-                continue
             if sub.match(data):
                 matched = True
         if not matched:
