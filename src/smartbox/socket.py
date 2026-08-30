@@ -5,6 +5,7 @@ from collections.abc import Callable
 import contextlib
 import logging
 import signal
+import time
 from typing import Any
 import urllib
 
@@ -17,6 +18,9 @@ _API_V2_NAMESPACE = "/api/v2/socket_io"
 # expires, so we don't want to try many times
 _DEFAULT_RECONNECT_ATTEMPTS = 10
 _DEFAULT_BACKOFF_FACTOR = 1.0
+# A connection that established but ended sooner than this is treated as a
+# failure (backoff + retry) rather than a normal "token expired, reconnect".
+_MIN_SESSION_SECONDS = 10.0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -176,12 +180,14 @@ class SocketSession:
             _LOGGER.debug("Sending ping")
             await self._sio.send("ping", namespace=_API_V2_NAMESPACE)
 
-    async def _attempt_connection(self, url: str) -> bool:
-        """Attempt to connect to the websocket URL.
+    async def _attempt_connection(self, url: str) -> float | None:
+        """Connect to the websocket URL and block until the session ends.
 
-        Returns True if connection was successful, False otherwise.
+        Returns how many seconds the session lasted, or ``None`` if the
+        connection was never established.
         """
         _LOGGER.debug("Connecting to %s", url)
+        connected_at: float | None = None
         try:
             connect_task = asyncio.create_task(
                 self._sio.connect(url, transports=["websocket"])
@@ -216,14 +222,17 @@ class SocketSession:
 
                 raise
             _LOGGER.info("Successfully connected to %s", url)
+            connected_at = time.monotonic()
             await self._dev_data()
             await self._sio.wait()
             await self._cleanup_websocket()
             with contextlib.suppress(Exception):
                 await self._sio.disconnect()
         except socketio.exceptions.ConnectionError:
-            return False
-        return True
+            return None
+        if connected_at is None:
+            return None
+        return time.monotonic() - connected_at
 
     async def _cleanup_websocket(self) -> None:
         """Clean up orphaned WebSocket connections."""
@@ -274,27 +283,46 @@ class SocketSession:
                     _LOGGER.debug(
                         "Connecting to %s (attempt #%s)", url, attempt
                     )
+                    session_seconds = await self._attempt_connection(url)
 
-                    if await self._attempt_connection(url):
-                        _LOGGER.debug("Breaking loop to refresh token")
+                    # A session that lived long enough ended for the usual
+                    # reason (token near expiry): break out to refresh it.
+                    if (
+                        session_seconds is not None
+                        and session_seconds >= _MIN_SESSION_SECONDS
+                    ):
+                        _LOGGER.debug(
+                            "Session ended after %.0fs, refreshing token",
+                            session_seconds,
+                        )
                         break
 
+                    # Either the connection never established or it dropped
+                    # almost immediately (e.g. a token rejected at the app
+                    # level): back off before retrying so we do not busy-loop.
                     remaining = self._reconnect_attempts - attempt - 1
                     sleep_time = self._backoff_factor * (2**attempt)
-                    # ``_attempt_connection`` already swallowed the
-                    # ``ConnectionError``, so there is no active exception here:
-                    # ``exception()`` would append a bogus "NoneType: None"
-                    # traceback. A planned retry is a warning, not an error.
-                    _LOGGER.warning(
-                        "Connection attempt failed, %s retries remaining, sleeping %ss",
-                        remaining,
-                        sleep_time,
-                    )
-                    if remaining > 0:
-                        await asyncio.sleep(sleep_time)
+                    if session_seconds is None:
+                        _LOGGER.warning(
+                            "Connection attempt failed, %s retries remaining, "
+                            "sleeping %ss",
+                            remaining,
+                            sleep_time,
+                        )
                     else:
                         _LOGGER.warning(
-                            "Failed to connect after %s attempts, falling through to refresh token",
+                            "Connection dropped after %.1fs, %s retries "
+                            "remaining, sleeping %ss",
+                            session_seconds,
+                            remaining,
+                            sleep_time,
+                        )
+                    if remaining > 0:
+                        await asyncio.sleep(sleep_time)
+                    elif session_seconds is None:
+                        _LOGGER.warning(
+                            "Failed to connect after %s attempts, falling "
+                            "through to refresh token",
                             self._reconnect_attempts,
                         )
                 await self._session.check_refresh_auth()
