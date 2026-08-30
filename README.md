@@ -169,9 +169,25 @@ Generate a coverage XML (e.g. for use in an editor):
 
 Release notes are kept in [CHANGELOG.md](./CHANGELOG.md).
 
-# Support
-[![Buy a coffee to ajtudela][buymeacoffee-shield]][buymeacoffee-ajtudela]
+## Support
 
+This is a community project, maintained on a best-effort basis and provided without warranty.
+
+### Getting help and reporting problems
+
+Open an issue at <https://github.com/ajtudela/smartbox/issues>. Templates are provided for the common cases:
+
+* **Bug report** — a command or method misbehaves. Include the `smartbox` command you ran (or the code), the full output with `-v`/`--verbose`, and your reseller. **Redact the access token and any Basic Auth credential** before pasting logs.
+* **Feature request** — a missing endpoint or option.
+* **New reseller** — your heater vendor is not in the built-in list. The template lists exactly which values to collect from the mobile/web app (`api-name`, `x-referer`, `x-serial-id`, Basic Auth credential); once added, everyone using that vendor benefits.
+
+For questions about the API itself rather than this library, see [api-notes.md](./api-notes.md).
+
+### Supporting the maintainers
+
+If this library is useful to you, you can buy the maintainers a coffee:
+
+[![Buy a coffee to ajtudela][buymeacoffee-shield]][buymeacoffee-ajtudela]
 [![Buy a coffee to delmael][buymeacoffee-shield]][buymeacoffee-delmael]
 
 [buymeacoffee-ajtudela]: https://www.buymeacoffee.com/ajtudela
