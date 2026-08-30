@@ -30,7 +30,7 @@ Homepage = "https://github.com/ajtudela/smartbox"
 Issues = "https://github.com/ajtudela/smartbox/issues"
 
 [project.scripts]
-smartbox = "smartbox.cmd:smartbox"
+smartbox = "smartbox.cmd:cli"
 
 [build-system]
 requires = ["hatchling"]

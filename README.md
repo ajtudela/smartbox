@@ -48,6 +48,25 @@ These options are useful if your reseller is not configured.
 * `-r`/`--x-referer`: The referer of your request.
 * `-i`/`--x-serial-id`: The serial-id of your request.
 
+### Configuration via environment variables / `.env`
+
+Every option above can be supplied through an environment variable instead of being typed on each invocation. The command line always takes precedence over the environment.
+
+| Option                    | Environment variable        |
+| ------------------------- | --------------------------- |
+| `-a`/`--api-name`         | `SMARTBOX_API_NAME`         |
+| `-b`/`--basic-auth-creds` | `SMARTBOX_BASIC_AUTH_CREDS` |
+| `-u`/`--username`         | `SMARTBOX_USERNAME`         |
+| `-p`/`--password`         | `SMARTBOX_PASSWORD`         |
+| `-r`/`--x-referer`        | `SMARTBOX_X_REFERER`        |
+| `-i`/`--x-serial-id`      | `SMARTBOX_X_SERIAL_ID`      |
+
+The `smartbox` command also reads a `.env` file (searched for in the working directory and its parents) before parsing options, so the usual workflow is to copy [`.env.example`](.env.example) to `.env`, fill it in once, and then run commands without any auth flags:
+
+    cp .env.example .env
+    # edit .env
+    smartbox devices
+
 ## Availables commands
 ### Listing smartbox devices
 

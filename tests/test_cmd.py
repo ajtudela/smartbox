@@ -1,8 +1,9 @@
 import asyncio
+import os
 
 import pytest
 
-from smartbox.cmd import smartbox
+from smartbox.cmd import _find_dotenv, _load_env_file, smartbox
 
 DEFAULT_ARGS = [
     "-a",
@@ -12,6 +13,50 @@ DEFAULT_ARGS = [
     "-p",
     "pass",
 ]
+
+
+def test_load_env_file_populates_environment(tmp_path, monkeypatch):
+    """KEY=VALUE lines land in os.environ, with comments/quotes/export handled."""
+    monkeypatch.delenv("SMARTBOX_USERNAME", raising=False)
+    monkeypatch.delenv("SMARTBOX_PASSWORD", raising=False)
+    monkeypatch.delenv("SMARTBOX_API_NAME", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "# a comment\n"
+        "\n"
+        "SMARTBOX_USERNAME=alice\n"
+        'SMARTBOX_PASSWORD="s3cr3t"\n'
+        "export SMARTBOX_API_NAME = api-foo \n"
+        "NOT_A_PAIR\n",
+        encoding="utf-8",
+    )
+
+    _load_env_file(env_file)
+
+    assert os.environ["SMARTBOX_USERNAME"] == "alice"
+    assert os.environ["SMARTBOX_PASSWORD"] == "s3cr3t"
+    assert os.environ["SMARTBOX_API_NAME"] == "api-foo"
+
+
+def test_load_env_file_does_not_override_existing(tmp_path, monkeypatch):
+    """A value already in the environment wins over the file."""
+    monkeypatch.setenv("SMARTBOX_USERNAME", "from-shell")
+    env_file = tmp_path / ".env"
+    env_file.write_text("SMARTBOX_USERNAME=from-file", encoding="utf-8")
+
+    _load_env_file(env_file)
+
+    assert os.environ["SMARTBOX_USERNAME"] == "from-shell"
+
+
+def test_find_dotenv_walks_up_from_cwd(tmp_path, monkeypatch):
+    """_find_dotenv locates a .env in a parent of the working directory."""
+    (tmp_path / ".env").write_text("SMARTBOX_USERNAME=x", encoding="utf-8")
+    nested = tmp_path / "a" / "b"
+    nested.mkdir(parents=True)
+    monkeypatch.chdir(nested)
+
+    assert _find_dotenv() == tmp_path / ".env"
 
 
 @pytest.mark.asyncio
@@ -55,6 +100,69 @@ async def test_session_closed_on_teardown(runner, mock_session):
 
     assert result.exit_code == 0
     mock_session.return_value.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cli_reads_options_from_env(runner, mock_session):
+    """With no auth flags, the CLI takes them from SMARTBOX_* env vars."""
+    version_future = asyncio.Future()
+    version_future.set_result({"major": "1"})
+    mock_session.return_value.api_version.return_value = version_future
+
+    result = await runner.invoke(
+        smartbox,
+        ["api-version"],
+        env={
+            "SMARTBOX_API_NAME": "env_api",
+            "SMARTBOX_USERNAME": "env_user",
+            "SMARTBOX_PASSWORD": "env_pass",
+            "SMARTBOX_BASIC_AUTH_CREDS": "env_creds",
+        },
+    )
+
+    assert result.exit_code == 0
+    mock_session.assert_called_once_with(
+        api_name="env_api",
+        basic_auth_credentials="env_creds",
+        username="env_user",
+        password="env_pass",
+        x_referer=None,
+        x_serial_id=None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_cli_flag_overrides_env(runner, mock_session):
+    """An explicit --api-name beats SMARTBOX_API_NAME."""
+    version_future = asyncio.Future()
+    version_future.set_result({"major": "1"})
+    mock_session.return_value.api_version.return_value = version_future
+
+    result = await runner.invoke(
+        smartbox,
+        ["-a", "flag_api", "api-version"],
+        env={
+            "SMARTBOX_API_NAME": "env_api",
+            "SMARTBOX_USERNAME": "env_user",
+            "SMARTBOX_PASSWORD": "env_pass",
+        },
+    )
+
+    assert result.exit_code == 0
+    assert mock_session.call_args.kwargs["api_name"] == "flag_api"
+
+
+@pytest.mark.asyncio
+async def test_cli_missing_credentials_errors(runner, mock_session, monkeypatch):
+    """No flags and no env for username/password is a usage error, not a crash."""
+    monkeypatch.delenv("SMARTBOX_USERNAME", raising=False)
+    monkeypatch.delenv("SMARTBOX_PASSWORD", raising=False)
+
+    result = await runner.invoke(smartbox, ["api-version"])
+
+    assert result.exit_code != 0
+    assert "username" in result.output.lower()
+    mock_session.assert_not_called()
 
 
 @pytest.mark.asyncio

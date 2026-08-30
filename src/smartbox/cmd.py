@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+from pathlib import Path
 from typing import Any
 
 import asyncclick as click
@@ -18,6 +20,51 @@ def _pretty_print(data: dict[str, Any]) -> None:
     print(json.dumps(data, indent=4, sort_keys=True))
 
 
+def _find_dotenv() -> Path | None:
+    """Return the nearest ``.env`` file, searching upward from the CWD."""
+    cwd = Path.cwd()
+    for directory in (cwd, *cwd.parents):
+        candidate = directory / ".env"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _load_env_file(path: Path) -> None:
+    """Load ``KEY=VALUE`` lines from ``path`` into the process environment.
+
+    Variables already set in the real environment take precedence, so an
+    explicit shell variable still wins over the file. Blank lines, ``#``
+    comments and lines without ``=`` are ignored; an optional ``export``
+    prefix is dropped and one pair of surrounding matching quotes is stripped.
+    """
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        _LOGGER.warning("Could not read env file %s: %s", path, exc)
+        return
+    quotes = {'"', "'"}
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.removeprefix("export ").strip()
+        value = value.strip()
+        if value[:1] in quotes and value[-1:] == value[:1]:
+            value = value[1:-1]
+        if key:
+            os.environ.setdefault(key, value)
+
+
+def _load_dotenv() -> None:
+    """Load the nearest ``.env`` file, if any, before the CLI parses options."""
+    dotenv_path = _find_dotenv()
+    if dotenv_path is not None:
+        _LOGGER.debug("Loading environment from %s", dotenv_path)
+        _load_env_file(dotenv_path)
+
+
 def _find_device(
     devices: list[dict[str, Any]], device_id: str
 ) -> dict[str, Any]:
@@ -29,9 +76,7 @@ def _find_device(
     return device
 
 
-def _find_node(
-    nodes: list[dict[str, Any]], node_addr: int
-) -> dict[str, Any]:
+def _find_node(nodes: list[dict[str, Any]], node_addr: int) -> dict[str, Any]:
     """Return the node with ``node_addr`` or a friendly CLI error."""
     node = next((n for n in nodes if n["addr"] == node_addr), None)
     if node is None:
@@ -41,23 +86,60 @@ def _find_node(
 
 
 @click.group(chain=True)
-@click.option("-a", "--api-name", required=False, help="API name")
+@click.option(
+    "-a",
+    "--api-name",
+    required=False,
+    envvar="SMARTBOX_API_NAME",
+    show_envvar=True,
+    help="API name",
+)
 @click.option(
     "-b",
     "--basic-auth-creds",
     required=False,
+    envvar="SMARTBOX_BASIC_AUTH_CREDS",
+    show_envvar=True,
     help="API basic auth credentials",
 )
-@click.option("-u", "--username", required=True, help="API username")
-@click.option("-p", "--password", required=True, help="API password")
+@click.option(
+    "-u",
+    "--username",
+    required=True,
+    envvar="SMARTBOX_USERNAME",
+    show_envvar=True,
+    help="API username",
+)
+@click.option(
+    "-p",
+    "--password",
+    required=True,
+    envvar="SMARTBOX_PASSWORD",
+    show_envvar=True,
+    help="API password",
+)
 @click.option(
     "-v",
     "--verbose/--no-verbose",
     default=False,
     help="Enable verbose logging",
 )
-@click.option("-r", "--x-referer", required=False, help="Refere of API")
-@click.option("-i", "--x-serial-id", required=False, help="Serial id of API")
+@click.option(
+    "-r",
+    "--x-referer",
+    required=False,
+    envvar="SMARTBOX_X_REFERER",
+    show_envvar=True,
+    help="Refere of API",
+)
+@click.option(
+    "-i",
+    "--x-serial-id",
+    required=False,
+    envvar="SMARTBOX_X_SERIAL_ID",
+    show_envvar=True,
+    help="Serial id of API",
+)
 @click.pass_context
 async def smartbox(
     ctx,
@@ -69,7 +151,13 @@ async def smartbox(
     x_serial_id: int,
     x_referer: str,
 ) -> None:
-    """Set default options for smartbox."""
+    """Set default options for smartbox.
+
+    Every option below can also be supplied through its ``SMARTBOX_*``
+    environment variable or a ``.env`` file in the working directory (or any
+    parent), so credentials do not need to be typed on every invocation. An
+    explicit command-line option overrides the environment.
+    """
     ctx.ensure_object(dict)
     logging.basicConfig(
         format="%(asctime)s %(levelname)-8s "
@@ -449,6 +537,12 @@ async def guests(ctx, home_id: str) -> None:
     _pretty_print(guests)
 
 
+def cli() -> None:
+    """Console-script entry point: load ``.env`` then run the CLI."""
+    _load_dotenv()
+    smartbox()
+
+
 # For debugging
 if __name__ == "__main__":
-    smartbox()
+    cli()
