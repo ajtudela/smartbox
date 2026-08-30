@@ -268,8 +268,12 @@ class SocketSession:
 
                     remaining = self._reconnect_attempts - attempt - 1
                     sleep_time = self._backoff_factor * (2**attempt)
-                    _LOGGER.exception(
-                        "Received error on connection attempt, %s retries remaining, sleeping %ss",
+                    # ``_attempt_connection`` already swallowed the
+                    # ``ConnectionError``, so there is no active exception here:
+                    # ``exception()`` would append a bogus "NoneType: None"
+                    # traceback. A planned retry is a warning, not an error.
+                    _LOGGER.warning(
+                        "Connection attempt failed, %s retries remaining, sleeping %ss",
                         remaining,
                         sleep_time,
                     )
