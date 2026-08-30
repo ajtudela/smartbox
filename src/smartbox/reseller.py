@@ -108,58 +108,61 @@ class AvailableResellers:
         serial_id: int | None = None,
         name: str = "Smartbox",
     ) -> None:
-        """Check if reseller is already available or try to create one."""
+        """Resolve the reseller now.
+
+        A configuration error (unknown reseller, missing custom arguments,
+        invalid values) is raised here, at construction, instead of being
+        deferred to the first property access.
+        """
         self._api_url = api_url
         self._basic_auth = basic_auth
         self._web_url = web_url
         self._serial_id = serial_id
         self._name = name
+        self._reseller = self._resolve_reseller()
+
+    def _resolve_reseller(self) -> SmartboxReseller:
+        """Return the built-in reseller for the api url, or build a custom one."""
+        known = self.resellers.get(self._api_url)
+        if known is not None:
+            _LOGGER.debug(
+                "Reseller api_url (%s), name=%s, web_url=%s",
+                known.api_url,
+                known.name,
+                known.web_url,
+            )
+            return known
+        if (
+            self._basic_auth is None
+            or self._web_url is None
+            or self._serial_id is None
+        ):
+            msg = f"This reseller {self._api_url} is not yet available or some arguments are missing."
+            raise ResellerNotExistError(msg)
+        try:
+            # Do not log ``basic_auth``: it is the reseller credential and
+            # is deliberately not distributed to preserve that layer.
+            _LOGGER.debug(
+                "Creating a new reseller api_url (%s), name=%s, web_url=%s, serial_id=%s",
+                self._api_url,
+                self._name,
+                self._web_url,
+                self._serial_id,
+            )
+            return SmartboxReseller(
+                api_url=self._api_url,
+                basic_auth=self._basic_auth,
+                web_url=self._web_url,
+                serial_id=self._serial_id,
+                name=self._name,
+            )
+        except ValidationError as e:
+            raise ResellerNotExistError from e
 
     @property
     def reseller(self) -> SmartboxReseller:
-        """Get the reseller."""
-        reseller = next(
-            (
-                value
-                for key, value in self.resellers.items()
-                if key == self._api_url
-            ),
-            None,
-        )
-        if reseller is None:
-            if (
-                self._basic_auth is None
-                or self._web_url is None
-                or self._serial_id is None
-            ):
-                msg = f"This reseller {self._api_url} is not yet available or some arguments are missing."
-                raise ResellerNotExistError(msg)
-            try:
-                # Do not log ``basic_auth``: it is the reseller credential and
-                # is deliberately not distributed to preserve that layer.
-                _LOGGER.debug(
-                    "Creating a new reseller api_url (%s), name=%s, web_url=%s, serial_id=%s",
-                    self._api_url,
-                    self._name,
-                    self._web_url,
-                    self._serial_id,
-                )
-                reseller = SmartboxReseller(
-                    api_url=self._api_url,
-                    basic_auth=self._basic_auth,
-                    web_url=self._web_url,
-                    serial_id=self._serial_id,
-                    name=self._name,
-                )
-            except ValidationError as e:
-                raise ResellerNotExistError from e
-        _LOGGER.debug(
-            "Reseller api_url (%s), name=%s,  web_url %s",
-            reseller.api_url,
-            reseller.name,
-            reseller.web_url,
-        )
-        return reseller
+        """Get the resolved reseller."""
+        return self._reseller
 
     @property
     def api_url(self) -> str:

@@ -15,6 +15,17 @@ def test_available_resellers_non_existing_reseller():
         AvailableResellers(api_url="non-existing-api").reseller
 
 
+def test_available_resellers_resolves_at_construction():
+    """A bad configuration must fail in __init__, not on first property access."""
+    with pytest.raises(ResellerNotExistError):
+        AvailableResellers(api_url="non-existing-api")
+
+    resolved = AvailableResellers(api_url="api")
+    # The property just returns the already-resolved object.
+    assert resolved.reseller is resolved.reseller
+    assert resolved.reseller.name == "Helki"
+
+
 def test_available_resellers_custom_reseller():
     serial_id = 99
     _reseller = AvailableResellers(
