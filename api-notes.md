@@ -1,5 +1,7 @@
 # API notes
-Some brief notes on the REST endpoints used by this library.
+Notes on the REST and socket.io endpoints used by this library, one entry per path: what it represents, its GET payload, and what POST does.
+
+The GET payloads and POST behaviour below were exercised against a live device on 2026-08-30 (the `api-hjm` reseller, one device with a single `htr` node). Other resellers, firmwares and node types may differ. "untested" marks a request that was not made from here. Observed error bodies: `{"error": {"code": 2}}` means the route/method does not exist, `{"error": {"code": 5}}` means the route exists but rejected the body, and an Express-style `{"statusCode": 404, "message": "Cannot POST ..."}` means the path has no POST handler at all.
 
 # REST API
 
@@ -9,101 +11,168 @@ Some brief notes on the REST endpoints used by this library.
 Initial authentication to the smartbox REST API is protected by HTTP Basic Auth, in addition to the user's username and password which are then used to obtain an access token. In order not to undermine the security layer it provides, and also because it might change over time or vary between implementations, **the token is not provided here and system owners need to find it themselves**.
 
 ### /api/v2/client/token
-POST: needs basic auth token provided in the `Authorization` header. See code for access token and refresh protocol.
+Obtain (and refresh) the bearer access token.
 
-The endpoints below need the access token obtained from the token endpoint (see code), which lasts for four hours before needing to be refreshed.
+POST: needs the basic auth token in the `Authorization` header plus the OAuth-style grant body (`grant_type=password` with `username`/`password`, or `grant_type=refresh_token`). Returns `{access_token, refresh_token, expires_in, token_type}`; the access token lasts about four hours. All the endpoints below need `Authorization: Bearer <access_token>`.
 
 ## Devices
 
 ### /api/v2/devs
-GET: list devices
+List the devices the account can see.
+
+GET: `{devs: [{dev_id, name, product_id, fw_version, serial_id}], invited_to: [...]}` (`invited_to` holds devices shared with the account by someone else).
 
 ### /api/v2/grouped_devs
-GET: list devices with extra grouping info
+List devices grouped into "homes".
 
-POST: TODO untested
+GET: `[{id, name, devs: [{dev_id, name, product_id, fw_version, serial_id}], owner: bool, extraData}]`. `extraData` was `null` in the sample.
+
+POST: not accepted (`Cannot POST /api/v2/grouped_devs`).
 
 ### /api/v2/devs/<dev_id>/dev_data
-GET: Appears to be all device data, including most of the information obtainable via specific endpoints below.
+The whole device state in one payload: geolocation, away status, per-node `status`/`setup`/`version`, `htr_system` and `pmo_system`. This is what the socket `dev_data` event returns too.
 
-POST: TODO untested
+GET: top-level keys `away_status`, `discovery`, `geoData`, `geo_data` (both the camelCase and snake_case copies are present), `htr_system` (`{power_limit, setup}`), `nodes` (list), `pmo_system`.
+
+POST: not accepted (`Cannot POST /...`).
 
 ### /api/v2/devs/<dev_id>/geo_data
-GET: device geolocation data
+The device's geolocation (used for weather/timezone).
 
-POST: TODO untested
+GET: `{country, state, city, tz_code, zip, coarsePosition: {latitude, longitude}}`.
+
+POST: accepted (HTTP 201). Re-posting the current payload is a no-op; the fields to set a new location were not explored.
 
 ### /api/v2/devs/<dev_id>/connected
-GET: device connection status
+Whether the device is currently reachable by the cloud.
 
-POST: TODO untested
+GET: `{connected: bool}`.
+
+POST: not accepted (`Cannot POST /...`).
 
 ### /api/v2/devs/<dev_id>/mgr/away_status
-GET: device away status
+Away mode for the whole device. `enabled`: away scheduling is on; `away`: currently in away mode; `forced`: away is held on manually rather than by schedule.
 
-POST: TODO untested
+GET: `{enabled: bool, away: bool, forced: bool}`.
+
+POST: accepted (HTTP 201), returns an empty body. Send only the fields being changed (this is what `set_device_away_status` does). `forced` is sticky: clearing it required posting `enabled: true` together with `forced: false`, a plain `{"away": false}` left `forced` set.
 
 ### /api/v2/devs/<dev_id>/mgr/discovery
-GET: device discovery status
+Node discovery on the device (pairing new nodes).
 
-POST: TODO untested
+GET: `{discovery: str}` — a short status string.
+
+POST: route exists but an empty body is rejected with `{"error": {"code": 5}}`; the body that starts a discovery scan was not explored.
 
 ### /api/v2/devs/<dev_id>/htr_system/power_limit
-GET: heater power limit info
+The whole-device electrical power limit, in watts, as a string.
 
-POST: TODO untested
+GET: `{power_limit: str}`.
+
+POST: accepted (HTTP 201). Body `{"power_limit": "<watts>"}` (string), as sent by `set_device_power_limit`.
+
+### /api/v2/devs/<dev_id>/htr_system/setup
+The heater-system configuration: the same `power_limit` (here as an integer), the sampling `refresh_period` (seconds) and the extra-energy configuration. The library does not use this endpoint.
+
+GET: `{power_limit: int, refresh_period: int, extra_nrg_conf: {enabled: bool}}`.
+
+POST: untested.
 
 ### /api/v2/devs/<dev_id>/mgr/rtc/time
-GET: device date and time info
+The device's real-time clock.
 
-POST: TODO untested
+GET: `{y, n, d, h, m, s, w}`, all integers — year, month (`n`), day, hour, minute, second, weekday.
+
+POST: not accepted (`{"error": {"code": 2}}`).
+
+### /api/v2/devs/<dev_id>/mgr/version
+Manager/system firmware version for the device (distinct from a node's `version`).
+
+GET: `{fw_version, hw_version, product_id}`.
+
+POST: untested.
+
+### /api/v2/devs/<dev_id>/mgr/samples
+Device-level history.
+
+GET: not available — returns HTTP 404 with `{"error": {"code": 2}}`. Use the per-node `samples` endpoint instead.
 
 ## Nodes
-Note: node type apparently can be `htr`, `thm` or `acm` (only htr tested).
+`mgr/nodes` node objects carry `addr`, `type`, `name`, `installed`, `lost`, plus `uid`, `level`, `parent` and a nested `setup` (e.g. `{counter_offset}` for `htr`). Node `type` seen in the wild includes `htr`, `thm`, `acm`, `htr_mod`, `pmo`; only `htr` was exercised here.
 
 ### /api/v2/devs/<dev_id>/mgr/nodes
-GET: lists nodes
+List the nodes attached to a device.
+
+GET: `{nodes: [{addr, type, name, installed, lost, uid, level, parent, setup}]}`.
+
+POST: untested.
 
 ### /api/v2/devs/<dev_id>/<node_type>/<node_addr>
-GET: Appears to be all node data, including most of the information obtainable via specific endpoints below.
+The whole state of a single node in one payload (its `status`, `setup`, ...). Per-node counterpart of `dev_data`.
 
-POST: TODO untested
+GET: `{status: {...}, setup: {...}, ...}`.
+
+POST: route exists but an empty body is rejected with `{"error": {"code": 5}}`; an aggregate write was not explored.
 
 ### /api/v2/devs/<dev_id>/<node_type>/<node_addr>/status
-GET: get node status
+The node's live operating state: current/target temperature, mode, duty cycle, boost, lock, error code, presence and window flags.
 
-POST: update node status. Only fields that are changing need to be supplied, but `units` must be provided with any temperature fields.
+GET (`htr`): `{sync_status, mode, active, ice_temp, eco_temp, comf_temp, units, stemp, mtemp, power, locked, duty, pcb_temp, presence, window_open, true_radiant_active, easy, runback, boost, boost_end_min, boost_end_day, error_code, version}`. `error_code` came back as an integer, and `act_duty`/`power_pcb_temp` were absent (see "Reseller / firmware variation").
+
+POST: accepted (HTTP 201), returns an empty body. Send only the fields being changed (as `set_node_status` does); `units` must accompany any temperature field. `locked` round-trips cleanly.
 
 ### /api/v2/devs/<dev_id>/<node_type>/<node_addr>/prog
-GET: get node programme
+The node's weekly heating schedule: for each weekday, 24 hourly slots.
 
-POST: TODO untested
+GET: `{sync_status, prog: {"0".."6": [24 ints]}}`.
+
+POST: accepted (HTTP 201); re-posting the current schedule is a no-op. The library does not use this endpoint.
 
 ### /api/v2/devs/<dev_id>/<node_type>/<node_addr>/type
-GET: get node type
+The node type as a bare JSON string (e.g. `"htr"`).
 
-POST: TODO untested
+GET: the string, served with `Content-Type: text/html` rather than `application/json`.
+
+POST: not accepted (`{"error": {"code": 2}}`).
 
 ### /api/v2/devs/<dev_id>/<node_type>/<node_addr>/version
-GET: get node version info (firmware version etc)
+The node's hardware/firmware identifiers.
 
-POST: TODO untested
+GET: `{hw_version, fw_version, uid, pid}`.
+
+POST: not accepted (`{"error": {"code": 2}}`).
 
 ### /api/v2/devs/<dev_id>/<node_type>/<node_addr>/setup
-GET: get node setup
+The node's configuration: control mode, units, offsets, away behaviour, window/true-radiant options and `factory_options`.
 
-POST: update node setup. Apparently all fields need to be provided even if unchanged.
+GET (`htr`): `{revision, sync_status, control_mode, units, power, offset, priority, away_mode, away_offset, modified_auto_span, window_mode_enabled, true_radiant_enabled, max_stemp_limit, factory_options: {duty_limit, operating_mode, power_factor, super_lock_available, temp_compensation_enabled, true_radiant_available, window_mode_available}}`.
+
+POST: accepted (HTTP 201). The whole configuration must be re-sent even for unchanged fields, so `set_node_setup` reads the current setup and re-posts it merged with the changes.
 
 ### /api/v2/devs/<dev_id>/<node_type>/<node_addr>/samples
-GET: TODO: untested
+Per-node history of temperature and energy counter samples.
 
-POST: TODO: untested
+GET: `{samples: [{t, counter, temp}, ...]}`. `start` and `end` unix-timestamp query params are required — without them the response is HTTP 400 `{"statusCode": 400, "message": ["start must be a number string", "end must be a number string"], "error": "Bad Request"}`. An empty list is returned when the window has no data.
+
+POST: not accepted (`{"error": {"code": 2}}`).
+
+## Reseller / firmware variation
+The `api-hjm` `htr` `status` and `setup` payloads above diverge from the fields the Pydantic models declare: `status.error_code` is an integer (not a string), `status` omits `act_duty` and `power_pcb_temp` and adds `easy`, `runback`, `version`; `setup` omits `flash_version`, `user_duty_factor` and `extra_options`, adds `revision`, `priority`, `max_stemp_limit`, and its `factory_options` object has a different, smaller set of keys. Treat every response model as a lower bound on what a given reseller returns.
+
+## Endpoint discovery notes
+A ~200-path GET sweep (account, group, device, `mgr/*`, `<x>_system/*` and node subpaths, common names like `energy`, `consumption`, `weather`, `notifications`, `alarms`, `schedule`, `firmware`, `capabilities`, `history`, `stats`, `network`, `wifi`, `me`, `account`, `users`, ...) turned up nothing beyond the paths listed here plus `htr_system/setup`. The REST surface appears to be small and closely mirrors the `dev_data` structure. Two quirks: `OPTIONS` on any path returns `204` with a blanket `Allow: GET,HEAD,PUT,PATCH,POST,DELETE` (a global CORS handler, not a real per-route method map), and path segments after `.../setup` are ignored (`.../setup/anything` returns the full setup), so neither is a reliable discovery signal. `pmo_system`/`acm_system`/`thm_system` URL prefixes 404 on this device, which only has an `htr` node.
 
 ## Misc
 
-### /version
+### /health_check
+Liveness probe for the API (no auth needed).
 
-Get version info
+GET: `{message: str}`.
+
+### /version
+API build info (no auth needed).
+
+GET: `{major, minor, subminor, commit}`.
 
 # Websocket API
 This uses the [socket.io] protocol.
