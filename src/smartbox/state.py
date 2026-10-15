@@ -19,7 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 
 # ("device", <key>) for device-level state, (<node_type>, <addr>, <key>)
 # for per-node resources (status, setup, version, prog, ...).
-StateKey = tuple[str, ...] | tuple[str, int, str]
+DeviceKey = tuple[str, str]
+NodeKey = tuple[str, int, str]
+StateKey = DeviceKey | NodeKey
 
 _NODE_PATH_RE = re.compile(
     r"^/(?P<node_type>[^/]+)/(?P<addr>\d+)/(?P<key>[^/]+)$"
@@ -137,7 +139,7 @@ class DeviceState:
         if key is None or not isinstance(body, dict):
             _LOGGER.debug("Update not applied to state: %s", message)
             return set()
-        if key[0] == "device":
+        if len(key) == 2:
             changed = self._apply_device(key[1], body)
         else:
             changed = self._apply_node(key, body)
@@ -162,8 +164,8 @@ class DeviceState:
         self._device[name] = new
         return {("device", name)}
 
-    def _apply_node(self, key: StateKey, body: dict[str, Any]) -> set[StateKey]:
-        node_type, addr, resource = key  # type: ignore[misc]
+    def _apply_node(self, key: NodeKey, body: dict[str, Any]) -> set[StateKey]:
+        node_type, addr, resource = key
         node = self._nodes.setdefault(
             (node_type, addr), {"type": node_type, "addr": addr}
         )
