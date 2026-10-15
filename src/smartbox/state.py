@@ -139,10 +139,11 @@ class DeviceState:
         if key is None or not isinstance(body, dict):
             _LOGGER.debug("Update not applied to state: %s", message)
             return set()
-        if len(key) == 2:
-            changed = self._apply_device(key[1], body)
-        else:
-            changed = self._apply_node(key, body)
+        match key:
+            case (_, name):
+                changed = self._apply_device(name, body)
+            case _:
+                changed = self._apply_node(key, body)
         self._notify(changed)
         return changed
 
