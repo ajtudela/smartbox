@@ -139,6 +139,8 @@ class NodeProg(BaseModel):
 class NodeVersion(BaseModel):
     """NodeVersion model."""
 
+    model_config = ConfigDict(extra="allow")
+
     hw_version: str
     fw_version: str
     uid: str
@@ -221,6 +223,8 @@ class NodeStatus(
 class Node(BaseModel):
     """Node model."""
 
+    model_config = ConfigDict(extra="allow")
+
     name: str
     addr: int
     type: SmartboxNodeType
@@ -237,6 +241,8 @@ class Nodes(BaseModel):
 class DeviceAwayStatus(BaseModel):
     """DeviceAwayStatus model."""
 
+    model_config = ConfigDict(extra="allow")
+
     enabled: bool
     away: bool
     forced: bool
@@ -244,6 +250,8 @@ class DeviceAwayStatus(BaseModel):
 
 class Device(BaseModel):
     """Device model."""
+
+    model_config = ConfigDict(extra="allow")
 
     dev_id: str
     name: str
@@ -261,6 +269,8 @@ class Devices(BaseModel):
 
 class Home(BaseModel):
     """Home model."""
+
+    model_config = ConfigDict(extra="allow")
 
     id: str
     name: str

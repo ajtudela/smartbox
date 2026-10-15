@@ -6,6 +6,7 @@ from smartbox.models import (
     GuestUser,
     HtrModNodeStatus,
     HtrNodeStatus,
+    Node,
     NodeExtraOptions,
     NodeFactoryOptions,
     NodeSetup,
@@ -332,3 +333,17 @@ def test_devices_invited_to_default():
     devices = Devices.model_validate({"devs": []})
     assert devices.devs == []
     assert devices.invited_to == []
+
+
+def test_structural_models_keep_unknown_keys():
+    """Unknown keys on node/device/home models survive a round-trip."""
+    node = Node.model_validate(
+        {
+            "name": "n",
+            "addr": 1,
+            "type": "htr",
+            "installed": True,
+            "new_field": 7,
+        }
+    )
+    assert node.model_dump()["new_field"] == 7
