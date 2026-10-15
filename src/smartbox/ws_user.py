@@ -28,7 +28,6 @@ from collections.abc import Callable
 import contextlib
 import json
 import logging
-import random
 import time
 from typing import Any
 import urllib.parse
@@ -42,6 +41,7 @@ from smartbox.error import (
 )
 from smartbox.retry import (
     backoff_delay,
+    jittered,
     refresh_auth_with_retry,
     sleep_unless_exiting,
 )
@@ -288,11 +288,9 @@ class WsUserSocketSession:
         The method computes the delay; the caller sleeps it via
         ``_sleep_unless_exiting``.
         """
-        base = backoff_delay(
-            attempt, self._backoff_factor, _MAX_RECONNECT_SLEEP
+        return jittered(
+            backoff_delay(attempt, self._backoff_factor, _MAX_RECONNECT_SLEEP)
         )
-        # Backoff jitter only: not security-sensitive (S311 waived use).
-        return base + 0.2 * base * random.SystemRandom().random()
 
     async def _refresh_auth(self) -> None:
         """Refresh the REST token the URL carries.

@@ -10,6 +10,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
 import logging
+import random
 
 from smartbox.error import APIUnavailableError, InvalidAuthError, SmartboxError
 
@@ -28,6 +29,17 @@ def backoff_delay(attempt: int, factor: float, cap: float) -> float:
     outage must sleep the cap, not crash the retry loop.
     """
     return min(factor * (2 ** min(attempt, _MAX_BACKOFF_EXPONENT)), cap)
+
+
+def jittered(delay: float, spread: float = 0.2) -> float:
+    """Add up to ``spread`` (fraction of ``delay``) of random extra wait.
+
+    Desynchronises clients that all retry after the same outage, which
+    is what stops a reseller incident from turning into a thundering herd
+    when it recovers.
+    """
+    # Backoff jitter only: not security-sensitive (S311 waived use).
+    return delay + spread * delay * random.SystemRandom().random()
 
 
 async def sleep_unless_exiting(event: asyncio.Event, delay: float) -> None:

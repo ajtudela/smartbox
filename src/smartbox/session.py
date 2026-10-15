@@ -43,9 +43,11 @@ from smartbox.models import (
     Token,
 )
 from smartbox.reseller import AvailableResellers, SmartboxReseller
+from smartbox.retry import backoff_delay, jittered
 
 _DEFAULT_RETRY_ATTEMPTS = 5
 _DEFAULT_BACKOFF_FACTOR = 0.1
+_MAX_RETRY_SLEEP = 10.0
 _MIN_TOKEN_LIFETIME = (
     60  # Minimum time left before expiry before we refresh (seconds)
 )
@@ -643,7 +645,11 @@ class AsyncSession:
                     return await self._request(method, url, params=params)
                 except APIUnavailableError as e:
                     remaining = attempts - attempt - 1
-                    sleep_time = self._backoff_factor * (2**attempt)
+                    sleep_time = jittered(
+                        backoff_delay(
+                            attempt, self._backoff_factor, _MAX_RETRY_SLEEP
+                        )
+                    )
                     if remaining == 0 or not _fits_budget(sleep_time):
                         raise
                     _LOGGER.warning(

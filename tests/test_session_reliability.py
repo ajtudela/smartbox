@@ -26,6 +26,7 @@ from smartbox import (
     SmartboxError,
     SmartboxValidationError,
 )
+from smartbox.retry import jittered
 from smartbox.session import AsyncSmartboxSession
 from tests.common import mock_api_response
 
@@ -550,3 +551,10 @@ async def test_token_endpoint_400_is_invalid_auth(async_session):
     ):
         mock_post.side_effect = err
         await async_session.check_refresh_auth()
+
+
+def test_jittered_stays_within_spread():
+    """Jitter only ever adds up to ``spread`` of the base delay."""
+    for _ in range(200):
+        assert 1.0 <= jittered(1.0) <= 1.2
+    assert jittered(0.0) == 0.0
