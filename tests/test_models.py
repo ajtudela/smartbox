@@ -12,6 +12,7 @@ from smartbox.models import (
     NodeSetup,
     NodeStatus,
     PmoSetup,
+    Samples,
 )
 
 
@@ -333,6 +334,45 @@ def test_devices_invited_to_default():
     devices = Devices.model_validate({"devs": []})
     assert devices.devs == []
     assert devices.invited_to == []
+
+
+def test_counter_increments_plain_delta():
+    """Monotonic counters yield plain differences between samples."""
+    samples = Samples.model_validate(
+        {
+            "samples": [
+                {"t": 0, "counter": 10.0, "temp": "20"},
+                {"t": 3600, "counter": 15.5, "temp": "20"},
+                {"t": 7200, "counter": 20.0, "temp": "20"},
+            ]
+        }
+    )
+    assert samples.counter_increments() == [
+        (3600, 5.5, False),
+        (7200, 4.5, False),
+    ]
+
+
+def test_counter_increments_detects_reset_and_sorts():
+    """A drop is a reset (increment = new value), and input order is irrelevant."""
+    samples = Samples.model_validate(
+        {
+            "samples": [
+                {"t": 7200, "counter": 3.0, "temp": "20"},
+                {"t": 0, "counter": 100.0, "temp": "20"},
+                {"t": 3600, "counter": 110.0, "temp": "20"},
+            ]
+        }
+    )
+    assert samples.counter_increments() == [
+        (3600, 10.0, False),
+        (7200, 3.0, True),
+    ]
+
+
+def test_counter_increments_needs_two_samples():
+    """Fewer than two samples produce no increments."""
+    assert Samples(samples=[]).counter_increments() == []
 
 
 def test_structural_models_keep_unknown_keys():

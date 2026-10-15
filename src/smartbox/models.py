@@ -1,6 +1,7 @@
 """Pydantic model of smartbox."""
 
 from enum import StrEnum
+from itertools import pairwise
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, RootModel
@@ -285,7 +286,11 @@ class Homes(RootModel[list[Home]]):
 
 
 class Sample(BaseModel):
-    """Sample model: temperature history (t, counter, temp)."""
+    """Sample model: temperature history (t, counter, temp).
+
+    ``counter`` is a cumulative reading that may reset to zero; see
+    ``Samples.counter_increments``.
+    """
 
     t: int
     counter: float
@@ -305,6 +310,35 @@ class Samples(BaseModel):
     """Samples model."""
 
     samples: list[PmoSample | Sample]
+
+    def counter_increments(self) -> list[tuple[int, float, bool]]:
+        """Per-interval counter increments with counter-reset detection.
+
+        ``counter`` is a cumulative reading that can restart from zero
+        (device reboot, firmware update). A drop between two consecutive
+        samples is therefore a reset, never negative consumption.
+
+        Returns
+        -------
+        list[tuple[int, float, bool]]
+            One ``(t, increment, reset)`` per sample after the first, in
+            timestamp order. On a reset the increment is the new counter
+            value (what accrued since the restart) and ``reset`` is
+            ``True`` so the consumer can decide whether to trust it. The
+            raw ``samples`` are left untouched.
+
+        """
+        ordered = sorted(self.samples, key=lambda sample: sample.t)
+        increments: list[tuple[int, float, bool]] = []
+        for previous, current in pairwise(ordered):
+            reset = current.counter < previous.counter
+            delta = (
+                current.counter
+                if reset
+                else (current.counter - previous.counter)
+            )
+            increments.append((current.t, delta, reset))
+        return increments
 
 
 class Token(BaseModel):
