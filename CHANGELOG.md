@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### New
+* `Samples.counter_increments()`: per-interval consumption increments
+  with counter-reset detection (a drop is a reset, never negative
+  consumption); the raw `counter` values are untouched.
+* `smartbox.retry.jittered()`: shared jitter helper for retry delays.
+
+### Changed
+* REST GET retries now use capped (10 s) exponential backoff with up to
+  +20 % jitter, so clients do not retry in lockstep after a reseller
+  outage. `ws_user` reuses the same helper.
+* `Node`, `NodeVersion`, `Device`, `Home` and `DeviceAwayStatus` keep
+  unknown keys (`extra="allow"`) so new reseller fields are not lost.
+
+### Docs
+* README documents why the OAuth password grant is used and how
+  credentials are handled.
+
 ## 2.7.0
 
 ### New
