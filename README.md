@@ -53,6 +53,10 @@ async with AsyncSmartboxSession(...) as session:
     await manager.run()   # runs until cancelled
 ```
 
+## Authentication
+
+The reseller APIs only offer the OAuth *password* grant (username and password exchanged for an access/refresh token pair), so that is the flow `smartbox` uses; no other flow is available. The grant is deprecated in current OAuth guidance, which is why the package keeps the exposure small: the password is only used to log in and as a fallback when the refresh token is rejected, and `token`, `pass`, `password` and `user_id` are redacted from debug logs and logged URLs. Even so, review any log before pasting it in an issue.
+
 ## Websocket transports
 
 Status updates arrive over one of two transports; both are implemented
