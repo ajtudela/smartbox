@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### New
+* `smartbox.state` (sans-I/O): `DeviceState` replica of one device,
+  `apply_merge_patch()` (RFC 7386), `route_update()` and the comparable
+  `DeviceSnapshot`. `UpdateManager.state` feeds it from every
+  `dev_data`/`update` frame; opt-in, existing subscriptions are
+  untouched.
 * `Samples.counter_increments()`: per-interval consumption increments
   with counter-reset detection (a drop is a reset, never negative
   consumption); the raw `counter` values are untouched.
