@@ -17,6 +17,7 @@ from smartbox.error import (
 )
 from smartbox.session import AsyncSmartboxSession
 from smartbox.socket import SocketSession
+from smartbox.state import DeviceState
 from smartbox.ws_user import WsUserSocketSession
 
 _LOGGER = logging.getLogger(__name__)
@@ -213,6 +214,9 @@ class UpdateManager:
                 self._update_cb,
                 **kwargs,
             )
+        # Replica of the device state; created on first use so consumers
+        # that never ask for it pay nothing per frame.
+        self._state: DeviceState | None = None
         self._dev_data_subscriptions: list[DevDataSubscription] = []
         self._update_subscriptions: list[UpdateSubscription] = []
         # Node-availability tracking (see subscribe_to_node_availability).
@@ -241,6 +245,17 @@ class UpdateManager:
     def ws_user_socket(self) -> WsUserSocketSession | None:
         """The shared per-user socket (None in socket_io mode)."""
         return self._ws_user_socket
+
+    @property
+    def state(self) -> DeviceState:
+        """Replica of the device state, fed by every dev_data/update frame.
+
+        Created on first access: frames received before that are not
+        replayed, so access it before calling :meth:`run`.
+        """
+        if self._state is None:
+            self._state = DeviceState()
+        return self._state
 
     async def run(self) -> None:
         """Run the socket session asynchronously, waiting for updates.
@@ -721,6 +736,8 @@ class UpdateManager:
                 )
 
     def _dev_data_cb(self, data: dict[str, Any]) -> None:
+        if self._state is not None:
+            self._state.apply_dev_data(data)
         for sub in self._dev_data_subscriptions:
             sub.match(data)
 
@@ -730,6 +747,8 @@ class UpdateManager:
             # the loop a malformed update was logged once per subscription.
             _LOGGER.error("Path not found in update data: %s", data)
             return
+        if self._state is not None:
+            self._state.apply_update(data)
         matched = False
         for sub in self._update_subscriptions:
             if sub.match(data):
