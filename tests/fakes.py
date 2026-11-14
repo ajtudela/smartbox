@@ -12,7 +12,7 @@ import json
 from typing import TYPE_CHECKING
 
 import aiohttp
-from multidict import CIMultiDict
+from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
 from smartbox.protocol.ws_user import TokenSource, WsCredentials
@@ -20,6 +20,17 @@ from smartbox.protocol.ws_user import TokenSource, WsCredentials
 if TYPE_CHECKING:
     import asyncio
     from typing import Any
+
+
+def make_request_info(url: str = "https://api.smartbox.invalid/") -> aiohttp.RequestInfo:
+    """Build a minimal real ``RequestInfo`` for the fakes' raised errors.
+
+    Recent aiohttp stubs reject ``request_info=None``; the source under
+    test only reads ``status``/``message``, but the errors stay realistic.
+    """
+    parsed = URL(url)
+    headers = CIMultiDictProxy[str](CIMultiDict[str]())
+    return aiohttp.RequestInfo(parsed, "GET", headers, parsed)
 
 
 def make_jwt(claims: dict) -> str:
@@ -48,7 +59,8 @@ class FakeResponse:
     (a real ``resp.json()`` then raises ``json.JSONDecodeError``).
     """
 
-    content_type = "application/json"
+    content_type: str = "application/json"
+    content_length: int | None
 
     def __init__(
         self,
@@ -64,7 +76,7 @@ class FakeResponse:
     def raise_for_status(self) -> None:
         if self.status >= 400:
             raise aiohttp.ClientResponseError(
-                request_info=None,
+                request_info=make_request_info(),
                 history=(),
                 status=self.status,
                 message="http error",
@@ -75,7 +87,7 @@ class FakeResponse:
             raise self.json_error
         if self.payload is None:
             raise aiohttp.ContentTypeError(
-                request_info=None,
+                request_info=make_request_info(),
                 history=(),
                 status=self.status,
                 message="no body",
@@ -206,9 +218,8 @@ class _WsCtx:
         if session.script:
             item = session.script.popleft()
             if isinstance(item, HandshakeRejected):
-                url = URL(self._url)
                 raise aiohttp.ClientResponseError(
-                    request_info=aiohttp.RequestInfo(url, "GET", CIMultiDict(), url),
+                    request_info=make_request_info(self._url),
                     history=(),
                     status=item.status,
                     message="handshake rejected",

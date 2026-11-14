@@ -73,7 +73,9 @@ markers = [
 [tool.coverage.run]
 # The CLI is an optional extra; it is exercised manually against the live API
 # and by the `--help`/reseller smoke tests, not by the core coverage gate.
-omit = ["src/smartbox/cli.py"]
+# The `*/` prefix matches both the src tree and the copy installed by tox
+# (site-packages), which is what pytest-cov actually measures under tox.
+omit = ["*/smartbox/cli.py"]
 
 [tool.coverage.report]
 fail_under = 95

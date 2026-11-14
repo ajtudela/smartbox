@@ -31,6 +31,7 @@ from tests.fakes import (
     HandshakeRejected,
     SleepController,
     make_jwt,
+    make_request_info,
 )
 from tests.utils import assert_backoff_delays, live_fixture
 
@@ -196,7 +197,10 @@ class _NonJsonBody(FakeResponse):
 
     async def json(self, _content_type: str | None = None) -> object:
         raise aiohttp.ContentTypeError(
-            request_info=None, history=(), status=self.status, message="not json"
+            request_info=make_request_info(),
+            history=(),
+            status=self.status,
+            message="not json",
         )
 
 
