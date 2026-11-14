@@ -256,13 +256,11 @@ For questions about the API itself rather than this library, see the wire record
 If this library is useful to you, you can buy the maintainers a coffee:
 
 [![Buy a coffee to ajtudela][buymeacoffee-shield]][buymeacoffee-ajtudela]
-[![Buy a coffee to delmael][buymeacoffee-shield]][buymeacoffee-delmael]
 
 [buymeacoffee-ajtudela]: https://www.buymeacoffee.com/ajtudela
-[buymeacoffee-delmael]: https://www.buymeacoffee.com/delmael
 
 [buymeacoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
 
 ## Credits
 
-The original library and the 2.7.x line are by Alberto Tudela, Delmael, graham33 and the upstream contributors. This fork carries the 3.0 rewrite; upstream collaboration is welcome.
+The original library and the 2.7.x line are by Alberto Tudela, Delmael, graham33 and the upstream contributors. The 3.0 rewrite is by Jan Dado ([jandado](https://github.com/jandado)); upstream collaboration is welcome.
