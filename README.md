@@ -263,4 +263,4 @@ If this library is useful to you, you can buy the maintainers a coffee:
 
 ## Credits
 
-The original library and the 2.7.x line are by Alberto Tudela, Delmael, graham33 and the upstream contributors. The 3.0 rewrite is by Jan Dado ([jandado](https://github.com/jandado)); upstream collaboration is welcome.
+The original library and the 2.7.x line are by Alberto Tudela, [Delmael](https://github.com/Delmael), graham33 and the upstream contributors. The 3.0 rewrite is by Jan Dado ([jandado](https://github.com/jandado)); upstream collaboration is welcome.

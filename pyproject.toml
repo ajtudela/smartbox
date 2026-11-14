@@ -4,11 +4,12 @@ version = "3.0.0"
 requires-python = ">=3.14.2"
 authors = [
   { name="Alberto Tudela", email="ajtudela@gmail.com" },
+  { name="Jan Dado" },
   { name="Delmael", email="delmael@outlook.com" },
   { name="graham33", email="graham@grahambennett.org" },
 ]
 maintainers = [
-  { name="Jan Dado" },
+  { name="Alberto Tudela" },
 ]
 description = "Python API to control heating 'smart boxes'"
 readme = "README.md"
@@ -31,8 +32,8 @@ cli = ["asyncclick"]
 smartbox = "smartbox.cli:cli"
 
 [project.urls]
-Homepage = "https://github.com/jandado/smartbox"
-Issues = "https://github.com/jandado/smartbox/issues"
+Homepage = "https://github.com/ajtudela/smartbox"
+Issues = "https://github.com/ajtudela/smartbox/issues"
 Upstream = "https://github.com/ajtudela/smartbox"
 
 [build-system]
