@@ -28,6 +28,7 @@ from .protocol import (
     ManagedTokenSource,
     NodeRef,
     SmartboxClient,
+    SmartboxReseller,
     WriteApi,
     WsUserTransport,
     api_base_url,
@@ -45,6 +46,14 @@ def _pretty_print(data: object) -> None:
         click.echo(json.dumps(data, indent=4, sort_keys=True, default=str))
     else:
         click.echo(repr(data))
+
+
+def _api_base_url(reseller: SmartboxReseller, override: str | None) -> str:
+    """Return the reseller base URL, or a normalized --api-host override."""
+    if not override:
+        return api_base_url(reseller)
+    override = override.rstrip("/")
+    return override if "://" in override else f"https://{override}"
 
 
 def _find_dotenv() -> Path | None:
@@ -112,8 +121,10 @@ async def _client(ctx: click.Context) -> SmartboxClient:
         ).reseller
     except ResellerNotExistError as err:
         raise click.ClickException(str(err)) from err
+    base_url = _api_base_url(reseller, ctx.obj["api_host"])
+    ctx.obj["api_base_url"] = base_url
     config = AuthConfig(
-        api_host=api_base_url(),
+        api_host=base_url,
         basic_auth_creds=ctx.obj["basic_auth_creds"]
         or reseller.basic_auth
         or SMARTBOX_GENERIC_BASIC_AUTH,
@@ -179,6 +190,7 @@ class _SmartboxGroup(click.Group):
 @click.option("-p", "--password", envvar="SMARTBOX_PASSWORD", hide_input=True)
 @click.option("-r", "--x-referer", envvar="SMARTBOX_X_REFERER")
 @click.option("-i", "--x-serial-id", envvar="SMARTBOX_X_SERIAL_ID", type=int)
+@click.option("--api-host", envvar="SMARTBOX_API_HOST")
 @click.option("-v", "--verbose", is_flag=True)
 @click.pass_context
 async def smartbox(
@@ -189,6 +201,7 @@ async def smartbox(
     password: str | None,
     x_referer: str | None,
     x_serial_id: int | None,
+    api_host: str | None,
     verbose: bool,
 ) -> None:
     """Smartbox API command line."""
@@ -203,6 +216,7 @@ async def smartbox(
         "password": password,
         "x_referer": x_referer,
         "x_serial_id": x_serial_id,
+        "api_host": api_host,
         "verbose": verbose,
     }
 
@@ -560,10 +574,41 @@ async def api_version(ctx: click.Context) -> None:
     _pretty_print(await (await _client(ctx)).get_api_version())
 
 
-@smartbox.command(help="List the known resellers")
+@smartbox.command(help="List known resellers and their connection details")
 def resellers() -> None:
-    for key, reseller in AvailableResellers.resellers.items():
-        click.echo(f"{key}: {reseller.name} (api_url: {reseller.api_url})")
+    rows = list(AvailableResellers.resellers.items())
+    key_w = max(len("key"), *(len(key) for key, _ in rows))
+    name_w = max(len("brand"), *(len(r.name) for _, r in rows))
+    brand_w = max(len("brand key"), *(len(r.api_url) for _, r in rows))
+    host_w = max(len("API host"), *(len(r.api_host) for _, r in rows))
+    serial_w = max(len("serial"), *(len(str(r.serial_id)) for _, r in rows))
+    basic_w = len("generic")
+    header = (
+        f"  {'key':<{key_w}}  {'brand':<{name_w}}  "
+        f"{'brand key':<{brand_w}}  {'API host':<{host_w}}  "
+        f"{'serial':>{serial_w}}  {'basic':<{basic_w}}  referer"
+    )
+    click.echo(header)
+    click.echo("  " + "-" * (len(header) - 2))
+    for key, reseller in rows:
+        basic = (
+            "generic"
+            if reseller.basic_auth == SMARTBOX_GENERIC_BASIC_AUTH
+            else "custom"
+        )
+        click.echo(
+            f"  {key:<{key_w}}  {reseller.name:<{name_w}}  "
+            f"{reseller.api_url:<{brand_w}}  {reseller.api_host:<{host_w}}  "
+            f"{reseller.serial_id:>{serial_w}}  {basic:<{basic_w}}  "
+            f"{reseller.web_url or '-'}"
+        )
+
+    click.echo()
+    click.echo(
+        "API hosts are HTTPS. Basic is 'generic' for the shared app credential "
+        "or 'custom' for a tenant-specific one; the credential value is not "
+        "printed."
+    )
 
 
 @smartbox.command(help="Show the guests of a home")
@@ -591,7 +636,9 @@ async def listen(ctx: click.Context, device_id: str | None) -> None:
         elif isinstance(event, SocketClosed):
             click.echo(f"closed code={event.code} expected={event.expected}")
 
-    transport = WsUserTransport(ManagedTokenSource(client.auth), api_base_url())
+    transport = WsUserTransport(
+        ManagedTokenSource(client.auth), ctx.obj["api_base_url"]
+    )
     transport.subscribe(on_event)
     try:
         await transport.run()

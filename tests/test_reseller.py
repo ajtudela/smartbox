@@ -11,6 +11,17 @@ from smartbox.protocol.reseller import API_HOST, AvailableResellers, api_base_ur
 def test_api_base_url_uses_the_current_host():
     assert API_HOST == "users-api.helki.com"
     assert api_base_url() == f"https://{API_HOST}"
+    assert api_base_url(AvailableResellers("api").reseller) == f"https://{API_HOST}"
+
+
+def test_api_base_url_uses_the_reseller_host():
+    elnur = AvailableResellers("api-elnur").reseller
+    assert elnur.api_host == "api-elnur.helki.com"
+    assert api_base_url(elnur) == "https://api-elnur.helki.com"
+
+    ehc = AvailableResellers("api-ehc").reseller
+    assert ehc.api_host == "api-ehc.helki.com"
+    assert api_base_url(ehc) == "https://api-ehc.helki.com"
 
 
 def test_known_reseller():

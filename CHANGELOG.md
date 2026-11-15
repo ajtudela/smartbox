@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+* Elnur uses `api-elnur.helki.com` and the legacy EHC row carries
+  `api-ehc.helki.com`; `api_base_url()` now accepts a reseller and honors its
+  per-reseller host. The CLI gained `--api-host` for manual checks, and
+  `resellers` now prints all connection details in one table with an API-host
+  column, with the Basic credential summarized as generic/custom rather than
+  printed.
+
 ## 3.0.0
 
 First stable release of the standalone protocol/core library used by the 3.x
