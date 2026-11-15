@@ -17,7 +17,7 @@ from typing import Any
 
 from .errors import AuthError
 
-__all__ = ["jwt_expiry", "jwt_user_id"]
+__all__ = ["jwt_account_matches", "jwt_expiry", "jwt_user_id"]
 
 _JWT_SEGMENTS = 3
 
@@ -49,6 +49,28 @@ def jwt_expiry(token: str) -> float | None:
     if not math.isfinite(exp):
         return None
     return float(exp)
+
+
+def jwt_account_matches(token: str, *, email: str, serial_id: str) -> bool:
+    """Whether a JWT's account claims are compatible with the configured account.
+
+    Returns ``False`` only on a definite conflict between a present claim and
+    the ``AuthConfig`` (email case-insensitive, serial compared as text).
+    Opaque or claim-less tokens pass: this is a guard against seeding a bundle
+    granted to another account, not a signature check.
+    """
+    claims = _decode_claims(token)
+    if claims is None:
+        return True
+    claimed_email = claims.get("email")
+    if (
+        isinstance(claimed_email, str)
+        and claimed_email
+        and claimed_email.casefold() != email.casefold()
+    ):
+        return False
+    claimed_serial = claims.get("serialId")
+    return claimed_serial is None or str(claimed_serial) == str(serial_id)
 
 
 def jwt_user_id(token: str) -> str:

@@ -595,3 +595,244 @@ async def test_token_expiry_tracks_cached_bundle(sleeps, session):
     manager = make_manager(session)
     bundle = await manager.get_token()
     assert manager.token_expiry == bundle.expires_at
+
+
+# --- persistence seam (initial_tokens + on_grant) ---
+
+
+def stored_bundle(
+    access: str = JWT_U1, refresh: str = "rt1", lifetime_s: float = 14400
+) -> TokenBundle:
+    return TokenBundle(
+        access_token=access,
+        refresh_token=refresh,
+        expires_at=dt.datetime.now(dt.UTC) + dt.timedelta(seconds=lifetime_s),
+    )
+
+
+async def test_initial_tokens_skip_the_grant(sleeps, session):
+    seen: list[TokenBundle] = []
+
+    async def collect(tokens: TokenBundle) -> None:
+        seen.append(tokens)
+
+    manager = TokenManager(
+        CONFIG, session=session, initial_tokens=stored_bundle(), on_grant=collect
+    )
+    bundle = await manager.get_token()
+    assert bundle.access_token == JWT_U1
+    assert grant_calls(session) == []
+    assert manager.seed_accepted is True
+    assert manager.last_grant is None
+    assert seen == []
+
+
+async def test_expired_initial_tokens_run_a_refresh_grant(sleeps, session):
+    session.enqueue(grant(GRANT_U2))
+    manager = TokenManager(
+        CONFIG, session=session, initial_tokens=stored_bundle(lifetime_s=-60)
+    )
+    bundle = await manager.get_token()
+    assert bundle.access_token == JWT_U2
+    assert manager.seed_accepted is True
+    assert manager.last_grant == "refresh"
+    calls = grant_calls(session)
+    assert len(calls) == 1
+    assert calls[0]["data"] == {"grant_type": "refresh_token", "refresh_token": "rt1"}
+
+
+async def test_on_grant_receives_password_and_rotated_refresh(sleeps, session):
+    seen: list[TokenBundle] = []
+
+    async def collect(tokens: TokenBundle) -> None:
+        seen.append(tokens)
+
+    session.enqueue(grant(GRANT_U1))
+    session.enqueue(grant(GRANT_U2))
+    manager = TokenManager(CONFIG, session=session, on_grant=collect)
+    first = await manager.get_token()
+    await manager.invalidate(first.access_token)
+    second = await manager.get_token()
+    assert [b.refresh_token for b in seen] == ["rt1", "rt2"]
+    assert seen[-1] is second
+
+
+async def test_on_grant_receives_the_password_fallback(sleeps, session):
+    """A dead refresh token is replaced by a password grant that is persisted."""
+    seen: list[TokenBundle] = []
+
+    async def collect(tokens: TokenBundle) -> None:
+        seen.append(tokens)
+
+    session.enqueue(grant(GRANT_U1))
+    session.enqueue(FakeResponse(status=401))
+    session.enqueue(grant(GRANT_U2))
+    manager = TokenManager(CONFIG, session=session, on_grant=collect)
+    await manager.get_token()
+    bundle = await manager.get_token(min_lifetime_s=10**9)
+    assert bundle.access_token == JWT_U2
+    assert [b.access_token for b in seen] == [JWT_U1, JWT_U2]
+
+
+async def test_on_grant_receives_reauthentication(sleeps, session):
+    seen: list[TokenBundle] = []
+
+    async def collect(tokens: TokenBundle) -> None:
+        seen.append(tokens)
+
+    session.enqueue(grant(GRANT_U1))
+    session.enqueue(grant(GRANT_U2))
+    manager = TokenManager(CONFIG, session=session, on_grant=collect)
+    await manager.get_token()
+    bundle = await manager.reauthenticate()
+    assert seen[-1] is bundle
+
+
+async def test_on_grant_failure_is_logged_and_never_breaks_auth(
+    sleeps, session, caplog
+):
+    async def explode(_: TokenBundle) -> None:
+        msg = "disk full"
+        raise RuntimeError(msg)
+
+    session.enqueue(grant(GRANT_U1))
+    manager = TokenManager(CONFIG, session=session, on_grant=explode)
+    with caplog.at_level(logging.WARNING, logger="smartbox.protocol.auth"):
+        bundle = await manager.get_token()
+    assert bundle.access_token == JWT_U1
+    assert "token persistence failed (RuntimeError)" in caplog.text
+
+
+async def test_slow_persistence_does_not_consume_the_acquisition_budget(
+    sleeps, session, monkeypatch
+):
+    """The callback runs outside the acquisition timeout (a slow disk is not auth)."""
+
+    async def slow(_: TokenBundle) -> None:
+        await asyncio.sleep(0.1)
+
+    session.enqueue(grant(GRANT_U1))
+    manager = TokenManager(CONFIG, session=session, on_grant=slow)
+    monkeypatch.setattr(auth_mod, "_CALL_TIMEOUT", 0.5)
+    bundle = await manager.get_token()
+    assert bundle.access_token == JWT_U1
+
+
+async def test_persistence_is_bounded_and_logged(sleeps, session, caplog, monkeypatch):
+    """A wedged callback is cut off; the granted token is still returned."""
+
+    async def stuck(_: TokenBundle) -> None:
+        await asyncio.sleep(5)
+
+    session.enqueue(grant(GRANT_U1))
+    manager = TokenManager(CONFIG, session=session, on_grant=stuck)
+    monkeypatch.setattr(auth_mod, "_PERSIST_TIMEOUT", 0.01)
+    with caplog.at_level(logging.WARNING, logger="smartbox.protocol.auth"):
+        bundle = await manager.get_token()
+    assert bundle.access_token == JWT_U1
+    assert "token persistence failed (TimeoutError)" in caplog.text
+
+
+# --- TokenBundle record codec ---
+
+
+def test_token_bundle_rejects_a_naive_expiry():
+    with pytest.raises(ValueError, match="timezone-aware"):
+        TokenBundle(
+            access_token=JWT_U1,
+            refresh_token="rt1",
+            expires_at=dt.datetime(2030, 1, 1),
+        )
+
+
+def test_token_bundle_record_roundtrip():
+    bundle = stored_bundle(access="a", refresh="r")
+    assert TokenBundle.from_record(bundle.to_record()) == bundle
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        {},
+        {"access_token": "a", "refresh_token": "r"},
+        {
+            "access_token": "",
+            "refresh_token": "r",
+            "expires_at": "2030-01-01T00:00:00+00:00",
+        },
+        {
+            "access_token": "a",
+            "refresh_token": "",
+            "expires_at": "2030-01-01T00:00:00+00:00",
+        },
+        {"access_token": "a", "refresh_token": "r", "expires_at": "soon"},
+        {"access_token": "a", "refresh_token": "r", "expires_at": 5},
+        # Naive timestamps are rejected by TokenBundle.__post_init__.
+        {
+            "access_token": "a",
+            "refresh_token": "r",
+            "expires_at": "2030-01-01T00:00:00",
+        },
+    ],
+)
+def test_token_bundle_from_record_rejects_bad_shapes(record):
+    with pytest.raises(ValueError):
+        TokenBundle.from_record(record)
+
+
+# --- seeded-token account validation ---
+
+
+def account_jwt(email: str | None = None, serial: object = None) -> str:
+    claims: dict[str, object] = {"userId": "u1", "exp": 9999999999}
+    if email is not None:
+        claims["email"] = email
+    if serial is not None:
+        claims["serialId"] = serial
+    return make_jwt(claims)
+
+
+async def test_seeded_tokens_for_another_email_are_ignored(sleeps, session):
+    session.enqueue(grant(GRANT_U2))
+    manager = TokenManager(
+        CONFIG,
+        session=session,
+        initial_tokens=stored_bundle(access=account_jwt("other@example.test", "1234")),
+    )
+    assert manager.seed_accepted is False
+    bundle = await manager.get_token()
+    assert bundle.access_token == JWT_U2
+    assert manager.last_grant == "password"
+    assert grant_calls(session)[0]["data"]["grant_type"] == "password"
+
+
+async def test_seeded_tokens_for_another_serial_are_ignored(sleeps, session):
+    session.enqueue(grant(GRANT_U2))
+    manager = TokenManager(
+        CONFIG,
+        session=session,
+        initial_tokens=stored_bundle(access=account_jwt("user@example.test", "999")),
+    )
+    bundle = await manager.get_token()
+    assert bundle.access_token == JWT_U2
+
+
+async def test_seeded_tokens_for_the_same_account_skip_the_grant(sleeps, session):
+    manager = TokenManager(
+        CONFIG,
+        session=session,
+        initial_tokens=stored_bundle(access=account_jwt("User@Example.test", 1234)),
+    )
+    bundle = await manager.get_token()
+    assert bundle.access_token == account_jwt("User@Example.test", 1234)
+    assert grant_calls(session) == []
+
+
+async def test_opaque_seeded_tokens_are_accepted(sleeps, session):
+    """A non-JWT token cannot be checked; it is used as stored."""
+    manager = TokenManager(
+        CONFIG, session=session, initial_tokens=stored_bundle(access="opaque")
+    )
+    bundle = await manager.get_token()
+    assert bundle.access_token == "opaque"
+    assert grant_calls(session) == []

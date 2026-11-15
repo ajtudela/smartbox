@@ -36,6 +36,7 @@ from .protocol import (
 from .protocol.errors import ResellerNotExistError, SmartboxError
 from .protocol.events import Event, Snapshot, SocketClosed, Update
 from .protocol.reseller import SMARTBOX_GENERIC_BASIC_AUTH
+from .token_cache import FileTokenCache, account_stamp, default_cache_path
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,7 +138,33 @@ async def _client(ctx: click.Context) -> SmartboxClient:
         password=password,
         referer=ctx.obj["x_referer"] or reseller.web_url or None,
     )
-    client = SmartboxClient(config)
+    cache: FileTokenCache | None = None
+    stored = None
+    cache_enabled = bool(ctx.obj["token_cache"])
+    if cache_enabled or ctx.obj["forget_tokens"]:
+        cache_path = (
+            Path(ctx.obj["token_cache_path"])
+            if ctx.obj["token_cache_path"]
+            else default_cache_path(api_name, config.serial_id, username, base_url)
+        )
+        cache = FileTokenCache(
+            cache_path,
+            account=account_stamp(api_name, config.serial_id, username, base_url),
+        )
+    if ctx.obj["forget_tokens"] and cache is not None and not await cache.async_clear():
+        click.echo(f"warning: could not remove {cache.path}", err=True)
+    if cache_enabled and cache is not None:
+        stored = await cache.async_load()
+        if stored is not None:
+            _LOGGER.debug(
+                "Resuming the cached session; the password grant is skipped "
+                "(use --forget-tokens to force a login)."
+            )
+    client = SmartboxClient(
+        config,
+        initial_tokens=stored,
+        on_grant=cache.async_save if cache_enabled and cache is not None else None,
+    )
     ctx.obj["client"] = client
     return client
 
@@ -191,6 +218,21 @@ class _SmartboxGroup(click.Group):
 @click.option("-r", "--x-referer", envvar="SMARTBOX_X_REFERER")
 @click.option("-i", "--x-serial-id", envvar="SMARTBOX_X_SERIAL_ID", type=int)
 @click.option("--api-host", envvar="SMARTBOX_API_HOST")
+@click.option(
+    "--token-cache/--no-token-cache",
+    default=True,
+    help="Persist the refresh token between invocations.",
+)
+@click.option(
+    "--token-cache-path",
+    envvar="SMARTBOX_TOKEN_CACHE",
+    help="Per-account cache file under $XDG_CACHE_HOME/smartbox (default).",
+)
+@click.option(
+    "--forget-tokens",
+    is_flag=True,
+    help="Delete the cached session before running (a fresh grant is cached).",
+)
 @click.option("-v", "--verbose", is_flag=True)
 @click.pass_context
 async def smartbox(
@@ -202,6 +244,9 @@ async def smartbox(
     x_referer: str | None,
     x_serial_id: int | None,
     api_host: str | None,
+    token_cache: bool,
+    token_cache_path: str | None,
+    forget_tokens: bool,
     verbose: bool,
 ) -> None:
     """Smartbox API command line."""
@@ -217,6 +262,9 @@ async def smartbox(
         "x_referer": x_referer,
         "x_serial_id": x_serial_id,
         "api_host": api_host,
+        "token_cache": token_cache,
+        "token_cache_path": token_cache_path,
+        "forget_tokens": forget_tokens,
         "verbose": verbose,
     }
 
@@ -231,6 +279,52 @@ async def devices(ctx: click.Context) -> None:
 @click.pass_context
 async def homes(ctx: click.Context) -> None:
     _pretty_print(await (await _client(ctx)).get_grouped_devices())
+
+
+def _mask_identifier(value: object, keep: int = 8) -> str:
+    """Shorten a session identifier so a row stays readable without the full sid."""
+    text = str(value or "")
+    return text if len(text) <= keep else text[:keep] + "…"
+
+
+def _session_rows(payload: object) -> list[dict[str, Any]]:
+    """Accept the raw list or ``{sessions: [...]}`` envelope."""
+    if isinstance(payload, dict):
+        rows = payload.get("sessions")
+        return (
+            [row for row in rows if isinstance(row, dict)]
+            if isinstance(rows, list)
+            else []
+        )
+    if isinstance(payload, list):
+        return [row for row in payload if isinstance(row, dict)]
+    return []
+
+
+@smartbox.command(help="Show active account sessions")
+@click.option("--json", "as_json", is_flag=True, help="Print the raw payload.")
+@click.option(
+    "--limit", type=int, default=20, show_default=True, help="Rows to show; 0 = all."
+)
+@click.pass_context
+async def sessions(ctx: click.Context, as_json: bool, limit: int) -> None:
+    payload = await (await _client(ctx)).get_sessions()
+    if as_json:
+        _pretty_print(payload)
+        return
+    rows = _session_rows(payload)
+    rows.sort(key=lambda row: str(row.get("createdAt") or ""), reverse=True)
+    if limit > 0:
+        rows = rows[:limit]
+    click.echo(f"{'sid':10} {'created':26} {'last used':26} {'device':30} current")
+    for row in rows:
+        click.echo(
+            f"{_mask_identifier(row.get('sid'), 8):10} "
+            f"{row.get('createdAt') or '-'!s:26} "
+            f"{row.get('lastUsedAt') or '-'!s:26} "
+            f"{str(row.get('userAgent') or '-')[:30]:30} "
+            f"{'*' if row.get('current') else ''}"
+        )
 
 
 @smartbox.command(help="Show nodes")
