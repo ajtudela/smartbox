@@ -26,15 +26,16 @@ The base package only depends on `aiohttp`; the CLI pulls in `asyncclick`. The p
 ```python
 import asyncio
 
-from smartbox.protocol import API_HOST, AuthConfig, SmartboxClient
+from smartbox.protocol import AuthConfig, AvailableResellers, SmartboxClient, api_base_url
 
+reseller = AvailableResellers("api").reseller
 CONFIG = AuthConfig(
-    api_host=API_HOST,             # or "api-<reseller>" for a reseller host
-    basic_auth_creds="cmVzZWxsZXJfc2VjcmV0",  # the reseller's base64 Basic auth
-    serial_id="1",
+    api_host=api_base_url(reseller),  # honors the row's host (Elnur: api-elnur)
+    basic_auth_creds=reseller.basic_auth,
+    serial_id=str(reseller.serial_id),
     username="you@example.com",
     password="secret",
-    referer="https://app.helki.com/",
+    referer=reseller.web_url or None,
 )
 
 async def main() -> None:
@@ -60,7 +61,7 @@ node = NodeRef(node_type="htr_mod", addr="1")
 await writes.set_setpoint("mydev", node, 21.5, "C")
 ```
 
-For a reseller that is not built in, the identity travels in the `AuthConfig` headers (`basic_auth_creds`, `serial_id`, `referer`) against the reseller's `api_host`; see [`smartbox resellers`](#smartbox-command-line-tool) for the built-in list.
+For a reseller that is not built in, the identity travels in the `AuthConfig` headers (`basic_auth_creds`, `serial_id`, `referer`) against the reseller's `api_host`; see [`smartbox resellers`](#smartbox-command-line-tool) for the built-in list. The built-in table carries the per-reseller host: `api_base_url(reseller)` is the supported way to build `AuthConfig.api_host`. Elnur is the `ws_user` exception to the shared `users-api` host; the legacy EHC row carries `api-ehc.helki.com`, but its `socket.io` transport is not supported by 3.x.
 
 ## Live updates over websocket (`ws_user`)
 
@@ -69,9 +70,15 @@ Status updates arrive over the vendor web apps' channel: ONE plain-WebSocket con
 The transport never interprets frames: it owns liveness (heartbeat), the reconnect policy (fresh token per connect, jittered exponential backoff) and dispatches typed events (`Snapshot`, `Update`, `SocketClosed`) to the handler you `subscribe()`:
 
 ```python
-from smartbox.protocol import ManagedTokenSource, WsUserTransport, api_base_url
+from smartbox.protocol import (
+    AvailableResellers,
+    ManagedTokenSource,
+    WsUserTransport,
+    api_base_url,
+)
 
-transport = WsUserTransport(ManagedTokenSource(client.auth), api_base_url())
+reseller = AvailableResellers("api").reseller
+transport = WsUserTransport(ManagedTokenSource(client.auth), api_base_url(reseller))
 
 async def on_event(event) -> None:
     print(event)
@@ -111,12 +118,13 @@ Use the `smartbox` tool to read status information from your heaters (nodes) and
 
 `-u`/`--username` and `-p`/`--password` (your mobile-app / web-app credentials) are required for every command except `resellers`. `-v`/`--verbose` enables debug logging.
 
-These are only needed when your reseller is not built into the package:
+These are only needed when your reseller is not built into the package, or when a built-in row's host has moved:
 
-* `-a`/`--api-name`: the API name for your heater vendor, from the 'API Host' entry under the 'Version' menu of the mobile/web app. For a host `api-foo.xxxx` or `api.xxxx` use `api-foo` or `api`.
+* `-a`/`--api-name`: the brand key for your heater vendor, from the 'API Host' entry under the 'Version' menu of the mobile/web app. The built-in row selects the tenant credentials and host; use `--api-host` if the host differs.
 * `-b`/`--basic-auth-creds`: the HTTP Basic Auth credential used for the initial authentication, as a base64 string. To capture it: open your reseller's web app with the browser's network tab, log in, and read the `POST .../api/v2/client/token` request headers.
 * `-r`/`--x-referer`: the `x-referer` header value.
 * `-i`/`--x-serial-id`: the `x-serialid` header value.
+* `--api-host`: override the API host (hostname or full `https://` URL); defaults to the reseller row. Useful when a tenant moves to a different host.
 
 ### Configuration via environment variables / `.env`
 
@@ -130,6 +138,7 @@ Every option above can be supplied through an environment variable instead of be
 | `-p`/`--password`         | `SMARTBOX_PASSWORD`         |
 | `-r`/`--x-referer`        | `SMARTBOX_X_REFERER`        |
 | `-i`/`--x-serial-id`      | `SMARTBOX_X_SERIAL_ID`      |
+| `--api-host`              | `SMARTBOX_API_HOST`         |
 
 The `smartbox` command also reads a `.env` file (searched for in the working directory and its parents) before parsing options, so the usual workflow is to copy [`.env.example`](.env.example) to `.env`, fill it in once, and then run commands without any auth flags:
 
@@ -156,7 +165,14 @@ Read-only, across every device/node:
 | `device-power-limit` | power limit (watts) of every device |
 | `health-check` | whether the API is alive |
 | `api-version` | API build info |
-| `resellers` | resellers with a built-in configuration |
+| `resellers` | all known reseller connection details |
+
+`smartbox resellers` prints each row's key, brand, brand key, API host,
+serial id, Basic source and referer in one table. The API hosts are HTTPS;
+the Basic source is `generic` or `custom`, and the credential value is not
+printed. The brand key is not the endpoint; it selects the tenant credentials,
+serial id and referer. `--api-host` affects client commands, not this static
+table.
 
 ```
 smartbox <auth options...> status

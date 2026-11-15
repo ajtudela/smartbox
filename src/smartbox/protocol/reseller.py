@@ -18,18 +18,19 @@ _LOGGER = logging.getLogger(__name__)
 
 SMARTBOX_GENERIC_BASIC_AUTH = "NTRiY2NiZmI0MWE5YTUxMTNmMDQ4OGQwOnZkaXZkaQ=="
 
-# The API host the CURRENT vendor apps dial: every decoded bundle (the four
-# brand web apps, the smartcontrol web app and mobile 2.40.4) is built against
-# it (docs/api-ws-user.md §1.1); the per-reseller hosts are superseded on the
-# wire. A reseller row's ``api_url`` is the BRAND KEY, not a host: it selects
-# the Basic credential, the serial id and the ``x-referer``, and it keys the
-# config entry's unique id.
+# The API host most CURRENT vendor apps dial. Every decoded ws_user bundle
+# except Elnur uses it (2026-11-15 public-app audit); Elnur's current bundle
+# points at api-elnur.helki.com. The EHC row keeps its legacy api-ehc host,
+# but its socket.io transport is not supported by 3.x. A reseller row's
+# ``api_url`` is the BRAND KEY, not a host: it selects the Basic credential,
+# the serial id and the ``x-referer``, and it keys the config entry's unique id.
 API_HOST = "users-api.helki.com"
 
 
-def api_base_url() -> str:
-    """Return the base URL every client dials (REST and the ws_user socket)."""
-    return f"https://{API_HOST}"
+def api_base_url(reseller: SmartboxReseller | None = None) -> str:
+    """Return the base URL for a reseller, or the shared host when omitted."""
+    host = reseller.api_host if reseller is not None else API_HOST
+    return f"https://{host}"
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class SmartboxReseller:
     api_url: str = ""
     basic_auth: str = SMARTBOX_GENERIC_BASIC_AUTH
     serial_id: int = 0
+    api_host: str = API_HOST
 
 
 class AvailableResellers:
@@ -64,6 +66,7 @@ class AvailableResellers:
             web_url="https://control.electric-heatingcompany.co.uk/",
             api_url="api-ehc",
             serial_id=3,
+            api_host="api-ehc.helki.com",
         ),
         "api-climastar": SmartboxReseller(
             name="Climastar",
@@ -76,6 +79,7 @@ class AvailableResellers:
             web_url="https://remotecontrol.elnur.es/",
             api_url="api-elnur",
             serial_id=7,
+            api_host="api-elnur.helki.com",
         ),
         "api-valderoma": SmartboxReseller(
             name="Valderoma",

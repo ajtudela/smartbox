@@ -22,7 +22,9 @@ if TYPE_CHECKING:
     from typing import Any
 
 
-def make_request_info(url: str = "https://api.smartbox.invalid/") -> aiohttp.RequestInfo:
+def make_request_info(
+    url: str = "https://api.smartbox.invalid/",
+) -> aiohttp.RequestInfo:
     """Build a minimal real ``RequestInfo`` for the fakes' raised errors.
 
     Recent aiohttp stubs reject ``request_info=None``; the source under
