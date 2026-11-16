@@ -108,6 +108,28 @@ async def test_get_sessions_uses_the_user_path(sleeps, session, client):
     assert call["headers"]["Authorization"] == f"Bearer {JWT_U1}"
 
 
+async def test_401_on_sessions_retries_the_user_path(sleeps, session, client):
+    """The non-v2 path must survive the 401 reauth retry."""
+    payload = [{"sid": "abc123", "createdAt": "2026-11-14T19:00:00Z", "current": True}]
+    session.enqueue(FakeResponse(payload=GRANT_U1))
+    session.enqueue(FakeResponse(status=401))
+    session.enqueue(FakeResponse(payload=GRANT_U2))
+    session.enqueue(FakeResponse(payload=payload))
+
+    assert await client.get_sessions() == payload
+
+    calls = api_calls(session)
+    assert [call["url"] for call in calls] == [
+        f"{API_HOST}/client/sessions",
+        f"{API_HOST}/client/sessions",
+    ]
+    assert len(grant_calls(session)) == 2
+    assert grant_calls(session)[1]["data"] == {
+        "grant_type": "refresh_token",
+        "refresh_token": "rt1",
+    }
+
+
 async def test_get_grouped_devices_keeps_extra_data(sleeps, session, client):
     payload = [
         {"id": "h1", "name": "Home", "extraData": {"x": 1}, "devs": [], "owner": True}

@@ -395,6 +395,7 @@ class SmartboxClient:
                             body=body,
                             reauthed=True,
                             authed=authed,
+                            api_v2=api_v2,
                         )
                     if (
                         status >= _HTTP_SERVER_ERROR

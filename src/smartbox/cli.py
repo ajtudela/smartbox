@@ -231,7 +231,10 @@ class _SmartboxGroup(click.Group):
 @click.option(
     "--forget-tokens",
     is_flag=True,
-    help="Delete the cached session before running (a fresh grant is cached).",
+    help=(
+        "Delete the cached session before running. The new grant is cached "
+        "again unless --no-token-cache is also given."
+    ),
 )
 @click.option("-v", "--verbose", is_flag=True)
 @click.pass_context
