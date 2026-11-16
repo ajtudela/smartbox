@@ -123,6 +123,19 @@ def test_token_bundle_from_grant_rejects_bad_payloads(access, refresh, expires):
         TokenBundle.from_grant(access, refresh, expires)
 
 
+@pytest.mark.parametrize("field", ["access_token", "refresh_token"])
+def test_token_bundle_rejects_empty_tokens(field):
+    """The persistence record codec must not accept an unusable pair."""
+    values = {
+        "access_token": "access",
+        "refresh_token": "refresh",
+        "expires_at": dt.datetime.now(dt.UTC),
+    }
+    values[field] = ""
+    with pytest.raises(ValueError, match=field):
+        TokenBundle(**values)
+
+
 def test_token_bundle_from_grant_rejects_json_infinity():
     payload = json.loads('{"expires_in": Infinity}')
     with pytest.raises(SmartboxError, match="unusable expires_in"):
@@ -360,6 +373,18 @@ async def test_reauthenticate_rejected_raises_auth_error(sleeps, session):
     session.enqueue(FakeResponse(status=403))
     with pytest.raises(AuthError, match="403"):
         await make_manager(session).reauthenticate()
+
+
+async def test_reauthenticate_timeout_is_transport_unavailable(monkeypatch):
+    """A hung reauthentication is bounded and reported as transient trouble."""
+
+    async def hang(*_args, **_kwargs):
+        await asyncio.sleep(1)
+
+    monkeypatch.setattr(auth_mod, "_CALL_TIMEOUT", 0.01)
+    monkeypatch.setattr(TokenManager, "_grant_with_retry", hang)
+    with pytest.raises(TransportUnavailableError, match="re-authentication"):
+        await make_manager(FakeSession()).reauthenticate()
 
 
 async def test_reauthenticate_lock_first_queued_caller_gets_full_budget(monkeypatch):
