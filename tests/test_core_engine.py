@@ -271,6 +271,62 @@ async def test_snapshot_addition_reports_only_the_new_node():
     assert added == [NodeAdded("d1", "htr/3", "Desk")]
 
 
+async def test_snapshot_ignores_an_uninstalled_slot():
+    """An empty slot is not a node: no store entry, no NodeAdded."""
+    engine, recorder = make_engine()
+
+    await engine.handle_event(
+        snapshot(
+            home(
+                dev(
+                    "d1",
+                    {
+                        "nodes": [
+                            node_entry(node_type="htr_mod", addr=2, installed=False),
+                            node_entry(node_type="htr_mod", addr=3, name="Hall"),
+                        ]
+                    },
+                )
+            )
+        )
+    )
+
+    assert set(engine.device("d1").node_states) == {"htr_mod/3"}
+    added = [change for change in recorder.changes if isinstance(change, NodeAdded)]
+    assert added == [NodeAdded("d1", "htr_mod/3", "Hall")]
+
+
+async def test_slot_installed_later_is_reported_as_an_addition():
+    """The first snapshot's empty slot must not hide a later pairing."""
+    engine, recorder = make_engine()
+    empty = node_entry(node_type="htr_mod", addr=2, installed=False)
+    await engine.handle_event(snapshot(home(dev("d1", {"nodes": [empty]}))))
+    recorder.changes.clear()
+
+    await engine.handle_event(
+        snapshot(
+            home(
+                dev(
+                    "d1",
+                    {
+                        "nodes": [
+                            node_entry(
+                                node_type="htr_mod",
+                                addr=2,
+                                installed=True,
+                                name="Utility",
+                            )
+                        ]
+                    },
+                )
+            )
+        )
+    )
+
+    added = [change for change in recorder.changes if isinstance(change, NodeAdded)]
+    assert added == [NodeAdded("d1", "htr_mod/2", "Utility")]
+
+
 async def test_partial_snapshot_does_not_report_additions():
     """Membership is trustworthy only when the whole node list parsed."""
     engine, recorder = make_engine()
@@ -851,6 +907,119 @@ async def test_mgr_nodes_frame_reconciles_membership():
     assert recorder.changes[0].kind == "nodes"
     assert recorder.changes[1] == NodeRemoved("d1", "htr/2")
     assert recorder.changes[2] == NodeAdded("d1", "htr/3", None)
+
+
+async def test_mgr_nodes_frame_ignores_an_uninstalled_slot():
+    """A node list that only carries an empty slot adds no node."""
+    engine, recorder = make_engine()
+    await engine.handle_event(snapshot(home(dev("d1", {"nodes": []}))))
+    recorder.changes.clear()
+
+    await engine.handle_event(
+        Update(
+            dev_id="d1",
+            path="/mgr/nodes",
+            body={"nodes": [node_entry(node_type="htr_mod", addr=2, installed=False)]},
+        )
+    )
+
+    assert engine.device("d1").node_states == {}
+    assert recorder.changes == []
+
+
+async def test_mgr_nodes_frame_removes_a_slot_marked_uninstalled():
+    """Marking a stored node uninstalled is a real membership removal."""
+    engine, recorder = make_engine()
+    await engine.handle_event(
+        snapshot(
+            home(
+                dev(
+                    "d1",
+                    {"nodes": [node_entry(node_type="htr_mod", addr=2, status=STATUS)]},
+                )
+            )
+        )
+    )
+    recorder.changes.clear()
+
+    await engine.handle_event(
+        Update(
+            dev_id="d1",
+            path="/mgr/nodes",
+            body={"nodes": [node_entry(node_type="htr_mod", addr=2, installed=False)]},
+        )
+    )
+
+    assert engine.device("d1").node_states == {}
+    removed = [change for change in recorder.changes if isinstance(change, NodeRemoved)]
+    assert removed == [NodeRemoved("d1", "htr_mod/2")]
+
+
+async def test_mgr_nodes_frame_reports_a_slot_installed_later():
+    """The pairing path is a frame: an empty key becomes a real addition."""
+    engine, recorder = make_engine()
+    await engine.handle_event(snapshot(home(dev("d1", {"nodes": []}))))
+    recorder.changes.clear()
+
+    await engine.handle_event(
+        Update(
+            dev_id="d1",
+            path="/mgr/nodes",
+            body={
+                "nodes": [
+                    node_entry(
+                        node_type="htr_mod",
+                        addr=2,
+                        installed=True,
+                        name="Utility",
+                    )
+                ]
+            },
+        )
+    )
+
+    added = [change for change in recorder.changes if isinstance(change, NodeAdded)]
+    assert added == [NodeAdded("d1", "htr_mod/2", "Utility")]
+
+
+async def test_frames_for_an_uninstalled_slot_are_ignored(caplog):
+    """Empty slots keep their wire frames; the engine drops them as data."""
+    caplog.set_level(logging.WARNING)
+    engine, recorder = make_engine()
+    await engine.handle_event(
+        snapshot(
+            home(
+                dev(
+                    "d1",
+                    {
+                        "nodes": [
+                            node_entry(node_type="htr_mod", addr=2, installed=False)
+                        ]
+                    },
+                )
+            )
+        )
+    )
+    recorder.changes.clear()
+
+    await engine.handle_event(
+        Update(dev_id="d1", path="/htr_mod/2/status", body=STATUS)
+    )
+    await engine.handle_event(Update(dev_id="d1", path="/htr_mod/2/setup", body=SETUP))
+    await engine.handle_event(
+        Update(
+            dev_id="d1",
+            path="/htr_mod/2/status",
+            body={"sync_status": "lost"},
+        )
+    )
+
+    assert engine.node("d1", "htr_mod/2") is None
+    assert engine.deadlines == ()
+    assert recorder.changes == []
+    assert [
+        record for record in caplog.records if record.levelno >= logging.WARNING
+    ] == []
 
 
 async def test_snapshot_shrink_emits_node_removed():

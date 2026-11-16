@@ -85,7 +85,8 @@ class DeviceState:
 
     ``away`` is a raw wire dict (empty until seen) and ``power_limit`` the raw
     wire value; ``node_states`` is the node map keyed by :func:`node_key`, and
-    it alone defines membership (the wire node list is read for its keys).
+    it alone defines membership (the wire node list's installed entries are
+    read for their keys).
     ``home_id`` is metadata only - no revision bump, no change event.
     """
 
