@@ -12,6 +12,12 @@ Wire facts (live-verified; canonical copies in hass-smartbox docs/api-contract.m
 - A rejected refresh grant falls back to exactly ONE password grant; rejected
   credentials raise ``AuthError``. Transient failures retry with capped backoff
   inside a ~30 s deadline.
+- Persistence seam: a caller that stores tokens across process restarts seeds
+  the manager through ``initial_tokens`` and passes ``on_grant`` to receive
+  every new bundle. The callback runs after the acquisition deadline, under
+  the token lock, and is itself bounded by ``_PERSIST_TIMEOUT``; its failures
+  are logged, never propagated: token acquisition must succeed when the disk
+  does not.
 - Secrets hygiene: tokens, passwords and Basic creds never reach the logs, and
   ``ClientResponseError`` text stays out of messages and tracebacks because it
   renders the URL (``from None`` at the raise sites).
@@ -20,6 +26,7 @@ Wire facts (live-verified; canonical copies in hass-smartbox docs/api-contract.m
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable, Mapping
 import contextlib
 from dataclasses import dataclass
 import datetime as dt
@@ -31,7 +38,7 @@ from aiohttp import ClientError, ClientSession, ContentTypeError
 
 from . import timing
 from .errors import AuthError, SmartboxError, TransportUnavailableError
-from .jwt import jwt_user_id
+from .jwt import jwt_account_matches, jwt_user_id
 from .retry import jittered_backoff
 from .transport import TokenSource, WsCredentials
 
@@ -41,6 +48,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 __all__ = [
     "AuthConfig",
+    "GrantCallback",
     "ManagedTokenSource",
     "TokenBundle",
     "TokenManager",
@@ -54,6 +62,7 @@ _HTTP_BAD_REQUEST = 400
 _HTTP_TOO_MANY_REQUESTS = 429
 _HTTP_SERVER_ERROR = 500
 _MIN_TOKEN_LIFETIME = 60.0
+_PERSIST_TIMEOUT = 2.0
 _GRANT_PATH = "/client/token"
 # Sanity bound on a granted lifetime: the vendor serves a ~4 h JWT, so
 # anything non-positive, non-finite or beyond a year is malformed. A
@@ -104,6 +113,51 @@ class TokenBundle:
     refresh_token: str
     expires_at: dt.datetime
 
+    def __post_init__(self) -> None:
+        """Reject a bundle that cannot be used for expiry arithmetic."""
+        for name in ("access_token", "refresh_token"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value:
+                msg = f"TokenBundle.{name} must be a non-empty string"
+                raise ValueError(msg)
+        if self.expires_at.tzinfo is None or self.expires_at.utcoffset() is None:
+            msg = "TokenBundle.expires_at must be timezone-aware"
+            raise ValueError(msg)
+
+    def to_record(self) -> dict[str, str]:
+        """Serialise the bundle for a persistence layer."""
+        return {
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token,
+            "expires_at": self.expires_at.isoformat(),
+        }
+
+    @classmethod
+    def from_record(cls, record: Mapping[str, object]) -> TokenBundle:
+        """Parse a record written by :meth:`to_record`.
+
+        Raises ``ValueError`` for a wrong-shaped record; callers that treat
+        storage as a cache can catch it and fall back to a fresh grant.
+        """
+        access = record.get("access_token")
+        refresh = record.get("refresh_token")
+        expires_at = record.get("expires_at")
+        if not isinstance(access, str) or not access:
+            msg = "stored token record lacks access_token"
+            raise ValueError(msg)
+        if not isinstance(refresh, str) or not refresh:
+            msg = "stored token record lacks refresh_token"
+            raise ValueError(msg)
+        if not isinstance(expires_at, str) or not expires_at:
+            msg = "stored token record lacks expires_at"
+            raise ValueError(msg)
+        try:
+            expires = dt.datetime.fromisoformat(expires_at)
+        except ValueError as err:
+            msg = "stored token record carries an invalid expires_at"
+            raise ValueError(msg) from err
+        return cls(access_token=access, refresh_token=refresh, expires_at=expires)
+
     @classmethod
     def from_grant(
         cls,
@@ -138,6 +192,10 @@ class TokenBundle:
         )
 
 
+# Called with every newly granted bundle (password, refresh and reauth).
+GrantCallback = Callable[[TokenBundle], Awaitable[None]]
+
+
 class TokenManager:
     """Owns the current tokens and the (possibly owned) HTTP session.
 
@@ -146,19 +204,39 @@ class TokenManager:
     while >= ``min_lifetime_s`` remains, otherwise a refresh grant fires, or a
     password grant when no token is held. Concurrent callers never double-grant
     - the lock serializes the grant and the second caller reuses the result.
+
+    Persistence callers seed the manager through ``initial_tokens`` and pass
+    ``on_grant`` to persist each rotation. The callback is awaited under the
+    token lock but outside the acquisition timeout, bounded by
+    ``_PERSIST_TIMEOUT``.
     """
 
     def __init__(
         self,
         config: AuthConfig,
         session: ClientSession | None = None,
+        *,
+        on_grant: GrantCallback | None = None,
+        initial_tokens: TokenBundle | None = None,
     ) -> None:
-        """Inject an existing session, or lazily create (and own) one."""
+        """Inject a session, seed a stored bundle, and/or a persistence hook."""
         self._config = config
         self._session = session
         self._owns_session = False  # only set when lazily created
-        self._tokens: TokenBundle | None = None
+        if initial_tokens is not None and not jwt_account_matches(
+            initial_tokens.access_token,
+            email=config.username,
+            serial_id=config.serial_id,
+        ):
+            _LOGGER.warning(
+                "ignoring seeded smartbox tokens granted to another account"
+            )
+            initial_tokens = None
+        self._tokens = initial_tokens
+        self._seed_accepted = initial_tokens is not None
+        self._last_grant: str | None = None
         self._force_refresh = False
+        self._on_grant = on_grant
         self._lock = asyncio.Lock()
 
     async def get_token(
@@ -174,10 +252,27 @@ class TokenManager:
         try:
             async with self._lock:
                 async with asyncio.timeout(_CALL_TIMEOUT):
-                    return await self._get_token_locked(min_lifetime_s)
+                    tokens, granted = await self._get_token_locked(min_lifetime_s)
+                if granted:
+                    await self._notify_grant(tokens)
+                return tokens
         except TimeoutError as e:
             msg = f"smartbox token acquisition did not complete within {_CALL_TIMEOUT}s"
             raise TransportUnavailableError(msg) from e
+
+    @property
+    def seed_accepted(self) -> bool:
+        """Whether the constructor accepted an ``initial_tokens`` bundle.
+
+        ``False`` covers both "no bundle supplied" and "bundle discarded
+        because its claims named another account".
+        """
+        return self._seed_accepted
+
+    @property
+    def last_grant(self) -> str | None:
+        """``"password"``/``"refresh"`` for the newest grant, None before one."""
+        return self._last_grant
 
     @property
     def token_expiry(self) -> dt.datetime | None:
@@ -213,9 +308,11 @@ class TokenManager:
                 async with asyncio.timeout(_CALL_TIMEOUT):
                     self._tokens = None
                     self._force_refresh = False
-                    return await self._grant_with_retry(
+                    tokens = await self._grant_with_retry(
                         self._password_body(), self._deadline()
                     )
+                await self._notify_grant(tokens)
+                return tokens
         except TimeoutError as e:
             msg = f"smartbox re-authentication did not complete within {_CALL_TIMEOUT}s"
             raise TransportUnavailableError(msg) from e
@@ -242,20 +339,32 @@ class TokenManager:
 
     # --- grant machinery ---
 
-    async def _get_token_locked(self, min_lifetime_s: float) -> TokenBundle:
+    async def _get_token_locked(
+        self, min_lifetime_s: float
+    ) -> tuple[TokenBundle, bool]:
+        """Return ``(tokens, granted)``; ``granted`` marks a new rotation."""
         tokens = self._tokens
         if (
             tokens is not None
             and not self._force_refresh
             and self._remaining_s(tokens) >= min_lifetime_s
         ):
-            return tokens
+            return tokens, False
         if tokens is None:
-            return await self._grant_with_retry(self._password_body(), self._deadline())
+            return (
+                await self._grant_with_retry(self._password_body(), self._deadline()),
+                True,
+            )
         try:
-            return await self._grant_with_retry(
-                {"grant_type": "refresh_token", "refresh_token": tokens.refresh_token},
-                self._deadline(),
+            return (
+                await self._grant_with_retry(
+                    {
+                        "grant_type": "refresh_token",
+                        "refresh_token": tokens.refresh_token,
+                    },
+                    self._deadline(),
+                ),
+                True,
             )
         except AuthError:
             # Dead refresh token: exactly ONE password fallback before
@@ -265,7 +374,25 @@ class TokenManager:
             )
             self._tokens = None
             self._force_refresh = False
-            return await self._grant_with_retry(self._password_body(), self._deadline())
+            return (
+                await self._grant_with_retry(self._password_body(), self._deadline()),
+                True,
+            )
+
+    async def _notify_grant(self, tokens: TokenBundle) -> None:
+        """Persist a granted bundle; a failing callback must not break auth.
+
+        Bounded by ``_PERSIST_TIMEOUT`` and called outside the acquisition
+        timeout, so a slow disk cannot be mistaken for a token-endpoint
+        timeout.
+        """
+        if self._on_grant is None:
+            return
+        try:
+            async with asyncio.timeout(_PERSIST_TIMEOUT):
+                await self._on_grant(tokens)
+        except Exception as e:  # noqa: BLE001 - persistence is best-effort
+            _LOGGER.warning("smartbox token persistence failed (%s)", type(e).__name__)
 
     async def _grant_with_retry(
         self, body: dict[str, str], deadline: float
@@ -370,6 +497,7 @@ class TokenManager:
             raise SmartboxError(msg) from e
         self._tokens = bundle
         self._force_refresh = False
+        self._last_grant = "refresh" if grant_type == "refresh_token" else grant_type
         _LOGGER.debug("smartbox %s grant ok", grant_type)
         return bundle
 

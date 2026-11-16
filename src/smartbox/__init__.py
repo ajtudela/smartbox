@@ -7,11 +7,11 @@ usable without the HA test harness.
 
 from importlib.metadata import PackageNotFoundError, version
 
-from . import core, protocol
+from . import core, protocol, token_cache
 
 try:
     __version__ = version("smartbox")
 except PackageNotFoundError:  # pragma: no cover - vendored/undist import
     __version__ = "0.0.0"
 
-__all__ = ["__version__", "core", "protocol"]
+__all__ = ["__version__", "core", "protocol", "token_cache"]

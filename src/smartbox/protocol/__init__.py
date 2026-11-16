@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from .auth import AuthConfig, ManagedTokenSource, TokenBundle, TokenManager
+from .auth import (
+    AuthConfig,
+    GrantCallback,
+    ManagedTokenSource,
+    TokenBundle,
+    TokenManager,
+)
 from .client import NodeRef, SmartboxClient
 from .errors import (
     AuthError,
@@ -12,7 +18,7 @@ from .errors import (
     TransportUnsupportedError,
 )
 from .events import Event, Snapshot, SocketClosed, Update
-from .jwt import jwt_expiry, jwt_user_id
+from .jwt import jwt_account_matches, jwt_expiry, jwt_user_id
 from .reseller import API_HOST, AvailableResellers, SmartboxReseller, api_base_url
 from .retry import backoff_delay
 from .transport import EventHandler, Transport
@@ -35,6 +41,7 @@ __all__ = [
     "AvailableResellers",
     "Event",
     "EventHandler",
+    "GrantCallback",
     "ManagedTokenSource",
     "NodeRef",
     "ResellerNotExistError",
@@ -61,6 +68,7 @@ __all__ = [
     "check_ws_user_support",
     "format_setpoint",
     "is_lost",
+    "jwt_account_matches",
     "jwt_expiry",
     "jwt_user_id",
     "parse_number",

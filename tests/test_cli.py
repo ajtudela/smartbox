@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+import logging
+from unittest.mock import AsyncMock, patch
+
 from asyncclick.testing import CliRunner
 
 from smartbox.cli import _api_base_url, smartbox
 from smartbox.protocol import AvailableResellers
+from smartbox.protocol.auth import TokenBundle
+from smartbox.protocol.client import SmartboxClient
 from smartbox.protocol.reseller import SMARTBOX_GENERIC_BASIC_AUTH
+from smartbox.token_cache import FileTokenCache
+
+_ACCOUNT = "api:1:user@example.test:https://users-api.helki.com"
 
 
 async def test_cli_help_lists_commands():
@@ -41,3 +50,247 @@ def test_cli_api_host_override_normalizes():
 
     elnur = AvailableResellers("api-elnur").reseller
     assert _api_base_url(elnur, None) == "https://api-elnur.helki.com"
+
+
+async def test_help_lists_the_token_cache_options():
+    result = await CliRunner().invoke(smartbox, ["--help"])
+    assert result.exit_code == 0
+    assert "--token-cache" in result.output
+    assert "--forget-tokens" in result.output
+
+
+async def test_forget_tokens_deletes_the_cached_session(tmp_path):
+    path = tmp_path / "tokens.json"
+    bundle = TokenBundle(
+        access_token="a",
+        refresh_token="r",
+        expires_at=datetime.now(UTC) + timedelta(hours=4),
+    )
+    await FileTokenCache(path, account=_ACCOUNT).async_save(bundle)
+
+    with patch.object(
+        SmartboxClient, "get_devices", AsyncMock(return_value={"devs": []})
+    ):
+        result = await CliRunner().invoke(
+            smartbox,
+            [
+                "-u",
+                "user@example.test",
+                "-p",
+                "pw",
+                "--token-cache-path",
+                str(path),
+                "--forget-tokens",
+                "devices",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert not path.exists()
+
+
+async def test_no_token_cache_ignores_a_preexisting_record(tmp_path):
+    path = tmp_path / "tokens.json"
+    await FileTokenCache(path, account=_ACCOUNT).async_save(
+        TokenBundle(
+            access_token="cached-access",
+            refresh_token="cached-refresh",
+            expires_at=datetime.now(UTC) + timedelta(hours=4),
+        )
+    )
+    seen: dict = {}
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            seen.update(kwargs)
+
+        async def get_devices(self):
+            return {"devs": []}
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox,
+            [
+                "-u",
+                "user@example.test",
+                "-p",
+                "pw",
+                "--token-cache-path",
+                str(path),
+                "--no-token-cache",
+                "devices",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert seen["initial_tokens"] is None
+    assert seen["on_grant"] is None
+
+
+async def test_cli_seeds_the_client_from_the_cache_and_persists_grants(tmp_path):
+    path = tmp_path / "tokens.json"
+    cached = TokenBundle(
+        access_token="cached-access",
+        refresh_token="cached-refresh",
+        expires_at=datetime.now(UTC) + timedelta(hours=4),
+    )
+    await FileTokenCache(path, account=_ACCOUNT).async_save(cached)
+    seen: dict = {}
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            seen.update(kwargs)
+
+        async def get_devices(self):
+            return {"devs": []}
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox,
+            [
+                "-u",
+                "user@example.test",
+                "-p",
+                "pw",
+                "--token-cache-path",
+                str(path),
+                "devices",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert seen["initial_tokens"] == cached
+    granted = TokenBundle(
+        access_token="new-access",
+        refresh_token="new-refresh",
+        expires_at=datetime.now(UTC) + timedelta(hours=4),
+    )
+    await seen["on_grant"](granted)
+    loaded = await FileTokenCache(path, account=_ACCOUNT).async_load()
+    assert loaded == granted
+
+
+async def test_cached_session_notice_is_debug_only(tmp_path, caplog):
+    path = tmp_path / "tokens.json"
+    await FileTokenCache(path, account=_ACCOUNT).async_save(
+        TokenBundle(
+            access_token="cached-access",
+            refresh_token="cached-refresh",
+            expires_at=datetime.now(UTC) + timedelta(hours=4),
+        )
+    )
+
+    with patch.object(
+        SmartboxClient, "get_devices", AsyncMock(return_value={"devs": []})
+    ):
+        with caplog.at_level(logging.INFO, logger="smartbox.cli"):
+            quiet = await CliRunner().invoke(
+                smartbox,
+                [
+                    "-u",
+                    "user@example.test",
+                    "-p",
+                    "pw",
+                    "--token-cache-path",
+                    str(path),
+                    "devices",
+                ],
+            )
+        assert "Resuming the cached session" not in caplog.text
+        caplog.clear()
+        with caplog.at_level(logging.DEBUG, logger="smartbox.cli"):
+            verbose = await CliRunner().invoke(
+                smartbox,
+                [
+                    "-u",
+                    "user@example.test",
+                    "-p",
+                    "pw",
+                    "--token-cache-path",
+                    str(path),
+                    "-v",
+                    "devices",
+                ],
+            )
+
+    assert quiet.exit_code == 0, quiet.output
+    assert verbose.exit_code == 0, verbose.output
+    assert "Resuming the cached session" not in quiet.output
+    assert "Resuming the cached session" in caplog.text
+
+
+async def test_sessions_masks_sids_and_marks_the_current_row():
+    rows = [
+        {
+            "sid": "d19b4d4c1234",
+            "createdAt": "2026-11-14T19:01:03.678Z",
+            "lastUsedAt": "2026-11-14T19:01:03.678Z",
+            "userAgent": "HomeAssistant/2026.11.1 aiohttp/3.14.5 Python/3.14",
+            "current": True,
+        }
+    ]
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            pass
+
+        async def get_sessions(self):
+            return rows
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox,
+            [
+                "-u",
+                "user@example.test",
+                "-p",
+                "pw",
+                "--no-token-cache",
+                "sessions",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "d19b4d4c…" in result.output
+    assert "d19b4d4c1234" not in result.output
+    assert result.output.rstrip().endswith("*")
+
+
+async def test_sessions_json_prints_the_raw_payload():
+    rows = [{"sid": "d19b4d4c1234", "current": True}]
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            pass
+
+        async def get_sessions(self):
+            return rows
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox,
+            [
+                "-u",
+                "user@example.test",
+                "-p",
+                "pw",
+                "--no-token-cache",
+                "sessions",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "d19b4d4c1234" in result.output

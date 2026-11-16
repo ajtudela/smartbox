@@ -7,7 +7,7 @@
 
 Python API to control heating 'smart boxes' (Helki and its resellers: Elnur, Haverland, Climastar, Technotherm, HJM, ...). It wraps the REST API and the `ws_user` websocket channel, and ships a `smartbox` command line tool.
 
-This is the 3.0 line: the protocol and domain layers that the Home Assistant integration uses, packaged Home Assistant-free. `smartbox.protocol` owns the wire (auth, REST client, `ws_user` transport, named writes) and `smartbox.core` owns the domain state (versioned store, write confirmation, availability and feed supervision). The previous session/update-manager API lives on in the `v2.7.0` tag.
+This is the 3.x line: the protocol and domain layers that the Home Assistant integration uses, packaged Home Assistant-free. `smartbox.protocol` owns the wire (auth, REST client, `ws_user` transport, named writes) and `smartbox.core` owns the domain state (versioned store, write confirmation, availability and feed supervision). The previous session/update-manager API lives on in the `v2.7.0` tag.
 
 ## Installation
 
@@ -62,6 +62,8 @@ await writes.set_setpoint("mydev", node, 21.5, "C")
 ```
 
 For a reseller that is not built in, the identity travels in the `AuthConfig` headers (`basic_auth_creds`, `serial_id`, `referer`) against the reseller's `api_host`; see [`smartbox resellers`](#smartbox-command-line-tool) for the built-in list. The built-in table carries the per-reseller host: `api_base_url(reseller)` is the supported way to build `AuthConfig.api_host`. Elnur is the `ws_user` exception to the shared `users-api` host; the legacy EHC row carries `api-ehc.helki.com`, but its `socket.io` transport is not supported by 3.x.
+
+A caller that keeps tokens across process restarts can seed `TokenManager(..., initial_tokens=...)` and pass `on_grant` to receive every rotated bundle; `TokenBundle.to_record()` / `from_record()` cover the stored shape. `smartbox.token_cache.FileTokenCache` is the CLI/tool implementation, keyed by the tenant account and effective API host.
 
 ## Live updates over websocket (`ws_user`)
 
@@ -125,6 +127,9 @@ These are only needed when your reseller is not built into the package, or when 
 * `-r`/`--x-referer`: the `x-referer` header value.
 * `-i`/`--x-serial-id`: the `x-serialid` header value.
 * `--api-host`: override the API host (hostname or full `https://` URL); defaults to the reseller row. Useful when a tenant moves to a different host.
+* `--token-cache/--no-token-cache`: persist the refresh token between invocations (enabled by default).
+* `--token-cache-path`: select a cache file instead of the per-account default under `$XDG_CACHE_HOME/smartbox`.
+* `--forget-tokens`: delete the cached session before running; the next grant is cached.
 
 ### Configuration via environment variables / `.env`
 
@@ -139,12 +144,24 @@ Every option above can be supplied through an environment variable instead of be
 | `-r`/`--x-referer`        | `SMARTBOX_X_REFERER`        |
 | `-i`/`--x-serial-id`      | `SMARTBOX_X_SERIAL_ID`      |
 | `--api-host`              | `SMARTBOX_API_HOST`         |
+| `--token-cache-path`      | `SMARTBOX_TOKEN_CACHE`      |
 
 The `smartbox` command also reads a `.env` file (searched for in the working directory and its parents) before parsing options, so the usual workflow is to copy [`.env.example`](.env.example) to `.env`, fill it in once, and then run commands without any auth flags:
 
     cp .env.example .env
     # edit .env
     smartbox devices
+
+### Token cache
+
+Tokens are cached between invocations by default, so repeated commands continue
+one vendor session instead of creating a login per run. The cache is
+per account and API host under `$XDG_CACHE_HOME/smartbox`, written `0600` and
+replaced atomically. `--token-cache-path PATH` (or `SMARTBOX_TOKEN_CACHE`)
+selects another file, `--no-token-cache` disables persistence, and
+`--forget-tokens` deletes the cached session before running. The cache holds a
+live refresh token: treat it like the `.env` credentials. A host override or
+different account gets a different cache entry.
 
 ### Commands
 
@@ -165,6 +182,7 @@ Read-only, across every device/node:
 | `device-power-limit` | power limit (watts) of every device |
 | `health-check` | whether the API is alive |
 | `api-version` | API build info |
+| `sessions` | the account's active vendor sessions |
 | `resellers` | all known reseller connection details |
 
 `smartbox resellers` prints each row's key, brand, brand key, API host,
@@ -173,6 +191,10 @@ the Basic source is `generic` or `custom`, and the credential value is not
 printed. The brand key is not the endpoint; it selects the tenant credentials,
 serial id and referer. `--api-host` affects client commands, not this static
 table.
+
+`sessions` lists the account's active sessions (masked `sid`, timestamps,
+device and a `*` on the session the current token belongs to). `--json` prints
+the raw payload and `--limit` caps the rows; it is read-only.
 
 ```
 smartbox <auth options...> status
@@ -212,6 +234,7 @@ Reads print the raw wire payloads; writes print the posted path and body.
 - `smartbox.protocol` — auth, REST client, `ws_user` transport, wire values and named writes.
 - `smartbox.core` — versioned state store, merges, write confirmation, deadlines and feed supervision.
 - `smartbox.cli` — the optional debugging CLI.
+- `smartbox.token_cache` — the CLI/tool file cache for the token bundle.
 
 The canonical wire record lives in the sibling [`hass-smartbox`](https://github.com/jandado/hass-smartbox) repository under `docs/` (`api-contract.md`, `api-ws-user.md`, `webapi-spec.md`); [`webapi-spec.md`](./webapi-spec.md) in this repo is a pointer to them.
 

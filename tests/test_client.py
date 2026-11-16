@@ -7,6 +7,7 @@ Plain pytest; the HTTP layer is a scripted FakeSession (shared in
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 import json
 import logging
 import traceback
@@ -15,7 +16,7 @@ import aiohttp
 import pytest
 
 from smartbox.protocol import client as client_mod, timing, ws_user as ws_user_mod
-from smartbox.protocol.auth import AuthConfig
+from smartbox.protocol.auth import AuthConfig, TokenBundle
 from smartbox.protocol.client import NodeRef, SmartboxClient
 from smartbox.protocol.errors import (
     AuthError,
@@ -93,6 +94,40 @@ async def test_get_devices_passthrough(sleeps, session, client):
     assert call["method"] == "GET"
     assert call["url"] == f"{API_HOST}/api/v2/devs"
     assert call["headers"]["Authorization"] == f"Bearer {JWT_U1}"
+
+
+async def test_get_sessions_uses_the_user_path(sleeps, session, client):
+    payload = [{"sid": "abc123", "createdAt": "2026-11-14T19:00:00Z", "current": True}]
+    session.enqueue(FakeResponse(payload=GRANT_U1))
+    session.enqueue(FakeResponse(payload=payload))
+
+    assert await client.get_sessions() == payload
+
+    call = api_calls(session)[0]
+    assert call["url"] == f"{API_HOST}/client/sessions"
+    assert call["headers"]["Authorization"] == f"Bearer {JWT_U1}"
+
+
+async def test_401_on_sessions_retries_the_user_path(sleeps, session, client):
+    """The non-v2 path must survive the 401 reauth retry."""
+    payload = [{"sid": "abc123", "createdAt": "2026-11-14T19:00:00Z", "current": True}]
+    session.enqueue(FakeResponse(payload=GRANT_U1))
+    session.enqueue(FakeResponse(status=401))
+    session.enqueue(FakeResponse(payload=GRANT_U2))
+    session.enqueue(FakeResponse(payload=payload))
+
+    assert await client.get_sessions() == payload
+
+    calls = api_calls(session)
+    assert [call["url"] for call in calls] == [
+        f"{API_HOST}/client/sessions",
+        f"{API_HOST}/client/sessions",
+    ]
+    assert len(grant_calls(session)) == 2
+    assert grant_calls(session)[1]["data"] == {
+        "grant_type": "refresh_token",
+        "refresh_token": "rt1",
+    }
 
 
 async def test_get_grouped_devices_keeps_extra_data(sleeps, session, client):
@@ -627,3 +662,23 @@ async def test_authenticated_calls_carry_the_reseller_serial(sleeps, session, cl
         "Authorization": f"Bearer {JWT_U1}",
         "x-serialid": CONFIG.serial_id,
     }
+
+
+async def test_client_forwards_seeded_tokens_and_the_grant_callback(session):
+    seen: list[TokenBundle] = []
+
+    async def collect(tokens: TokenBundle) -> None:
+        seen.append(tokens)
+
+    seed = TokenBundle(
+        access_token=JWT_U1,
+        refresh_token="rt1",
+        expires_at=datetime.now(UTC) + timedelta(hours=4),
+    )
+    client = SmartboxClient(
+        CONFIG, session=session, initial_tokens=seed, on_grant=collect
+    )
+    assert await client.auth.get_token() is seed
+    assert client.auth.seed_accepted is True
+    assert seen == []
+    await client.close()

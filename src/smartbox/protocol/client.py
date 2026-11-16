@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, cast
 from aiohttp import ClientError, ClientResponse, ClientSession, ContentTypeError
 
 from . import timing
-from .auth import AuthConfig, TokenBundle, TokenManager
+from .auth import AuthConfig, GrantCallback, TokenBundle, TokenManager
 from .errors import AuthError, SmartboxError, TransportUnavailableError
 from .paths import NodeRef, encode_segment, node_path
 from .retry import jittered_backoff
@@ -71,10 +71,24 @@ class SmartboxClient:
         self,
         config: AuthConfig,
         session: ClientSession | None = None,
+        *,
+        on_grant: GrantCallback | None = None,
+        initial_tokens: TokenBundle | None = None,
     ) -> None:
-        """Inject an existing session, or lazily create (and own) one."""
+        """Inject a session, seed a stored bundle, and/or a persistence hook.
+
+        ``on_grant`` receives every granted token bundle (the persistence seam
+        for callers that keep tokens across process restarts);
+        ``initial_tokens`` seeds the manager with the bundle from the previous
+        process.
+        """
         self._config = config
-        self._auth = TokenManager(config, session=session)
+        self._auth = TokenManager(
+            config,
+            session=session,
+            on_grant=on_grant,
+            initial_tokens=initial_tokens,
+        )
 
     @property
     def session(self) -> ClientSession:
@@ -129,6 +143,10 @@ class SmartboxClient:
             "dict[str, Any]",
             await self._get(f"groups/{encode_segment(home_id)}/guest_users"),
         )
+
+    async def get_sessions(self) -> Any:  # noqa: ANN401 - raw wire payload
+        """GET ``/client/sessions`` (user account, outside ``/api/v2``) raw."""
+        return await self._get("client/sessions", api_v2=False)
 
     async def get_dev_data(self, dev_id: str) -> dict[str, Any]:
         """GET ``/api/v2/devs/<id>/dev_data`` raw."""
@@ -258,6 +276,8 @@ class SmartboxClient:
         self,
         path: str,
         params: Mapping[str, Any] | None = None,
+        *,
+        api_v2: bool = True,
     ) -> Any:  # noqa: ANN401 - raw wire payload passthrough (normalization later)
         """GET with bounded retries on transient failures.
 
@@ -269,7 +289,7 @@ class SmartboxClient:
         deadline = loop.time() + _CALL_TIMEOUT
         for attempt in range(_RETRY_ATTEMPTS):
             try:
-                return await self._send("GET", path, params, deadline)
+                return await self._send("GET", path, params, deadline, api_v2=api_v2)
             except TransportUnavailableError:
                 backoff = jittered_backoff(attempt, _BACKOFF_FACTOR, _CALL_TIMEOUT)
                 if attempt == _RETRY_ATTEMPTS - 1 or loop.time() + backoff >= deadline:
@@ -318,6 +338,7 @@ class SmartboxClient:
         body: Mapping[str, Any] | None = None,
         reauthed: bool = False,
         authed: bool = True,
+        api_v2: bool = True,
     ) -> Any:  # noqa: ANN401 - raw wire payload passthrough (normalization later)
         """One authorized request; 401 -> one invalidate + re-auth + resend.
 
@@ -332,7 +353,8 @@ class SmartboxClient:
             async with asyncio.timeout_at(deadline):
                 if authed:
                     bundle = await self._auth.get_token()
-                    url = f"{self._config.api_host.rstrip('/')}/api/v2/{path}"
+                    prefix = "/api/v2/" if api_v2 else "/"
+                    url = f"{self._config.api_host.rstrip('/')}{prefix}{path}"
                     headers = self._auth_headers(bundle.access_token)
                 else:
                     url = f"{self._config.api_host.rstrip('/')}/{path}"
@@ -345,7 +367,7 @@ class SmartboxClient:
                     json=dict(body) if body is not None else None,
                 ) as resp:
                     status = resp.status
-                    logged_path = f"api/v2/{path}" if authed else path
+                    logged_path = f"api/v2/{path}" if api_v2 else path
                     _LOGGER.debug("smartbox %s /%s -> %d", method, logged_path, status)
                     if status < _HTTP_BAD_REQUEST:
                         return await _decode(resp)
@@ -373,6 +395,7 @@ class SmartboxClient:
                             body=body,
                             reauthed=True,
                             authed=authed,
+                            api_v2=api_v2,
                         )
                     if (
                         status >= _HTTP_SERVER_ERROR

@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `TokenBundle.to_record()` / `from_record()` give persistence layers one
+  codec for the granted pair, and `TokenManager` / `SmartboxClient` accept
+  `initial_tokens` to start from a bundle granted by an earlier process. A
+  seeded bundle whose access-token claims name a different `email`/`serialId`
+  than the configured account is ignored (opaque tokens pass). The new
+  `on_grant` callback receives every newly granted bundle after a password,
+  refresh or reauth grant. The callback runs after the acquisition deadline,
+  under the token lock, and is bounded by `_PERSIST_TIMEOUT`; its failures are
+  logged, never propagated, so a caller that keeps tokens across restarts no
+  longer needs a password grant per process.
+* `TokenBundle` validates its fields: empty tokens or a naive `expires_at`
+  raise `ValueError` (the record codec surfaces the same error).
+* `smartbox.token_cache.FileTokenCache` (with `account_stamp` and
+  `default_cache_path`) gives the CLI and local tools a per-account JSON cache
+  for the token bundle, written `0600` and atomically. The account stamp
+  includes the effective API host, so a host override cannot reuse tokens
+  from another endpoint. The CLI enables it by default
+  (`--token-cache/--no-token-cache`, `--token-cache-path`,
+  `--forget-tokens`), so repeated invocations continue one vendor session.
+  `smartbox sessions` lists the account's active sessions through
+  `SmartboxClient.get_sessions()` (read-only; masked `sid`, `--json` for the
+  raw payload).
+
 ## 3.0.2 (2026-11-15)
 
 ### Fixed
