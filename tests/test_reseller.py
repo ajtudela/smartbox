@@ -32,6 +32,11 @@ def test_known_reseller():
     assert reseller.web_url == "https://app.helki.com/"
 
 
+def test_dormant_tenant_ids_are_not_selectable():
+    assert "api-sangha" not in AvailableResellers.resellers
+    assert "api-ath" not in AvailableResellers.resellers
+
+
 def test_unknown_reseller_needs_all_fields():
     with pytest.raises(ResellerNotExistError):
         _ = AvailableResellers("api-unknown").reseller
