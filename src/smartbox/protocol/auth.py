@@ -62,7 +62,7 @@ _HTTP_BAD_REQUEST = 400
 _HTTP_TOO_MANY_REQUESTS = 429
 _HTTP_SERVER_ERROR = 500
 _MIN_TOKEN_LIFETIME = 60.0
-_PERSIST_TIMEOUT = 10.0
+_PERSIST_TIMEOUT = 2.0
 _GRANT_PATH = "/client/token"
 # Sanity bound on a granted lifetime: the vendor serves a ~4 h JWT, so
 # anything non-positive, non-finite or beyond a year is malformed. A
