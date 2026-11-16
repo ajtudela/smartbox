@@ -26,6 +26,13 @@
   `smartbox sessions` lists the account's active sessions through
   `SmartboxClient.get_sessions()` (read-only; masked `sid`, `--json` for the
   raw payload).
+* The reseller table gains Perry (`api-perry`, serial 6), decoded from the
+  published mobile bundle (`it.perryhome.te`, build 2025-07-10) and its web
+  app (`te.perryhome.it`, 2.52.1). It uses the generic credential and the
+  shared host; a live login is not yet exercised. Tenant ids 18 (Sangha
+  "WiMa") and 20 (Ath Italia "ATH WiFi") are recorded in a table comment
+  only: their 2022/2023 apps predate `ws_user` and both web portals are gone,
+  so they are intentionally not selectable.
 
 ## 3.0.2 (2026-11-15)
 

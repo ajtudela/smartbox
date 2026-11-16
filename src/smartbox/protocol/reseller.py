@@ -74,6 +74,17 @@ class AvailableResellers:
             api_url="api-climastar",
             serial_id=5,
         ),
+        # Constants decoded from the published Perry mobile bundle
+        # (it.perryhome.te, build 2025-07-10): serial 6, client name "perry",
+        # generic credential. The web app (te.perryhome.it, 2.52.1) dials the
+        # shared host; the mobile build still names api-perry.helki.com, which
+        # answers as an alias of the same deployment. Live login unverified.
+        "api-perry": SmartboxReseller(
+            name="Perry",
+            web_url="https://te.perryhome.it/",
+            api_url="api-perry",
+            serial_id=6,
+        ),
         "api-elnur": SmartboxReseller(
             name="Elnur",
             web_url="https://remotecontrol.elnur.es/",
@@ -133,6 +144,13 @@ class AvailableResellers:
             api_url="api-lhz",
             serial_id=17,
         ),
+        # Tenant ids seen in published apps but deliberately NOT rows:
+        # 18 = Sangha "WiMa" (fr.sangha.wifi, build 2022-12-14) and
+        # 20 = Ath Italia "ATH WiFi" (it.athitalia.wifi, build 2023-01-11).
+        # Both web portals are gone (wifi.sangha.fr is parked, wifi.athitalia.it
+        # refuses connections) and both apps predate ws_user, so neither can
+        # serve the 3.x transport. Recorded so a rediscovery maps the id
+        # instead of re-deriving it.
     }
 
     def __init__(
