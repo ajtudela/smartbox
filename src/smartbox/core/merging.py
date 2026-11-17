@@ -38,6 +38,7 @@ __all__ = [
     "device_slots_delta",
     "device_update_value",
     "entry_key",
+    "is_empty_slot",
     "max_stemp_limit_node",
     "sanitize_prog_temps",
     "snapshot_slot_updates",
@@ -206,6 +207,16 @@ def normalize_node_addr(addr: object) -> int | None:
     if len(addr) > 1 and addr.startswith("0"):
         return None
     return int(addr)
+
+
+def is_empty_slot(entry: Mapping[str, Any]) -> bool:
+    """Whether a node-list entry is an uninstalled slot.
+
+    Empty slots carry ``installed: false``; they are not nodes
+    (hass-smartbox docs/api-contract.md §6.6), and their status read returns
+    404. A missing flag means installed.
+    """
+    return entry.get("installed") is False
 
 
 def entry_key(entry: Mapping[str, Any], dev_id: str) -> str | None:

@@ -34,6 +34,15 @@
   only: their 2022/2023 apps predate `ws_user` and both web portals are gone,
   so they are intentionally not selectable.
 
+### Fixed
+
+* The engine's node membership now covers installed nodes only: snapshot
+  ingestion and `/mgr/nodes` reconciliation skip entries with
+  `installed: false`. Empty slots are not nodes and the engine does not read
+  them; keeping them out of the store also makes a later `installed: true` a
+  real `NodeAdded` instead of a slot update on a shell. The rule is exposed as
+  `smartbox.core.merging.is_empty_slot`.
+
 ## 3.0.2 (2026-11-15)
 
 ### Fixed

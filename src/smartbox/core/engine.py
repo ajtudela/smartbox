@@ -66,6 +66,7 @@ from .merging import (
     device_slots_delta,
     device_update_value,
     entry_key,
+    is_empty_slot,
     max_stemp_limit_node,
     sanitize_prog_temps,
     snapshot_slot_updates,
@@ -502,6 +503,8 @@ class SmartboxEngine:
                 _LOGGER.warning("Snapshot node entry is not a dict; ignoring")
                 malformed = True
                 continue
+            if is_empty_slot(entry):
+                continue
             key = entry_key(entry, dev_id)
             if key is None:
                 malformed = True
@@ -808,6 +811,8 @@ class SmartboxEngine:
             if not isinstance(entry, Mapping):
                 _LOGGER.warning("/mgr/nodes entry is not a dict; ignoring")
                 malformed = True
+                continue
+            if is_empty_slot(entry):
                 continue
             key = entry_key(entry, dev_id)
             if key is None:
