@@ -1,16 +1,17 @@
 """Armed node deadlines: write confirmations and lost-frame windows.
 
-The engine decides what an elapsed deadline MEANS (a node flips Unavailable)
-and drives the single timer; this module owns which deadlines are armed, when
-they expire, and what a frame does to them. One timer serves both kinds, so a
-superseded or removed deadline needs no cancellation.
+The engine decides what an elapsed deadline MEANS (a lost window flips the
+node Unavailable; a write timeout starts one verification GET) and drives the
+single timer; this module owns which deadlines are armed, when they expire,
+and what a frame does to them. One timer serves both kinds, so a superseded or
+removed deadline needs no cancellation.
 
 Rules the engine relies on:
 
 - At most one pending write per node, identified by its arm generation. An arm
   remembers the window it superseded: a write that disarms itself (value-equal
   body, failed POST) restores that window exactly as it was armed, so the node
-  keeps its Unavailable path.
+  keeps its verification window.
 - A lost window is never extended: repeated lost frames leave the first
   deadline standing.
 - A frame confirms a pending write only when it carries the keys the write set
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
     from .state import NodeField
 
-__all__ = ["NodeDeadline", "NodeDeadlines"]
+__all__ = ["DueDeadline", "NodeDeadline", "NodeDeadlines"]
 
 
 @dataclass(frozen=True)
@@ -40,9 +41,9 @@ class NodeDeadline:
 
     ``kind`` is ``"write"`` (carrying the slot the write posted to) or
     ``"lost"``. :attr:`SmartboxEngine.deadlines` exposes what is armed, so
-    tests and diagnostics can see which node is about to flip Unavailable.
-    ``expires_in`` is seconds from now, slightly negative while the timer is
-    being scheduled.
+    tests and diagnostics can see which node is about to lose availability or
+    be verified. ``expires_in`` is seconds from now, slightly negative while
+    the timer is being scheduled.
     """
 
     dev_id: str
@@ -50,6 +51,23 @@ class NodeDeadline:
     kind: Literal["write", "lost"]
     slot: NodeField | None = None
     expires_in: float = 0.0
+
+
+@dataclass(frozen=True)
+class DueDeadline:
+    """An elapsed deadline handed to the engine.
+
+    ``kind`` is ``"lost"`` or ``"write"``. A write carries the slot and intent
+    the confirmation was armed for, so the engine can verify it with one GET.
+    """
+
+    dev_id: str
+    node_key: str
+    kind: Literal["write", "lost"]
+    reason: str
+    slot: NodeField | None = None
+    intent: Mapping[str, Any] | None = None
+    body: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -73,6 +91,7 @@ class _PendingWrite:
     slot: NodeField
     intent: Mapping[str, Any] | None
     deadline: float
+    body: Mapping[str, Any] | None = None
     superseded: _PendingWrite | None = None
 
 
@@ -131,6 +150,7 @@ class NodeDeadlines:
         slot: NodeField,
         intent: Mapping[str, Any] | None,
         *,
+        body: Mapping[str, Any] | None = None,
         timeout: float | None = None,
     ) -> int:
         """(Re)arm the node's pending write: one pending, refreshed deadline.
@@ -138,7 +158,7 @@ class NodeDeadlines:
         Returns the generation, so the writing call can later prove the pending
         it wants to disarm is still its own. The arm it replaces is kept, so a
         write that disarms itself restores that window instead of leaving the
-        node with no Unavailable path. ``timeout`` overrides the configured
+        node with no verification path. ``timeout`` overrides the configured
         confirmation window for the in-flight hold the engine arms before the
         POST; :meth:`refresh_write` shortens it once the POST returns.
         """
@@ -151,6 +171,7 @@ class NodeDeadlines:
             slot=slot,
             intent=intent,
             deadline=timing.monotonic() + window,
+            body=body,
             superseded=old,
         )
         return self._arm_generation
@@ -221,13 +242,14 @@ class NodeDeadlines:
     def schedule_lost(self, dev_id: str, key: str) -> bool:
         """Schedule the unavailable flip after the delay window.
 
-        Never rescheduled: repeated lost frames must not extend the window. No
-        window is armed while the node has a pending write - post-write lost
-        frames are write-correlated noise, and the pending timeout is the
-        authoritative Unavailable path. True when this call armed a window.
+        Never rescheduled: repeated lost frames must not extend the window. A
+        lost frame arms the normal window even while a write is pending: the
+        window owns availability, while the write timeout independently
+        verifies the write with a GET. An ok frame cancels the window. True
+        when this call armed a window.
         """
         token = (dev_id, key)
-        if token in self._pending_writes or token in self._lost_flips:
+        if token in self._lost_flips:
             return False
         self._lost_flips[token] = timing.monotonic() + self._unavailable_delay
         return True
@@ -250,20 +272,35 @@ class NodeDeadlines:
         had_lost = self._lost_flips.pop(token, None) is not None
         return had_pending or had_lost
 
-    def take_due(self) -> list[tuple[str, str, str]]:
-        """Remove and return every elapsed deadline as ``(dev_id, key, reason)``."""
+    def take_due(self) -> list[DueDeadline]:
+        """Remove and return every elapsed deadline."""
         now = timing.monotonic()
-        due: list[tuple[str, str, str]] = []
-        for token, deadline in list(self._lost_flips.items()):
+        due: list[DueDeadline] = []
+        for (dev_id, key), deadline in list(self._lost_flips.items()):
             if deadline <= now:
-                del self._lost_flips[token]
+                del self._lost_flips[(dev_id, key)]
                 due.append(
-                    (*token, f"{self._unavailable_delay:.1f}s lost window elapsed")
+                    DueDeadline(
+                        dev_id,
+                        key,
+                        "lost",
+                        f"{self._unavailable_delay:.1f}s lost window elapsed",
+                    )
                 )
-        for token, pending in list(self._pending_writes.items()):
+        for (dev_id, key), pending in list(self._pending_writes.items()):
             if pending.deadline <= now:
-                del self._pending_writes[token]
-                due.append((*token, "pending write timed out"))
+                del self._pending_writes[(dev_id, key)]
+                due.append(
+                    DueDeadline(
+                        dev_id,
+                        key,
+                        "write",
+                        "pending write timed out",
+                        pending.slot,
+                        pending.intent,
+                        pending.body,
+                    )
+                )
         return due
 
     def clear(self) -> None:

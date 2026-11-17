@@ -26,9 +26,11 @@ canonical copies in hass-smartbox docs/api-contract.md §5):
   to GET for several seconds (hass-smartbox docs/api-contract.md §5.4), so merging over a
   REST read would post a previous write's key back at its pre-write value. A
   GET is the fallback while the store has no body yet.
-- A write is confirmed by the frame the server pushes, never by a GET: each op
-  reports what it posted (:class:`PostedWrite`), and core decides what proves
-  it landed.
+- A write is confirmed by the frame the server pushes. If no frame arrives,
+  core reads the written slot once after the confirmation window; the GET
+  reconciles a silently dropped write, it does not replace the frame path.
+  Each op reports what it posted (:class:`PostedWrite`), and core decides what
+  proves it landed.
 - Writes are NEVER blind-retried on transient failures (the server may
   have applied the write): single POST attempt, errors per the client's
   error contract (4xx -> ``SmartboxError``, 5xx/network/timeout ->
@@ -93,7 +95,7 @@ WriteSlot = Literal[
 
 
 class WriteHost(Protocol):
-    """The seam :class:`WriteApi` needs from its host.
+    """The seam :class:`WriteApi` and timeout verification need from a host.
 
     Satisfied by :class:`~smartbox.protocol.client.SmartboxClient` and by the
     test suite's in-memory fake (``tests/fake_api.py``).
@@ -104,6 +106,9 @@ class WriteHost(Protocol):
 
         Public on purpose: :class:`WriteApi` composes around it.
         """
+
+    async def get_node_status(self, dev_id: str, node: NodeRef) -> dict[str, Any]:
+        """Raw GET of the node's status (write-confirmation verification)."""
 
     async def get_node_setup(self, dev_id: str, node: NodeRef) -> dict[str, Any]:
         """Raw GET of the node's setup (the GET half of GET-merge-POST)."""
