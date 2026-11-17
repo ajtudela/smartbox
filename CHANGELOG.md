@@ -30,6 +30,13 @@
   while the read was in flight is newer, so the read is dropped. Nothing else
   tries to reconcile concurrent changes.
 
+* The htr_mod setpoint body now matches the current app (2.54.2): `units`
+  formats `comfort_temp` but is not posted. A body carrying `units` was
+  accepted (201) and ignored on 2026-11-17, so the setpoint write could look
+  like a timeout; the app-derived no-`units` body still awaits live
+  confirmation (hass-smartbox docs/api-contract.md §7 item 7). A units-only
+  call now raises `ValueError`, since `units` is not a body key.
+
 ## 3.1.0 (2026-11-17)
 
 ### Added

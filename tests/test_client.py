@@ -1,4 +1,4 @@
-"""Tests for the REST client plumbing (``smartbox_protocol.client``).
+"""Tests for the REST client plumbing (``smartbox.protocol.client``).
 
 Plain pytest; the HTTP layer is a scripted FakeSession (shared in
 ``fakes.py``), sleeps are intercepted via the ``timing.sleep`` seam.

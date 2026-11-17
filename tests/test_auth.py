@@ -1,4 +1,4 @@
-"""Tests for the token lifecycle (``smartbox_protocol.auth``).
+"""Tests for the token lifecycle (``smartbox.protocol.auth``).
 
 Plain pytest. All sleeps are intercepted via the ``timing.sleep`` seam
 (instant recorder); no test ever really waits for backoff.

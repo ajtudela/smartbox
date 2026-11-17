@@ -1,4 +1,4 @@
-"""Tests for boundary normalization (``smartbox_protocol.values``)."""
+"""Tests for boundary normalization (``smartbox.protocol.values``)."""
 
 from __future__ import annotations
 
