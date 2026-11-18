@@ -946,19 +946,20 @@ async def test_prog_verification_rejects_malformed_get_data():
 class GatedStatusHost(AcceptingHost):
     """Host whose status GET blocks until the test releases it."""
 
-    def __init__(self):
+    def __init__(self, body=None):
         super().__init__()
+        self.body = dict(STATUS) if body is None else body
         self.started = asyncio.Event()
         self.release = asyncio.Event()
 
     async def get_node_status(self, dev_id, node):  # noqa: ARG002 - seam shape
         self.started.set()
         await self.release.wait()
-        return dict(STATUS)
+        return dict(self.body)
 
 
-async def _gated_engine_with_node():
-    host = GatedStatusHost()
+async def _gated_engine_with_node(body=None):
+    host = GatedStatusHost(body)
     engine = SmartboxEngine(host)
     recorder = Recorder()
     engine.subscribe(recorder)
@@ -970,6 +971,163 @@ async def _gated_engine_with_node():
     await engine.handle_event(Snapshot(payload=fake.snapshot_payload()))
     recorder.changes.clear()
     return engine, recorder, host, transport
+
+
+class GatedStatusPerNodeHost(AcceptingHost):
+    """Host whose status GET blocks per node until the test releases it."""
+
+    def __init__(self, keys):
+        super().__init__()
+        self.started = {key: asyncio.Event() for key in keys}
+        self.release = asyncio.Event()
+        self.gets = []
+
+    async def get_node_status(self, dev_id, node):  # noqa: ARG002 - seam shape
+        key = f"{node.node_type}/{node.addr}"
+        self.gets.append(key)
+        self.started[key].set()
+        await self.release.wait()
+        return dict(STATUS)
+
+
+def _two_node_engine(host):
+    """Build an engine holding htr/2 and htr/3 on one device."""
+    engine = SmartboxEngine(host)
+    transport = FakeTransport()
+    engine.supervise(transport)
+    fake = FakeSmartbox()
+    fake.add_device("dev1")
+    for addr in ("2", "3"):
+        fake.add_node(
+            "dev1", NodeRef("htr", addr), status=dict(STATUS), setup={"priority": 0}
+        )
+    return engine, transport, fake
+
+
+async def _two_node_writes(engine, fake):
+    await engine.handle_event(Snapshot(payload=fake.snapshot_payload()))
+    await engine.set_mode("dev1", NodeRef("htr", "2"), "manual")
+    await engine.set_mode("dev1", NodeRef("htr", "3"), "manual")
+
+
+async def test_simultaneous_verifications_start_before_either_returns():
+    """Two timed-out writes are verified concurrently, not one after the other."""
+    host = GatedStatusPerNodeHost(["htr/2", "htr/3"])
+    engine, _transport, fake = _two_node_engine(host)
+    try:
+        await _two_node_writes(engine, fake)
+        await tick()
+        await asyncio.wait_for(
+            asyncio.gather(*(event.wait() for event in host.started.values())),
+            timeout=5.0,
+        )
+        host.release.set()
+        await tick()
+    finally:
+        host.release.set()
+        await engine.stop()
+        await tick()
+
+
+async def test_a_frame_during_one_verification_does_not_drop_another():
+    """A deadline mutation re-times the timer; already-taken dues still resolve."""
+    host = GatedStatusPerNodeHost(["htr/2", "htr/3"])
+    engine, transport, fake = _two_node_engine(host)
+    try:
+        await _two_node_writes(engine, fake)
+        await tick()
+        await host.started["htr/2"].wait()
+        # This frame arms a lost window, which calls _schedule and cancels the
+        # shared timer while both verifications are in flight.
+        await transport.deliver_update(
+            "dev1", "/htr/2/status", {**STATUS, "sync_status": "lost"}
+        )
+        host.release.set()
+        await tick()
+        assert "htr/3" in host.gets
+    finally:
+        host.release.set()
+        await engine.stop()
+        await tick()
+
+
+async def test_prog_temps_mismatch_names_the_sent_keys(caplog):
+    """A multi-key body is compared key by key in the mismatch warning."""
+    engine, recorder, fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    async def old_status(_dev_id, _node):
+        return dict(STATUS)
+
+    fake.get_node_status = old_status
+    try:
+        with caplog.at_level("WARNING"):
+            await engine.set_prog_temps(
+                "dev1",
+                NODE_REF,
+                ice_temp=5.0,
+                eco_temp=17.0,
+                comf_temp=21.0,
+                units="C",
+            )
+            await tick()
+        assert "accepted but not applied" in caplog.text
+        assert "comf_temp" in caplog.text
+    finally:
+        await engine.stop()
+
+
+async def test_a_confirmed_write_issues_no_verification_get():
+    engine, recorder, fake, transport = await make_engine()
+    await establish_ok(recorder, transport)
+    fake.requests.clear()
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await deliver_status(transport, {**STATUS, "mode": "manual"})
+        await tick()
+        assert not [request for request in fake.requests if request[0] == "GET"]
+    finally:
+        await engine.stop()
+
+
+async def test_re_arming_cancels_the_parked_timer(monkeypatch, engine_clock):
+    """A second write re-times the shared timer by cancelling the parked task."""
+    gate = HoldSleep(engine_clock)
+    monkeypatch.setattr(timing, "sleep", gate)
+    engine, _recorder, _fake, _transport = await make_engine()
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await tick()
+        assert len(gate.gates) == 1  # parked on the confirmation window
+        await engine.set_boost("dev1", NODE_REF, ON)
+        await tick()
+        assert engine.node("dev1", "htr/2").available is True
+        assert len(armed_deadlines(engine, "write")) == 1
+    finally:
+        await gate.release_all()
+        await engine.stop()
+        await tick()
+
+
+async def test_a_failed_verification_is_logged(monkeypatch, caplog):
+    """A verification raising is logged and skipped; the engine stays usable."""
+    engine, recorder, _fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    async def boom(_due):
+        msg = "boom"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(engine, "_verify_write_timeout", boom)
+    try:
+        with caplog.at_level("ERROR"):
+            await engine.set_mode("dev1", NODE_REF, "manual")
+            await tick()
+        assert "Write verification failed" in caplog.text
+        assert engine.node("dev1", "htr/2").available is True
+    finally:
+        await engine.stop()
+        await tick()
 
 
 async def test_verification_get_after_node_removal_does_not_re_add_it():
@@ -987,7 +1145,8 @@ async def test_verification_get_after_node_removal_does_not_re_add_it():
         await engine.stop()
 
 
-async def test_verification_get_does_not_overwrite_a_newer_frame():
+async def test_verification_get_is_dropped_when_a_frame_overtakes_it():
+    """A frame that landed during the read is newer; the read is not merged."""
     engine, _recorder, host, transport = await _gated_engine_with_node()
     try:
         await engine.set_mode("dev1", NODE_REF, "manual")
@@ -1000,7 +1159,30 @@ async def test_verification_get_does_not_overwrite_a_newer_frame():
         await tick()
         node = engine.node("dev1", "htr/2")
         assert node.available is True
-        assert node.status["stemp"] == "21.0"
+        assert node.status["stemp"] == "21.0"  # the frame stays, the read is dropped
+    finally:
+        await engine.stop()
+
+
+async def test_verification_get_does_not_undo_a_newer_confirmed_write():
+    """A confirmed write cannot be reverted by an older verification read."""
+    engine, _recorder, host, transport = await _gated_engine_with_node(
+        {**STATUS, "mode": "heat"}
+    )
+    try:
+        # A times out; its read is in flight.
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await tick()
+        await host.started.wait()
+        # B is a newer write, confirmed by its frame before A's read returns.
+        await engine.set_mode("dev1", NODE_REF, "auto")
+        await transport.deliver_update(
+            "dev1", "/htr/2/status", {**STATUS, "mode": "auto"}
+        )
+        assert engine.node("dev1", "htr/2").status["mode"] == "auto"
+        host.release.set()
+        await tick()
+        assert engine.node("dev1", "htr/2").status["mode"] == "auto"
     finally:
         await engine.stop()
 

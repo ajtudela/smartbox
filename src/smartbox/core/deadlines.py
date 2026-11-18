@@ -181,8 +181,8 @@ class NodeDeadlines:
 
         The engine arms before the POST so a confirming frame already in
         flight is caught, but a token refresh or a slow POST can take longer
-        than the confirmation window. The countdown that decides Unavailable
-        starts here, when the request has actually landed.
+        than the confirmation window. The countdown that ends in the
+        verification GET starts here, when the request has actually landed.
         """
         token = (dev_id, key)
         entry = self._pending_writes.get(token)

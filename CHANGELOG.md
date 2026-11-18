@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+* `WriteHost.get_node_status()` joins the public host protocol: the engine
+  reads a node's status once to verify a write whose confirmation window
+  elapsed without a frame. Custom write hosts must provide it;
+  `SmartboxClient` and the test fake do.
+
 ### Fixed
 
 * A write-confirmation timeout no longer marks the node Unavailable. The
@@ -13,6 +20,15 @@
   deliberate: a silently dropped write no longer turns the node Unavailable;
   that waits for lost evidence or feed loss (hass-smartbox
   docs/api-contract.md §5.4, §5.6, §6.3).
+
+* Elapsed deadlines are handled without losing the batch: lost flips are
+  applied before the timer task yields, so a frame arriving afterwards is
+  newer and wins, and each write verification runs in its own task, so a slow
+  GET neither delays another node's lost flip nor the other deadlines taken
+  with it. The verification response is accepted at face value and merged
+  like any update, with one ordering check: a frame that changed the node
+  while the read was in flight is newer, so the read is dropped. Nothing else
+  tries to reconcile concurrent changes.
 
 ## 3.1.0 (2026-11-17)
 
