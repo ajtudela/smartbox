@@ -7,8 +7,8 @@ canonical copies in hass-smartbox docs/api-contract.md §5):
   APPLIED (a ``{locked, stemp, mode}`` restore stored locked+mode and dropped
   stemp). The multi-key bodies this module sends are the app-shaped ones: the
   ``modified_auto`` engage body, the 4-key profile temps, and the htr_mod
-  setpoint body (hass-smartbox docs/api-contract.md §5.1), plus ``units`` alongside
-  temperature fields.
+  setpoint body (hass-smartbox docs/api-contract.md §5.1); the htr_mod body
+  carries no ``units`` key (the scale is used only to format ``comfort_temp``).
 - The app-shaped ``{stemp, units, mode: "modified_auto"}`` body engages the
   override ONLY when that mode is sent explicitly; a plain ``{stemp, units}``
   write in auto applies immediately but does not persist across programme
@@ -335,12 +335,15 @@ class WriteApi:
         """POST the htr_mod status body.
 
         htr_mod nodes carry ``on`` / ``selected_temp`` / ``comfort_temp`` /
-        ``eco_offset`` in status (hass-smartbox docs/api-contract.md §7 item 7); that is the
-        key set this op sends, for the provided keys only. ``comfort_temp`` is
-        a number in ``units`` and is formatted onto the setpoint grid like every
-        other temperature write. The mixed-category acceptance is unverified
-        live (Phase 4).
+        ``eco_offset`` in status (hass-smartbox docs/api-contract.md §7 item 7).
+        The current app (2.54.2) does not put ``units`` in this body; it uses
+        the scale only to place ``comfort_temp`` on the setpoint grid. The
+        shape is app-evidenced, but live acceptance of the exact no-``units``
+        body remains open (hass-smartbox docs/api-contract.md §7 item 7).
+        A body carrying ``units`` was accepted (201) and ignored.
         """
+        if units is not None:
+            units = validate_units(units)
         body: dict[str, object] = {
             name: value
             for name, value in (
@@ -349,14 +352,13 @@ class WriteApi:
                 ("selected_temp", selected_temp),
                 ("comfort_temp", comfort_temp),
                 ("eco_offset", eco_offset),
-                ("units", units),
             )
             if value is not None
         }
         if not body:
             msg = "set_htr_mod_status requires at least one field"
             raise ValueError(msg)
-        _validate_htr_mod_body(body)
+        _validate_htr_mod_body(body, units)
         return await self._post(
             node_path(dev_id, node, "status"),
             body,
@@ -715,7 +717,7 @@ def _require_int(value: object, name: str) -> None:
         raise ValueError(msg)  # noqa: TRY004 - input validation is ValueError by contract
 
 
-def _validate_htr_mod_body(body: dict[str, object]) -> None:
+def _validate_htr_mod_body(body: dict[str, object], units: str | None) -> None:
     """Field-level validation for the htr_mod status body (mutates quantization)."""
     if "on" in body:
         _require_bool(body["on"], "on")
@@ -726,14 +728,6 @@ def _validate_htr_mod_body(body: dict[str, object]) -> None:
         if field in body and not isinstance(body[field], str):
             msg = f"{field} must be a string, got: {body[field]!r}"
             raise ValueError(msg)
-    units: str | None = None
-    if "units" in body:
-        raw_units = body["units"]
-        if not isinstance(raw_units, str):
-            msg = f"units must be a string, got: {raw_units!r}"
-            raise ValueError(msg)
-        units = validate_units(raw_units)
-        body["units"] = units
     if "comfort_temp" in body:
         comfort = require_number(body["comfort_temp"], "comfort_temp")
         if units is None:
@@ -741,5 +735,5 @@ def _validate_htr_mod_body(body: dict[str, object]) -> None:
             raise ValueError(msg)
         # Same setpoint grid as every other temperature write: the app sends
         # .1f on the 0.5 C grid, so the value is quantized here rather than
-        # carried through as the caller computed it.
+        # carried through as the caller computed it. The scale is not posted.
         body["comfort_temp"] = format_setpoint(comfort, units)
