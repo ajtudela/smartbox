@@ -110,6 +110,9 @@ class AcceptingHost:
     async def post(self, path, body):
         self.posts.append((path, dict(body)))
 
+    async def get_node_status(self, dev_id, node):  # noqa: ARG002 - seam shape
+        return {}
+
     async def get_node_setup(self, dev_id, node):  # noqa: ARG002 - seam shape
         return {}
 
@@ -138,6 +141,9 @@ class FrameDuringPostHost:
         if payload is None:
             payload = await self._fake.get_node_setup("dev1", NODE_REF)
         await self._transport.deliver_update("dev1", self._path, dict(payload))
+
+    async def get_node_status(self, dev_id, node):
+        return await self._fake.get_node_status(dev_id, node)
 
     async def get_node_setup(self, dev_id, node):
         return await self._fake.get_node_setup(dev_id, node)
@@ -541,7 +547,8 @@ async def test_a_slow_post_restarts_the_confirmation_countdown(engine_clock):
         (deadline,) = engine.deadlines
         assert deadline.expires_in < 10.0  # refreshed, not the 36 s hold
         await tick()
-        assert engine.node("dev1", "htr/2").available is False
+        # the timed-out write is verified by GET; the fake applied it
+        assert engine.node("dev1", "htr/2").available is True
     finally:
         await engine.stop()
 
@@ -625,8 +632,8 @@ async def test_value_equal_write_keeps_an_earlier_write_confirmation():
         ]
         recorder.changes.clear()
         await tick()
-        # the restored window is the node's Unavailable path again
-        assert engine.node("dev1", "htr/2").available is False
+        # the restored window is verified by GET; the fake applied the write
+        assert engine.node("dev1", "htr/2").available is True
         assert armed_deadlines(engine, "write") == []
     finally:
         await engine.stop()
@@ -646,7 +653,7 @@ async def test_failed_write_keeps_an_earlier_write_confirmation():
             ("dev1", "htr/2", "write", "status")
         ]
         await tick()
-        assert engine.node("dev1", "htr/2").available is False
+        assert engine.node("dev1", "htr/2").available is True
     finally:
         await engine.stop()
 
@@ -769,13 +776,11 @@ async def test_a_frame_with_the_old_value_does_not_confirm_the_write():
         await deliver_status(transport, STATUS)
         assert engine.node("dev1", "htr/2").status == STATUS
         assert len(armed_deadlines(engine, "write")) == 1
-        # ...so the write still has its Unavailable path
+        # ...so the timeout verifies it with a GET; the fake applied it
         recorder.changes.clear()
         await tick()
-        assert engine.node("dev1", "htr/2").available is False
-        assert [(c.kind, c.node_key) for c in recorder.changes] == [
-            ("availability", "htr/2"),
-        ]
+        assert engine.node("dev1", "htr/2").available is True
+        assert [c.kind for c in recorder.changes] == ["status"]
     finally:
         await engine.stop()
 
@@ -839,22 +844,345 @@ async def test_write_arms_pending_and_ok_frame_confirms():
         await engine.stop()
 
 
-async def test_write_confirm_timeout_marks_unavailable():
-    engine, recorder, _fake, _transport = await make_engine()
+async def test_write_confirm_timeout_verifies_with_a_status_get():
+    engine, recorder, fake, _transport = await make_engine()
     await establish_ok(recorder, _transport)
     try:
         await engine.set_mode("dev1", NODE_REF, "manual")
         recorder.changes.clear()
-        await tick()  # no frame ever confirms -> timeout fires
+        await tick()  # no frame ever confirms -> one GET decides
+        node = engine.node("dev1", "htr/2")
+        assert node.available is True
+        assert armed_deadlines(engine, "write") == []
+        assert node.status["mode"] == "manual"
+        assert not any(c.kind == "availability" for c in recorder.changes)
+        assert fake.requests[-1][0] == "GET"
+    finally:
+        await engine.stop()
+
+
+async def test_write_confirm_timeout_get_old_value_keeps_available(caplog):
+    engine, recorder, fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    async def old_status(_dev_id, _node):
+        return dict(STATUS)
+
+    fake.get_node_status = old_status
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        recorder.changes.clear()
+        with caplog.at_level("WARNING"):
+            await tick()
+        node = engine.node("dev1", "htr/2")
+        assert node.available is True
+        assert node.status == STATUS  # the GET reverted the ignored write
+        assert not any(c.kind == "availability" for c in recorder.changes)
+        assert "posted={'mode': 'manual'}" in caplog.text
+        assert "read=" in caplog.text
+    finally:
+        await engine.stop()
+
+
+async def test_write_confirm_timeout_get_lost_marks_unavailable():
+    engine, recorder, fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    async def lost_status(_dev_id, _node):
+        return dict(LOST)
+
+    fake.get_node_status = lost_status
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        recorder.changes.clear()
+        await tick()
         node = engine.node("dev1", "htr/2")
         assert node.available is False
-        assert armed_deadlines(engine, "write") == []
-        assert [(c.kind, c.node_key) for c in recorder.changes] == [
-            ("availability", "htr/2")
-        ]
-        # no revision bump: availability is derived state
-        assert recorder.changes[0].node.revision == node.revision
-        assert recorder.changes[0].node.status == node.status
+        assert [c.kind for c in recorder.changes] == ["availability"]
+    finally:
+        await engine.stop()
+
+
+async def test_write_confirm_timeout_get_failure_keeps_available():
+    engine, recorder, fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    async def failed_status(_dev_id, _node):
+        msg = "network"
+        raise TransportUnavailableError(msg)
+
+    fake.get_node_status = failed_status
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        recorder.changes.clear()
+        await tick()
+        node = engine.node("dev1", "htr/2")
+        assert node.available is True
+        assert not any(c.kind == "availability" for c in recorder.changes)
+    finally:
+        await engine.stop()
+
+
+async def test_prog_verification_rejects_malformed_get_data():
+    engine, recorder, fake, _transport = await make_engine(prog={"0": [2] * 24})
+    await establish_ok(recorder, _transport)
+
+    async def malformed_prog(_dev_id, _node):
+        return {"prog": "bad"}
+
+    fake.get_node_prog = malformed_prog
+    try:
+        await engine.set_prog("dev1", NODE_REF, {"1": [5] * 24})
+        recorder.changes.clear()
+        await tick()
+        node = engine.node("dev1", "htr/2")
+        assert node.available is True
+        assert node.prog == {"prog": {"0": [2] * 24, "1": [5] * 24}}
+        assert not any(c.kind == "availability" for c in recorder.changes)
+    finally:
+        await engine.stop()
+
+
+class GatedStatusHost(AcceptingHost):
+    """Host whose status GET blocks until the test releases it."""
+
+    def __init__(self, body=None):
+        super().__init__()
+        self.body = dict(STATUS) if body is None else body
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def get_node_status(self, dev_id, node):  # noqa: ARG002 - seam shape
+        self.started.set()
+        await self.release.wait()
+        return dict(self.body)
+
+
+async def _gated_engine_with_node(body=None):
+    host = GatedStatusHost(body)
+    engine = SmartboxEngine(host)
+    recorder = Recorder()
+    engine.subscribe(recorder)
+    transport = FakeTransport()
+    engine.supervise(transport)
+    fake = FakeSmartbox()
+    fake.add_device("dev1")
+    fake.add_node("dev1", NODE_REF, status=dict(STATUS), setup={"priority": 0})
+    await engine.handle_event(Snapshot(payload=fake.snapshot_payload()))
+    recorder.changes.clear()
+    return engine, recorder, host, transport
+
+
+class GatedStatusPerNodeHost(AcceptingHost):
+    """Host whose status GET blocks per node until the test releases it."""
+
+    def __init__(self, keys):
+        super().__init__()
+        self.started = {key: asyncio.Event() for key in keys}
+        self.release = asyncio.Event()
+        self.gets = []
+
+    async def get_node_status(self, dev_id, node):  # noqa: ARG002 - seam shape
+        key = f"{node.node_type}/{node.addr}"
+        self.gets.append(key)
+        self.started[key].set()
+        await self.release.wait()
+        return dict(STATUS)
+
+
+def _two_node_engine(host):
+    """Build an engine holding htr/2 and htr/3 on one device."""
+    engine = SmartboxEngine(host)
+    transport = FakeTransport()
+    engine.supervise(transport)
+    fake = FakeSmartbox()
+    fake.add_device("dev1")
+    for addr in ("2", "3"):
+        fake.add_node(
+            "dev1", NodeRef("htr", addr), status=dict(STATUS), setup={"priority": 0}
+        )
+    return engine, transport, fake
+
+
+async def _two_node_writes(engine, fake):
+    await engine.handle_event(Snapshot(payload=fake.snapshot_payload()))
+    await engine.set_mode("dev1", NodeRef("htr", "2"), "manual")
+    await engine.set_mode("dev1", NodeRef("htr", "3"), "manual")
+
+
+async def test_simultaneous_verifications_start_before_either_returns():
+    """Two timed-out writes are verified concurrently, not one after the other."""
+    host = GatedStatusPerNodeHost(["htr/2", "htr/3"])
+    engine, _transport, fake = _two_node_engine(host)
+    try:
+        await _two_node_writes(engine, fake)
+        await tick()
+        await asyncio.wait_for(
+            asyncio.gather(*(event.wait() for event in host.started.values())),
+            timeout=5.0,
+        )
+        host.release.set()
+        await tick()
+    finally:
+        host.release.set()
+        await engine.stop()
+        await tick()
+
+
+async def test_a_frame_during_one_verification_does_not_drop_another():
+    """A deadline mutation re-times the timer; already-taken dues still resolve."""
+    host = GatedStatusPerNodeHost(["htr/2", "htr/3"])
+    engine, transport, fake = _two_node_engine(host)
+    try:
+        await _two_node_writes(engine, fake)
+        await tick()
+        await host.started["htr/2"].wait()
+        # This frame arms a lost window, which calls _schedule and cancels the
+        # shared timer while both verifications are in flight.
+        await transport.deliver_update(
+            "dev1", "/htr/2/status", {**STATUS, "sync_status": "lost"}
+        )
+        host.release.set()
+        await tick()
+        assert "htr/3" in host.gets
+    finally:
+        host.release.set()
+        await engine.stop()
+        await tick()
+
+
+async def test_prog_temps_mismatch_names_the_sent_keys(caplog):
+    """A multi-key body is compared key by key in the mismatch warning."""
+    engine, recorder, fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    async def old_status(_dev_id, _node):
+        return dict(STATUS)
+
+    fake.get_node_status = old_status
+    try:
+        with caplog.at_level("WARNING"):
+            await engine.set_prog_temps(
+                "dev1",
+                NODE_REF,
+                ice_temp=5.0,
+                eco_temp=17.0,
+                comf_temp=21.0,
+                units="C",
+            )
+            await tick()
+        assert "accepted but not applied" in caplog.text
+        assert "comf_temp" in caplog.text
+    finally:
+        await engine.stop()
+
+
+async def test_a_confirmed_write_issues_no_verification_get():
+    engine, recorder, fake, transport = await make_engine()
+    await establish_ok(recorder, transport)
+    fake.requests.clear()
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await deliver_status(transport, {**STATUS, "mode": "manual"})
+        await tick()
+        assert not [request for request in fake.requests if request[0] == "GET"]
+    finally:
+        await engine.stop()
+
+
+async def test_re_arming_cancels_the_parked_timer(monkeypatch, engine_clock):
+    """A second write re-times the shared timer by cancelling the parked task."""
+    gate = HoldSleep(engine_clock)
+    monkeypatch.setattr(timing, "sleep", gate)
+    engine, _recorder, _fake, _transport = await make_engine()
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await tick()
+        assert len(gate.gates) == 1  # parked on the confirmation window
+        await engine.set_boost("dev1", NODE_REF, ON)
+        await tick()
+        assert engine.node("dev1", "htr/2").available is True
+        assert len(armed_deadlines(engine, "write")) == 1
+    finally:
+        await gate.release_all()
+        await engine.stop()
+        await tick()
+
+
+async def test_a_failed_verification_is_logged(monkeypatch, caplog):
+    """A verification raising is logged and skipped; the engine stays usable."""
+    engine, recorder, _fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    async def boom(_due):
+        msg = "boom"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(engine, "_verify_write_timeout", boom)
+    try:
+        with caplog.at_level("ERROR"):
+            await engine.set_mode("dev1", NODE_REF, "manual")
+            await tick()
+        assert "Write verification failed" in caplog.text
+        assert engine.node("dev1", "htr/2").available is True
+    finally:
+        await engine.stop()
+        await tick()
+
+
+async def test_verification_get_after_node_removal_does_not_re_add_it():
+    engine, _recorder, host, transport = await _gated_engine_with_node()
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await tick()
+        await host.started.wait()
+        await transport.deliver_update("dev1", "/mgr/nodes", {"nodes": []})
+        assert engine.node("dev1", "htr/2") is None
+        host.release.set()
+        await tick()
+        assert engine.node("dev1", "htr/2") is None
+    finally:
+        await engine.stop()
+
+
+async def test_verification_get_is_dropped_when_a_frame_overtakes_it():
+    """A frame that landed during the read is newer; the read is not merged."""
+    engine, _recorder, host, transport = await _gated_engine_with_node()
+    try:
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await tick()
+        await host.started.wait()
+        await transport.deliver_update(
+            "dev1", "/htr/2/status", {**STATUS, "stemp": "21.0"}
+        )
+        host.release.set()
+        await tick()
+        node = engine.node("dev1", "htr/2")
+        assert node.available is True
+        assert node.status["stemp"] == "21.0"  # the frame stays, the read is dropped
+    finally:
+        await engine.stop()
+
+
+async def test_verification_get_does_not_undo_a_newer_confirmed_write():
+    """A confirmed write cannot be reverted by an older verification read."""
+    engine, _recorder, host, transport = await _gated_engine_with_node(
+        {**STATUS, "mode": "heat"}
+    )
+    try:
+        # A times out; its read is in flight.
+        await engine.set_mode("dev1", NODE_REF, "manual")
+        await tick()
+        await host.started.wait()
+        # B is a newer write, confirmed by its frame before A's read returns.
+        await engine.set_mode("dev1", NODE_REF, "auto")
+        await transport.deliver_update(
+            "dev1", "/htr/2/status", {**STATUS, "mode": "auto"}
+        )
+        assert engine.node("dev1", "htr/2").status["mode"] == "auto"
+        host.release.set()
+        await tick()
+        assert engine.node("dev1", "htr/2").status["mode"] == "auto"
     finally:
         await engine.stop()
 
@@ -869,13 +1197,11 @@ async def test_lost_marked_frame_does_not_confirm_or_replace_the_body():
         # data either: it carries the sync marker, not the slot's keys
         await deliver_status(transport, {**STATUS, "sync_status": "lost"})
         assert engine.node("dev1", "htr/2").status == {**STATUS, "mode": "manual"}
-        # so the pending survives and times out (one flip, not two)
+        # the lost window owns availability; the timeout GET still verifies
         await tick()
         node = engine.node("dev1", "htr/2")
         assert node.available is False
-        assert [(c.kind, c.node_key) for c in recorder.changes] == [
-            ("availability", "htr/2"),
-        ]
+        assert [c.kind for c in recorder.changes] == ["availability"]
     finally:
         await engine.stop()
 
@@ -971,7 +1297,7 @@ async def test_stale_prog_frame_does_not_confirm_a_prog_write():
         )
         assert len(armed_deadlines(engine, "write")) == 1  # not confirmed
         await tick()
-        assert engine.node("dev1", "htr/2").available is False
+        assert engine.node("dev1", "htr/2").available is True
     finally:
         await engine.stop()
 
@@ -988,7 +1314,7 @@ async def test_ok_status_frame_does_not_confirm_a_setup_write():
         await deliver_status(transport, {**STATUS, "mode": "heat"})
         assert len(armed_deadlines(engine, "write")) == 1
         await tick()
-        assert engine.node("dev1", "htr/2").available is False  # timeout path
+        assert engine.node("dev1", "htr/2").available is True
     finally:
         await engine.stop()
 
@@ -1006,7 +1332,7 @@ async def test_ok_setup_frame_does_not_confirm_a_status_write():
         await transport.deliver_update("dev1", "/htr/2/setup", {"priority": 0})
         assert len(armed_deadlines(engine, "write")) == 1
         await tick()
-        assert engine.node("dev1", "htr/2").available is False
+        assert engine.node("dev1", "htr/2").available is True
     finally:
         await engine.stop()
 
@@ -1022,7 +1348,7 @@ async def test_ok_status_frame_does_not_confirm_a_prog_write():
         await deliver_status(transport, {**STATUS, "mode": "heat"})
         assert len(armed_deadlines(engine, "write")) == 1
         await tick()
-        assert engine.node("dev1", "htr/2").available is False
+        assert engine.node("dev1", "htr/2").available is True
     finally:
         await engine.stop()
 
@@ -1093,7 +1419,7 @@ async def test_away_frame_during_the_post_keeps_the_server_forced_flag():
         await engine.stop()
 
 
-async def test_lost_frame_during_the_post_schedules_no_flip():
+async def test_lost_frame_during_the_post_arms_a_lost_window():
     """A lost frame landing mid-POST is write-correlated noise, as afterwards.
 
     The pre-arm also means the pending exists when that frame arrives, so
@@ -1109,9 +1435,10 @@ async def test_lost_frame_during_the_post_schedules_no_flip():
     try:
         await engine.set_window_mode("dev1", NODE_REF, ON)
         assert armed_deadlines(engine, "write") != []  # a lost frame confirms nothing
-        assert armed_deadlines(engine, "lost") == []  # ...and schedules nothing
+        assert len(armed_deadlines(engine, "lost")) == 1  # ...but arms its window
         await tick()
-        assert armed_deadlines(engine, "write") == []  # the timeout is authoritative
+        assert armed_deadlines(engine, "write") == []
+        # the lost window, not the write timeout, owns availability
         assert engine.node("dev1", "htr/2").available is False
     finally:
         await engine.stop()
@@ -1182,7 +1509,7 @@ async def test_a_stale_frame_carrying_the_key_does_not_confirm():
         await deliver_status(transport, {**STATUS, "locked": False})
         assert len(armed_deadlines(engine, "write")) == 1
         await tick()
-        assert engine.node("dev1", "htr/2").available is False
+        assert engine.node("dev1", "htr/2").available is True
     finally:
         await engine.stop()
 

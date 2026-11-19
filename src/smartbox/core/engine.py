@@ -41,7 +41,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 import contextlib
-from dataclasses import replace
+from dataclasses import dataclass, replace
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -53,9 +53,17 @@ from ..protocol.errors import (
     TransportUnsupportedError,
 )
 from ..protocol.events import Event, Snapshot, SocketClosed, Update
-from ..protocol.values import BoostConfig, is_lost, parse_number, prog_days
+from ..protocol.paths import NodeRef
+from ..protocol.values import (
+    BoostConfig,
+    bounded_repr,
+    is_lost,
+    parse_number,
+    prog_days,
+    same_wire_value,
+)
 from ..protocol.writes import PostedWrite, WriteApi, WriteHost, WriteSlot
-from .deadlines import NodeDeadline, NodeDeadlines
+from .deadlines import DueDeadline, NodeDeadline, NodeDeadlines
 from .feed import FEED_GRACE_SECONDS, FeedMonitor
 from .merging import (
     DEVICE_UPDATE_PATHS,
@@ -90,7 +98,6 @@ from .state import (
 )
 
 if TYPE_CHECKING:
-    from ..protocol.client import NodeRef
     from ..protocol.transport import Transport
 
 __all__ = ["ChangeHandler", "SmartboxEngine"]
@@ -111,10 +118,16 @@ _NODE_PATH_LEN = 3
 # window lengths have one source of truth): tests shrink them.
 UNAVAILABLE_DELAY = 6.0
 WRITE_CONFIRM_TIMEOUT = 6.0
+# REST readback lags a completed write: docs/api-contract.md §5.4 records 5 s
+# as verified sufficient. The confirmation window (6 s) plus this settle keeps
+# the verification GET above that floor; the window is not a settle timer, so
+# the two constants move together.
+WRITE_VERIFY_SETTLE_SECONDS = 1.0
 # The REST client bounds one call (token refresh, retries and a 401 resend
 # included) at 30 s. The confirmation is armed before the POST so an echo
 # already in flight is caught, so its in-flight hold must outlast that budget;
-# the 6 s countdown that decides Unavailable starts when the POST returns.
+# the confirmation countdown (which ends in one verification GET) starts when
+# the POST returns.
 _WRITE_IN_FLIGHT_TIMEOUT = 30.0
 
 # Lost frames schedule the unavailable flip, never fire it instantly;
@@ -198,6 +211,22 @@ SUPERVISE_RUN_RESET_SECONDS = 60.0
 _STOP_TIMEOUT = 5.0
 
 
+@dataclass(frozen=True)
+class _VerificationTarget:
+    """The GET reader and path facts for one timed-out write.
+
+    The revision is captured with the facts so the read can be dropped when a
+    frame changed the node while it was in flight: that frame is newer.
+    """
+
+    reader: Callable[[str, NodeRef], Awaitable[dict[str, Any]]]
+    node: NodeRef
+    slot: NodeField
+    node_type: str
+    addr: str
+    base_revision: int
+
+
 class SmartboxEngine:
     """Drives the versioned store from typed protocol events.
 
@@ -242,6 +271,10 @@ class SmartboxEngine:
         # the same base and the later POST would restore the earlier key.
         self._write_locks: dict[tuple[str, str], asyncio.Lock] = {}
         self._timer_task: asyncio.Task[None] | None = None
+        # Owned by the timer, but independent of it: a deadline mutation
+        # re-times the timer (cancelling it), and these tasks must survive
+        # that (see _run_timer).
+        self._resolution_tasks: set[asyncio.Task[None]] = set()
         self._supervise_task: asyncio.Task[None] | None = None
         self._stopping = False
         # Feed (websocket) liveness; the monitor notifies through this
@@ -274,8 +307,8 @@ class SmartboxEngine:
     def deadlines(self) -> tuple[NodeDeadline, ...]:
         """Every armed node deadline, earliest expiry first.
 
-        Each entry is a node that will flip Unavailable if nothing confirms it
-        before its window elapses. Diagnostics reports it; tests assert on it
+        A lost entry flips the node Unavailable when it elapses; a write entry
+        starts one verification GET. Diagnostics reports it; tests assert on it
         rather than on the engine's bookkeeping.
         """
         return self._deadlines.view()
@@ -283,7 +316,11 @@ class SmartboxEngine:
     @property
     def timer_armed(self) -> bool:
         """Whether the single node timer is waiting on an armed deadline."""
-        return self._timer_task is not None and not self._timer_task.done()
+        return (
+            self._timer_task is not None
+            and not self._timer_task.done()
+            and self._deadlines.next_delay() is not None
+        )
 
     # --- subscription ---
 
@@ -572,6 +609,7 @@ class SmartboxEngine:
     ) -> list[Change]:
         """Confirm a pending write + derive availability from a snapshot entry."""
         pending_slot = self._deadlines.pending_slot(dev_id, key)
+        pending_at_entry = pending_slot is not None
         if pending_slot is not None:
             body = entry.get(pending_slot)
             if (
@@ -598,9 +636,11 @@ class SmartboxEngine:
             return changes
         lost = any(is_lost(body) for body in evidence)
         if lost:
-            # a lost-marked slot while a write is pending is the same
-            # write-correlated noise the frame path suppresses
-            if pending_slot is not None:
+            # A lost marker mid-write is still availability evidence; like the
+            # frame path, arm the normal window and let an ok frame cancel it.
+            if pending_at_entry:
+                if self._deadlines.schedule_lost(dev_id, key):
+                    self._schedule()
                 return changes
         elif self._deadlines.cancel_lost(dev_id, key):
             self._schedule()
@@ -1151,9 +1191,8 @@ class SmartboxEngine:
         from the same base and the later POST would restore the earlier key.
 
         A failure disarms the pending it armed. A write that changed nothing
-        arms nothing: the wire pushes no frame for a no-op, so its window could
-        only end in a false Unavailable. A write issued while stopping is
-        refused, because its POST would land after teardown.
+        arms nothing: the wire pushes no frame for a no-op. A write issued
+        while stopping is refused, because its POST would land after teardown.
         """
         if self._stopping:
             msg = "SmartboxEngine is stopping; writes are unavailable"
@@ -1189,8 +1228,8 @@ class SmartboxEngine:
             if armed is not None:
                 # The POST landed; start the 6 s confirmation countdown now.
                 # The arm before the POST held a longer window, so a token
-                # refresh or a slow request cannot flip the node Unavailable
-                # while the write is still in flight.
+                # refresh or a slow request cannot start verification while
+                # the write is still in flight.
                 self._refresh_own_write(dev_id, *armed)
             await self._merge_posted_write(posted, armed, base_revision)
 
@@ -1200,8 +1239,9 @@ class SmartboxEngine:
         Nothing is armed for a device-level write (lost semantics are
         per-node), for a node the store does not hold (nothing to confirm and
         nothing to merge into), or for a write that changed nothing (the wire
-        pushes no frame for a no-op, so its window could only end in a false
-        Unavailable). Raises while stopping: the POST would land after teardown.
+        pushes no frame for a no-op, so its window would only end in a
+        pointless verification read). Raises while stopping: the POST would
+        land after teardown.
         """
         if self._stopping:
             msg = "SmartboxEngine is stopping; writes are unavailable"
@@ -1235,6 +1275,7 @@ class SmartboxEngine:
                 target_key,
                 slot,
                 changed,
+                body=posted.body,
                 timeout=self._write_confirm_timeout + _WRITE_IN_FLIGHT_TIMEOUT,
             ),
         )
@@ -1410,8 +1451,8 @@ class SmartboxEngine:
         patches the stored setup dict instead of replacing it; a later setup
         frame (or the node's own ``power_limit`` frame) corrects the value if
         the server disagrees. The write arms NO confirmation: the echo shape is
-        unverified (no pmo hardware probed), and a wrong slot guess would flip
-        a healthy node Unavailable.
+        unverified (no pmo hardware probed), and a wrong slot guess would merge
+        the wrong slot and log a false mismatch.
         """
         device = self._world.devices.get(dev_id)
         if device is None:
@@ -1529,11 +1570,12 @@ class SmartboxEngine:
         slot: NodeField,
         intent: Mapping[str, Any] | None,
         *,
+        body: Mapping[str, Any] | None = None,
         timeout: float | None = None,
     ) -> int:
         """(Re)arm the node's pending write (see ``NodeDeadlines.arm_write``)."""
         generation = self._deadlines.arm_write(
-            dev_id, key, slot, intent, timeout=timeout
+            dev_id, key, slot, intent, body=body, timeout=timeout
         )
         self._schedule()
         return generation
@@ -1559,29 +1601,173 @@ class SmartboxEngine:
         """
         if self._stopping:
             return
-        if self._timer_task is not None:
+        current = asyncio.current_task()
+        if self._timer_task is not None and self._timer_task is not current:
             self._timer_task.cancel()
             self._timer_task = None
         delay = self._deadlines.next_delay()
-        if delay is not None:
+        if delay is not None and self._timer_task is None:
             self._timer_task = asyncio.create_task(self._run_timer(delay))
 
     async def _run_timer(self, delay: float) -> None:
-        """Wait out the earliest deadline, then apply every due transition."""
+        """Wait out the earliest deadline, then resolve every due deadline.
+
+        Lost flips are applied here, before this task yields: a frame arriving
+        afterwards is newer and wins. A write timeout is verified by its own
+        task, so its GET neither blocks the timer nor the other deadlines
+        taken with it.
+        """
         try:
             await timing.sleep(delay)
+            changes: list[Change] = []
+            for due in self._deadlines.take_due():
+                if due.kind == "lost":
+                    changes.extend(
+                        self._set_available(
+                            due.dev_id, due.node_key, value=False, reason=due.reason
+                        )
+                    )
+                else:
+                    self._spawn_verification(due)
+            await self._notify(changes)
         except asyncio.CancelledError:
             return
-        self._timer_task = None
-        await self._notify(self._expire_due())
-        self._schedule()
+        finally:
+            if self._timer_task is asyncio.current_task():
+                self._timer_task = None
+            self._schedule()
 
-    def _expire_due(self) -> list[Change]:
-        """Flip every node whose lost window or confirmation window elapsed."""
-        changes: list[Change] = []
-        for dev_id, key, reason in self._deadlines.take_due():
-            changes.extend(self._set_available(dev_id, key, value=False, reason=reason))
+    def _spawn_verification(self, due: DueDeadline) -> None:
+        """Verify one timed-out write in its own task."""
+        task = asyncio.create_task(self._verify_and_notify(due))
+        self._resolution_tasks.add(task)
+        task.add_done_callback(self._resolution_tasks.discard)
+
+    async def _verify_and_notify(self, due: DueDeadline) -> None:
+        """Verify one timed-out write, then deliver its changes."""
+        try:
+            changes = await self._verify_write_timeout(due)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _LOGGER.exception(
+                "Write verification failed for %r/%r", due.dev_id, due.node_key
+            )
+            return
+        await self._notify(changes)
+
+    def _verification_target(self, due: DueDeadline) -> _VerificationTarget | None:
+        """Return the GET reader and path facts for a timed-out write."""
+        if self._write_host is None or self._stopping:
+            return (
+                None  # pragma: no cover - writes require a host; stop clears deadlines
+            )
+        dev_id, key = due.dev_id, due.node_key
+        device = self._world.devices.get(dev_id)
+        if device is None or key not in device.node_states:
+            return None  # pragma: no cover - node removal between spawn and here
+        slot = due.slot or "status"
+        base_revision = device.node_states[key].revision
+        node_type, addr = key.split("/", 1)
+        node = NodeRef(node_type, addr)
+        if slot == "setup":
+            reader = self._write_host.get_node_setup
+        elif slot == "prog":
+            reader = self._write_host.get_node_prog
+        else:
+            reader = self._write_host.get_node_status
+        return _VerificationTarget(reader, node, slot, node_type, addr, base_revision)
+
+    async def _verify_write_timeout(self, due: DueDeadline) -> list[Change]:
+        """Verify one timed-out write with a GET of its own slot.
+
+        The response is accepted at face value: it is the server's state for the
+        slot, merged like any other update. The one ordering check is causality:
+        a frame that changed the node while the read was in flight is newer than
+        the read, so the read is dropped instead of merged over it.
+        """
+        target = self._verification_target(due)
+        if target is None:
+            return []
+
+        dev_id, key = due.dev_id, due.node_key
+        await timing.sleep(WRITE_VERIFY_SETTLE_SECONDS)
+        try:
+            body = await target.reader(dev_id, target.node)
+        except Exception as err:  # noqa: BLE001 - an optional check must not propagate
+            # API trouble is not node death and not write evidence.
+            _LOGGER.info(
+                "Write confirmation check for %r/%r failed: %r", dev_id, key, err
+            )
+            return []
+        if (
+            self._stopping
+            or self.node(dev_id, key) is None
+            or not self._revision_is_unchanged(dev_id, key, target.base_revision)
+        ):
+            # Teardown, the node was removed while reading (applying the body
+            # would resurrect it), or a frame landed and is newer than this
+            # read: in each case the read is not applied.
+            return []
+        if is_lost(body):
+            self._deadlines.cancel_lost(dev_id, key)
+            return self._set_available(
+                dev_id,
+                key,
+                value=False,
+                reason="write verification returned a lost node",
+            )
+        usable = self._verification_body(body, target.slot, dev_id, key)
+        if usable is None:
+            return []
+        changes = self._apply_update(
+            dev_id, f"/{target.node_type}/{target.addr}/{target.slot}", usable
+        )
+        if not self._write_applied(due.intent, target.slot, body):
+            _LOGGER.warning(
+                "Write to %r/%r was accepted but not applied; posted=%s read=%s",
+                dev_id,
+                key,
+                bounded_repr(due.body),
+                bounded_repr(body),
+            )
         return changes
+
+    @staticmethod
+    def _verification_body(
+        body: object, slot: NodeField, dev_id: str, key: str
+    ) -> Mapping[str, Any] | None:
+        """Return a usable verification body, or ``None`` for no evidence."""
+        if not isinstance(body, Mapping) or not body:
+            return None
+        if slot == "prog" and prog_days(body) is None:
+            _LOGGER.warning(
+                "Write confirmation check for %r/%r returned malformed prog data",
+                dev_id,
+                key,
+            )
+            return None
+        return body
+
+    @staticmethod
+    def _write_applied(
+        intent: Mapping[str, Any] | None,
+        slot: NodeField | None,
+        body: Mapping[str, Any],
+    ) -> bool:
+        """Whether a verification GET carries every value the write set."""
+        if intent is None:  # pragma: no cover - write timeouts always carry intent
+            return True
+        evidence: Mapping[str, Any] = body
+        if slot == "prog":
+            days = prog_days(body)
+            if days is None:  # pragma: no cover - rejected by _verification_body
+                return False
+            evidence = days
+        return all(
+            key in evidence and same_wire_value(evidence[key], value)
+            for key, value in intent.items()
+        )
 
     # --- availability windows ---
 
@@ -1616,8 +1802,9 @@ class SmartboxEngine:
             return []
         slot = segments[2]
         if is_lost(body):
-            # Post-write lost frames are write-correlated noise: while a write
-            # is pending the timeout is the authoritative Unavailable path.
+            # A lost frame owns availability even while a write is pending; an
+            # ok frame cancels the window. The write timeout separately
+            # verifies the write with a GET.
             if slot in _AVAIL_LOST_SLOTS and self._deadlines.schedule_lost(dev_id, key):
                 self._schedule()
             return []
@@ -1760,6 +1947,11 @@ class SmartboxEngine:
         """
         self._stopping = True
         self._cancel_timers()
+        current = asyncio.current_task()
+        pending = [task for task in self._resolution_tasks if task is not current]
+        if pending:
+            await asyncio.wait(pending, timeout=_STOP_TIMEOUT)
+        self._resolution_tasks.clear()
         task = self._supervise_task
         self._supervise_task = None
         if task is None:
@@ -1773,5 +1965,7 @@ class SmartboxEngine:
         if self._timer_task is not None:
             self._timer_task.cancel()
             self._timer_task = None
+        for task in self._resolution_tasks:
+            task.cancel()
         self._deadlines.clear()
         self._feed.stop()
