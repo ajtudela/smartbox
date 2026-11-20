@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+* Write confirmation compares two numeric strings as numbers.
+  `same_wire_value` documented that rule but only took its numeric path when
+  one side was an `int`/`float`, so an echo that dropped the decimal never
+  matched. The server reformats the numbers it stores: an htr_mod setpoint
+  posts on the app's one-decimal grid and reads back whole (`"20.0"` written,
+  `"20"` stored), so a confirming echo was never recognized as a match; every
+  setpoint write ran the window out, logged `accepted but not applied`, and
+  re-read the slot even though the heater had applied it. The same comparison
+  builds a write's changed-key set, so a value-equal setpoint no longer arms a
+  confirmation that can only end in a pointless verification GET (hass-smartbox
+  docs/api-contract.md §5.2, §5.3).
+
 ## 3.2.0 (2026-11-18)
 
 ### Added

@@ -207,22 +207,37 @@ def is_lost(payload: Mapping[str, object]) -> bool:
     return payload.get("sync_status") == "lost"
 
 
+def _wire_number(value: object) -> float | None:
+    """Return ``value`` as a number, or ``None`` when ``value`` is not numeric."""
+    if isinstance(value, (int, float, str)):
+        try:
+            return float(value)
+        except ValueError, OverflowError:
+            return None
+    return None
+
+
 def same_wire_value(actual: object, expected: object) -> bool:
     """Compare one wire value against the value a write set.
 
     The same quantity arrives as a number on one path and as a numeric string
     on another (``power_limit`` is posted stringified and echoed as an int:
-    hass-smartbox docs/api-contract.md §5.3), so numbers and numeric strings compare
-    numerically. Anything else compares by equality.
+    hass-smartbox docs/api-contract.md §5.3), and the server reformats the
+    numbers it stores: an htr_mod setpoint posted on the app's one-decimal grid
+    is echoed as a whole-number string (``"20.0"`` written, ``"20"`` stored:
+    §5.2). Numeric values therefore compare as numbers whether they arrive as
+    numbers or numeric strings. Anything else compares by equality. The numeric
+    comparison uses ``float``, the same model as :func:`parse_number`, so
+    ``"04"`` matches ``"4"``; wire values are small enough that its precision
+    is not a concern.
     """
     if actual == expected:
         return True
-    if isinstance(actual, (int, float)) or isinstance(expected, (int, float)):
-        try:
-            return float(actual) == float(expected)  # type: ignore[arg-type]
-        except TypeError, ValueError:
-            return False
-    return False
+    left = _wire_number(actual)
+    right = _wire_number(expected)
+    if left is None or right is None:
+        return False
+    return left == right
 
 
 def prog_days(slot: object) -> dict[str, Any] | None:

@@ -884,6 +884,120 @@ async def test_write_confirm_timeout_get_old_value_keeps_available(caplog):
         await engine.stop()
 
 
+async def test_a_whole_number_echo_confirms_a_decimal_write():
+    """The server drops the setpoint's decimal; that is not a mismatch."""
+    engine, recorder, fake, transport = await make_engine()
+    await establish_ok(recorder, transport)
+    try:
+        # An htr_mod body on the fake's htr node: the engine's write path is
+        # node-type agnostic and the body is what this test pins.
+        await engine.set_htr_mod_status(
+            "dev1",
+            NODE_REF,
+            on=ON,
+            mode="manual",
+            selected_temp="eco",
+            comfort_temp=20.0,
+            eco_offset="4.0",
+            units="C",
+        )
+        assert len(armed_deadlines(engine, "write")) == 1
+        await deliver_status(
+            transport,
+            {
+                "sync_status": "ok",
+                "on": True,
+                "mode": "manual",
+                "selected_temp": "eco",
+                "comfort_temp": "20",
+                "eco_offset": "4",
+            },
+        )
+        assert armed_deadlines(engine, "write") == []  # confirmed
+        await tick()
+        assert fake.requests[-1][0] == "POST"  # no verification GET was needed
+    finally:
+        await engine.stop()
+
+
+async def test_write_verification_accepts_a_reformatted_echo(caplog):
+    """A GET that echoes whole numbers still proves the write landed."""
+    engine, recorder, fake, _transport = await make_engine()
+    await establish_ok(recorder, _transport)
+
+    gets: list[NodeRef] = []
+
+    async def stored_status(_dev_id, node):
+        gets.append(node)
+        return {
+            "sync_status": "ok",
+            "on": True,
+            "mode": "manual",
+            "selected_temp": "eco",
+            "comfort_temp": "20",
+            "eco_offset": "4",
+        }
+
+    fake.get_node_status = stored_status
+    try:
+        # An htr_mod body on the fake's htr node: the engine's write path is
+        # node-type agnostic and the body is what this test pins.
+        await engine.set_htr_mod_status(
+            "dev1",
+            NODE_REF,
+            on=ON,
+            mode="manual",
+            selected_temp="eco",
+            comfort_temp=20.0,
+            eco_offset="4.0",
+            units="C",
+        )
+        recorder.changes.clear()
+        with caplog.at_level("WARNING"):
+            await tick()
+        assert gets == [NODE_REF]  # the verification GET ran, and only once
+        assert "accepted but not applied" not in caplog.text
+        assert engine.node("dev1", "htr/2").available is True
+    finally:
+        await engine.stop()
+
+
+async def test_a_value_equal_setpoint_arms_no_confirmation():
+    """A write the server stores identically needs no confirmation window."""
+    engine, recorder, fake, transport = await make_engine()
+    await establish_ok(recorder, transport)
+    try:
+        # The stored status keeps the server's whole-number spelling, so the
+        # app's one-decimal body below is value-equal.
+        await deliver_status(
+            transport,
+            {
+                "sync_status": "ok",
+                "on": True,
+                "mode": "manual",
+                "selected_temp": "eco",
+                "comfort_temp": "20",
+                "eco_offset": "4",
+            },
+        )
+        recorder.changes.clear()
+        await engine.set_htr_mod_status(
+            "dev1",
+            NODE_REF,
+            on=ON,
+            mode="manual",
+            selected_temp="eco",
+            comfort_temp=20.0,
+            eco_offset="4.0",
+            units="C",
+        )
+        assert armed_deadlines(engine, "write") == []
+        await tick()
+        assert fake.requests[-1][0] == "POST"  # no verification GET was armed
+    finally:
+        await engine.stop()
+
+
 async def test_write_confirm_timeout_get_lost_marks_unavailable():
     engine, recorder, fake, _transport = await make_engine()
     await establish_ok(recorder, _transport)
