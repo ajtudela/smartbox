@@ -15,6 +15,7 @@ from smartbox.protocol.values import (
     parse_number_or_none,
     prog_days,
     require_number,
+    same_wire_value,
     validate_prog_days,
 )
 
@@ -161,6 +162,41 @@ def test_is_lost_marked_full_payload():
 )
 def test_is_lost_false(payload):
     assert not is_lost(payload)
+
+
+# --- same_wire_value (write confirmation) ---
+
+
+@pytest.mark.parametrize(
+    ("actual", "expected"),
+    [
+        (20, 20.0),
+        ("20.0", 20.0),
+        ("20", "20.0"),  # the server echoes a setpoint as a whole number
+        ("4", "4.0"),  # and an eco offset the same way
+        ("21", 21),
+    ],
+)
+def test_same_wire_value_compares_numbers_numerically(actual, expected):
+    assert same_wire_value(actual, expected)
+    assert same_wire_value(expected, actual)
+
+
+@pytest.mark.parametrize(
+    ("actual", "expected"),
+    [
+        (20, 21),
+        ("20", "21"),
+        ("20.0", "20.5"),
+        ("manual", "eco"),
+        ("manual", 20),
+        (None, "20"),
+        ("manual", 10**400),  # too large for float: unequal, not a crash
+    ],
+)
+def test_same_wire_value_stays_strict_outside_numbers(actual, expected):
+    assert not same_wire_value(actual, expected)
+    assert not same_wire_value(expected, actual)
 
 
 # --- normalize_prog (the schedule-shape normalizer) ---
