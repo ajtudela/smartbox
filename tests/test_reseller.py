@@ -37,6 +37,25 @@ def test_dormant_tenant_ids_are_not_selectable():
     assert "api-ath" not in AvailableResellers.resellers
 
 
+def test_ducaheat_alias_resolves_to_the_tevolve_tenant():
+    """The Ducaheat portal is the Tevolve tenant with the Ducasa theme.
+
+    ``https://ducaheat.termoweb.net/`` serves the Tevolve build (decoded
+    2026-11-21): serial 15, the Tevolve client credential,
+    ``users-api.helki.com`` and ``ws_user``. The alias exists so Ducasa users
+    find the brand in the picker; it changes no wire value.
+    """
+    tevolve = AvailableResellers("api-tevolve").reseller
+    ducaheat = AvailableResellers("api-ducaheat").reseller
+
+    assert ducaheat.name == "Ducasa (Ducaheat)"
+    assert ducaheat.web_url == "https://ducaheat.termoweb.net/"
+    assert ducaheat.api_url == "api-tevolve"
+    assert ducaheat.serial_id == tevolve.serial_id == 15
+    assert ducaheat.basic_auth == tevolve.basic_auth
+    assert ducaheat.api_host == tevolve.api_host == API_HOST
+
+
 def test_unknown_reseller_needs_all_fields():
     with pytest.raises(ResellerNotExistError):
         _ = AvailableResellers("api-unknown").reseller
