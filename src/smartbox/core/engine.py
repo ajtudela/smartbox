@@ -1129,6 +1129,20 @@ class SmartboxEngine:
             dev_id, node, lambda api: api.set_priority(dev_id, node, priority)
         )
 
+    async def set_control_mode(
+        self, dev_id: str, node: NodeRef, control_mode: int
+    ) -> None:
+        """Write the setup ``control_mode`` index (GET-merge-POST).
+
+        The index is product-specific; the caller validates it against the
+        controller's mode list (the vendor app maps the label to this index).
+        """
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_control_mode(dev_id, node, control_mode),
+        )
+
     async def set_extra_options(
         self,
         dev_id: str,

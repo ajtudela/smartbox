@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+* `SmartboxEngine.set_control_mode()` and `WriteApi.set_control_mode()` write
+  the product-specific `control_mode` setup index (GET-merge-POST). The index
+  is the position in the product controller's wire-order mode array; the
+  caller maps the vendor-app label to it. The integration's Control Mode select
+  depends on the engine method, so it ships in the 3.2.1 release.
+* The reseller table lists Ducasa (Ducaheat). The
+  `https://ducaheat.termoweb.net/` portal serves the same Tevolve build
+  (decoded 2026-11-21): serial 15, the Tevolve client credential,
+  `users-api.helki.com` and `ws_user`. The row resolves to the `api-tevolve`
+  tenant, so the brand appears in the picker and adds no new wire surface.
+  A live login remains unverified.
+
 ### Fixed
 
 * Write confirmation compares two numeric strings as numbers.
