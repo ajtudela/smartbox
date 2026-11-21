@@ -506,6 +506,24 @@ class WriteApi:
             raise ValueError(msg)
         return await self._setup_write(dev_id, node, "priority", priority)
 
+    async def set_control_mode(
+        self, dev_id: str, node: NodeRef, control_mode: int
+    ) -> tuple[str, dict[str, Any]]:
+        """GET-merge-POST setup key ``control_mode`` (product-specific index).
+
+        The index is the position in the product controller's wire-order
+        mode array; the caller maps the vendor-app label to it. IntEnum and
+        other int subclasses are accepted; bool is not.
+        """
+        if (
+            isinstance(control_mode, bool)
+            or not isinstance(control_mode, int)
+            or control_mode < 0
+        ):
+            msg = f"control_mode must be a non-negative int, got: {control_mode!r}"
+            raise ValueError(msg)
+        return await self._setup_write(dev_id, node, "control_mode", control_mode)
+
     async def set_extra_options(
         self,
         dev_id: str,

@@ -514,8 +514,8 @@ async def test_set_setup_value_merges_one_key(sleeps, session, client, writes):
     grant(session)
     session.enqueue(FakeResponse(payload={"priority": "low"}))
     session.enqueue(FakeResponse())
-    await writes.set_setup_value("dev1", NODE, "control_mode", 2)
-    assert posts(session)[0]["json"] == {"priority": "low", "control_mode": 2}
+    await writes.set_setup_value("dev1", NODE, "future_setting", 2)
+    assert posts(session)[0]["json"] == {"priority": "low", "future_setting": 2}
 
 
 @pytest.mark.parametrize("priority", ["low", "medium", "high"])
@@ -530,6 +530,26 @@ async def test_set_priority(sleeps, session, client, writes, priority):
 async def test_set_priority_rejects_unknown(sleeps, session, client, writes):
     with pytest.raises(ValueError, match="priority"):
         await writes.set_priority("dev1", NODE, "urgent")
+    assert session.calls == []
+
+
+@pytest.mark.parametrize("control_mode", [0, 5, 6])
+async def test_set_control_mode_body(sleeps, session, client, writes, control_mode):
+    grant(session)
+    session.enqueue(FakeResponse(payload={"control_mode": 5}))
+    session.enqueue(FakeResponse())
+    await writes.set_control_mode("dev1", NODE, control_mode)
+    post = posts(session)[0]
+    assert post["json"] == {"control_mode": control_mode}
+    assert post["url"].endswith(SETUP_PATH)
+
+
+@pytest.mark.parametrize("control_mode", [-1, True, 1.0, "5"])
+async def test_set_control_mode_rejects_invalid(
+    sleeps, session, client, writes, control_mode
+):
+    with pytest.raises(ValueError, match="control_mode"):
+        await writes.set_control_mode("dev1", NODE, control_mode)
     assert session.calls == []
 
 

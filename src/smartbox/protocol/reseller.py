@@ -132,6 +132,18 @@ class AvailableResellers:
             basic_auth="NWM0OWRjZTk3NzUxMDM1MTUwNmM0MmRiOnRldm9sdmU=",
             serial_id=15,
         ),
+        # The Ducaheat portal (ducaheat.termoweb.net, decoded 2026-11-21)
+        # serves the same Tevolve build: serial 15, the Tevolve client
+        # credential, users-api.helki.com and ws_user, with the Ducasa theme.
+        # The row resolves to the api-tevolve tenant and exists so Ducasa
+        # users find their brand in the picker. Live login unverified.
+        "api-ducaheat": SmartboxReseller(
+            name="Ducasa (Ducaheat)",
+            web_url="https://ducaheat.termoweb.net/",
+            api_url="api-tevolve",
+            basic_auth="NWM0OWRjZTk3NzUxMDM1MTUwNmM0MmRiOnRldm9sdmU=",
+            serial_id=15,
+        ),
         "api-technoterm": SmartboxReseller(
             name="Technotherm",
             web_url="https://ttiapp.technotherm.com/",

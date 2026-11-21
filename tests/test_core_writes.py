@@ -9,6 +9,7 @@ full post-write status dict; the store's dedup must absorb it.
 from __future__ import annotations
 
 import asyncio
+from enum import IntEnum
 
 import pytest
 
@@ -346,6 +347,44 @@ async def test_setup_write_replaces_setup_slot_with_posted_object():
             "devs/dev1/htr/2/setup",
             {"priority": 0, "window_mode_enabled": True},
         ) in fake.requests
+    finally:
+        await engine.stop()
+
+
+async def test_control_mode_write_merges_the_setup():
+    engine, recorder, fake, _transport = await make_engine()
+    try:
+        await engine.set_control_mode("dev1", NODE_REF, 2)
+        node = engine.node("dev1", "htr/2")
+        assert node.setup["control_mode"] == 2
+        assert [(c.kind, c.node_key) for c in recorder.changes] == [("setup", "htr/2")]
+        assert (
+            "POST",
+            "devs/dev1/htr/2/setup",
+            {"priority": 0, "control_mode": 2},
+        ) in fake.requests
+    finally:
+        await engine.stop()
+
+
+@pytest.mark.parametrize("value", [-1, True, 1.0])
+async def test_control_mode_rejects_invalid_values(value):
+    engine, _recorder, _fake, _transport = await make_engine()
+    try:
+        with pytest.raises(ValueError, match="control_mode"):
+            await engine.set_control_mode("dev1", NODE_REF, value)
+    finally:
+        await engine.stop()
+
+
+async def test_control_mode_accepts_an_int_subclass():
+    class Mode(IntEnum):
+        TWO = 2
+
+    engine, _recorder, _fake, _transport = await make_engine()
+    try:
+        await engine.set_control_mode("dev1", NODE_REF, Mode.TWO)
+        assert engine.node("dev1", "htr/2").setup["control_mode"] == 2
     finally:
         await engine.stop()
 

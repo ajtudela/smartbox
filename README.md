@@ -5,7 +5,7 @@
 [![PyPI license](https://img.shields.io/pypi/l/smartbox.svg)](https://pypi.python.org/pypi/smartbox/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/smartbox.svg)](https://pypi.python.org/pypi/smartbox/)
 
-Python API to control heating 'smart boxes' (Helki and its resellers: Elnur, Haverland, Climastar, Technotherm, HJM, ...). It wraps the REST API and the `ws_user` websocket channel, and ships a `smartbox` command line tool.
+Python API to control heating 'smart boxes' (Helki and its resellers: Elnur, Haverland, Ducasa, Climastar, Technotherm, HJM, ...). It wraps the REST API and the `ws_user` websocket channel, and ships a `smartbox` command line tool.
 
 This is the 3.x line: the protocol and domain layers that the Home Assistant integration uses, packaged Home Assistant-free. `smartbox.protocol` owns the wire (auth, REST client, `ws_user` transport, named writes) and `smartbox.core` owns the domain state (versioned store, write confirmation, availability and feed supervision). The previous session/update-manager API lives on in the `v2.7.0` tag.
 
