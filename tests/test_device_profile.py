@@ -9,7 +9,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from smartbox.device.profile import resolve_profile
+from smartbox.device.profile import (
+    is_heater_surface,
+    is_thermostat_surface,
+    resolve_profile,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "product_codes.json"
 
@@ -77,3 +81,13 @@ def test_unknown_pid_uses_the_electric_heater_default() -> None:
     acm = resolve_profile("acm", "08990000", "1.9", {})
     assert (htr.limits.min_c, htr.limits.max_c) == (0.0, 30.0)
     assert (acm.limits.min_c, acm.limits.max_c) == (5.0, 30.0)
+
+
+def test_surface_predicates() -> None:
+    """THM 28 is a heater surface; other thermostats are not."""
+    assert is_heater_surface("htr", "04020000")
+    assert is_heater_surface("acm", "081C0000")
+    assert is_heater_surface("thm", "01280000")
+    assert not is_heater_surface("thm", "01040000")
+    assert is_thermostat_surface("thm", "01040000")
+    assert not is_thermostat_surface("thm", "01280000")

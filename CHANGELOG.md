@@ -11,6 +11,11 @@
 * `smartbox.device.control_modes`: the decoded per-product control-mode
   catalogue (family/actuation maps, UI and wire arrays, Celsius/Fahrenheit
   labels, availability gates). The integration re-exports it.
+* `smartbox.device.modes`: neutral lock kind (setup-aware `super_lock_available`
+  and the fw-1.7 Haverland gate), EASY/RUNBACK support and the boost activation
+  policy (kind, fixed-time override, FULL mode list, parameter editability).
+* `smartbox.device.profile` also owns the heater/thermostat surface predicates
+  (`is_heater_surface`, `is_thermostat_surface`).
 * `WriteApi.set_lock()` and `SmartboxEngine.set_lock()` accept the wire enum
   `0`/`1`/`2` as well as `bool`; integer-lock controllers distinguish
   unblocked, locally blocked and remotely blocked.

@@ -296,6 +296,24 @@ def prog_bounds_c(limits: ControllerLimits) -> dict[str, tuple[float, float]] | 
     return {key: ranges[profile] for key, profile in names.items()}
 
 
+# The factory dispatches these THM products to an htr-family controller.
+# Code 28 is TevolveThermostatController, which extends the triac heater and
+# uses the heater int-slot programme instead of the thermostat {m,t} shape.
+HEATER_SURFACE_THM_CODES = frozenset({"28"})
+
+
+def is_heater_surface(node_type: str, pid: str | None) -> bool:
+    """Whether the node gets heater entities, including the THM 28 floor unit."""
+    if node_type in {"htr", "htr_mod", "acm"}:
+        return True
+    return node_type == "thm" and product_code(pid) in HEATER_SURFACE_THM_CODES
+
+
+def is_thermostat_surface(node_type: str, pid: str | None) -> bool:
+    """Whether the node gets the thermostat climate/schedule surfaces."""
+    return node_type == "thm" and not is_heater_surface(node_type, pid)
+
+
 def is_helki_heater_family(pid: str | None) -> bool:
     """Return True for the HelkiHeater/Lhz controller chain."""
     return product_code(pid) in _HELKI_HEATER_CODES
@@ -366,6 +384,7 @@ __all__ = [
     "HAVERLAND_CODES",
     "HAVERLAND_FIXED_TIME_CODES",
     "HAVERLAND_HTR_MOD_CODES",
+    "HEATER_SURFACE_THM_CODES",
     "HELKI_HEATER_CODES",
     "HELKI_STORAGE_CODES",
     "LHZ_HEATER_CODES",
@@ -385,6 +404,7 @@ __all__ = [
     "climate_bounds",
     "controller_limits",
     "firmware_at_least",
+    "is_heater_surface",
     "is_helki_heater_family",
     "is_htr_mod_controller",
     "is_lhz_family",
@@ -392,6 +412,7 @@ __all__ = [
     "is_tevolve_atc_family",
     "is_tevolve_triac_family",
     "is_tevolve_wifi_family",
+    "is_thermostat_surface",
     "max_limit_bounds",
     "product_code",
     "profile_bounds",
