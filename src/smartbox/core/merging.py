@@ -26,6 +26,8 @@ from ..protocol.values import (
     parse_number,
     prog_days,
     same_wire_value,
+    thermostat_days_equal,
+    thermostat_prog_days,
 )
 from .state import NODE_SLOTS, DeviceField, DeviceState, NodeState, node_key
 
@@ -113,20 +115,42 @@ def max_stemp_limit_node(state: NodeState | None) -> float | None:
 
 def _prog_bounds(
     state: NodeState,
+    bounds_c: Mapping[str, tuple[float, float]] | None = None,
+    offset_c: float | None = None,
 ) -> tuple[dict[str, tuple[float, float]], float] | None:
-    """Return per-profile node-unit bounds and the ordering offset."""
+    """Return per-profile node-unit bounds and the ordering offset.
+
+    ``bounds_c`` lets a caller supply the controller's decoded per-profile
+    Celsius bounds (the vendor app derives these from the controller family).
+    The wire ceiling ``max_stemp_limit`` still clamps every profile's upper
+    end. Without ``bounds_c`` the historical 5-30 default is used.
+    """
     units = state.status.get("units")
     if not isinstance(units, str):
         return None
+    offset_c = offset_c if offset_c is not None else _PROG_OFFSET_C
+    offset = max(1.0, offset_c * 9 / 5) if units == "F" else offset_c
+    limit = max_stemp_limit_node(state)
+    if bounds_c is not None:
+        missing = set(PROG_TEMP_KEYS) - set(bounds_c)
+        if missing:
+            msg = f"bounds_c is missing profiles: {sorted(missing)}"
+            raise ValueError(msg)
+        bounds: dict[str, tuple[float, float]] = {}
+        for key in PROG_TEMP_KEYS:
+            low_c, high_c = bounds_c[key]
+            low = celsius_to_node_units(low_c, units)
+            high = celsius_to_node_units(high_c, units)
+            if limit is not None:
+                high = min(high, limit)
+            bounds[key] = (low, max(low, high))
+        return bounds, offset
     if units == "F":
         min_node = celsius_to_node_units(_GLOBAL_MIN_C, "F")
         max_node = celsius_to_node_units(_GLOBAL_MAX_C, "F")
-        offset = 1.0
     else:
         min_node = _GLOBAL_MIN_C
         max_node = _GLOBAL_MAX_C
-        offset = _PROG_OFFSET_C
-    limit = max_stemp_limit_node(state)
     if limit is not None:
         max_node = min(max_node, limit)
     bounds = {
@@ -162,6 +186,8 @@ def sanitize_prog_temps(
     values: Mapping[str, float | None],
     *,
     changed: str | None = None,
+    bounds_c: Mapping[str, tuple[float, float]] | None = None,
+    offset_c: float | None = None,
 ) -> dict[str, float | None]:
     """Clamp profile temperatures the way the vendor app does before a write.
 
@@ -174,7 +200,7 @@ def sanitize_prog_temps(
     """
     if state is None:
         return dict(values)
-    profile = _prog_bounds(state)
+    profile = _prog_bounds(state, bounds_c, offset_c)
     if profile is None:
         return dict(values)
     bounds, offset = profile
@@ -343,7 +369,7 @@ def snapshot_slot_updates(old: NodeState, entry: Mapping[str, Any]) -> dict[str,
     return updates
 
 
-def write_intent(
+def write_intent(  # noqa: PLR0911 - one return per wire shape
     slot: str, current: NodeState, body: Mapping[str, Any]
 ) -> dict[str, Any]:
     """Return the keys a posted body changes, with the values it sets.
@@ -363,7 +389,22 @@ def write_intent(
         stored_days = prog_days(stored) if isinstance(stored, Mapping) else None
         body_days = prog_days(body)
         if body_days is None:
-            return dict(body)
+            stored_thermostat = (
+                thermostat_prog_days(stored) if isinstance(stored, Mapping) else None
+            )
+            body_thermostat = thermostat_prog_days(body)
+            if body_thermostat is None:
+                return dict(body)
+            if stored_thermostat is None:
+                return dict(body_thermostat)
+            return {
+                key: value
+                for key, value in body_thermostat.items()
+                if not (
+                    key in stored_thermostat
+                    and thermostat_days_equal(value, stored_thermostat[key])
+                )
+            }
         if stored_days is None:
             return dict(body_days)
         return {

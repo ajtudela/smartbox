@@ -147,10 +147,14 @@ async def test_set_lock_body(sleeps, session, client, writes, locked):
     assert posts(session)[0]["json"] == {"locked": locked}
 
 
-async def test_set_lock_rejects_non_bool(sleeps, session, client, writes):
+async def test_set_lock_accepts_bool_or_wire_enum(sleeps, session, client, writes):
+    grant(session)
+    for value in (True, False, 0, 1, 2):
+        session.enqueue(FakeResponse())
+        await writes.set_lock("dev1", NODE, value)
+        assert posts(session)[-1]["json"] == {"locked": value}
     with pytest.raises(ValueError, match="locked"):
-        await writes.set_lock("dev1", NODE, 1)
-    assert session.calls == []
+        await writes.set_lock("dev1", NODE, 3)
 
 
 @pytest.mark.parametrize("on", [True, False])
@@ -813,3 +817,222 @@ async def test_set_node_power_limit_validates(sleeps, session, client, writes, v
     with pytest.raises(ValueError, match="power_limit"):
         await writes.set_node_power_limit("dev1", NODE, value)
     assert session.calls == []
+
+
+async def test_set_easy_and_runback_post_status_flags(sleeps, session, client, writes):
+    grant(session)
+    for method, key in ((writes.set_easy, "easy"), (writes.set_runback, "runback")):
+        for value in (True, False):
+            session.enqueue(FakeResponse())
+            await method("dev1", NODE, value)
+            assert posts(session)[-1]["json"] == {key: value}
+
+
+class _SetupStore:
+    """Minimal SlotReader for the legacy extra_options rule."""
+
+    def __init__(self, pid: str) -> None:
+        self._pid = pid
+
+    def setup(self, _dev_id, _node):
+        return {
+            "power": "1999.4",
+            "max_stemp_limit": "23.0",
+            "extra_options": {"user_duty_limit": 0},
+        }
+
+    def prog(self, _dev_id, _node):
+        return None
+
+    def version(self, _dev_id, _node):
+        return {"pid": self._pid}
+
+
+async def test_legacy_setup_write_omits_extra_options(sleeps, session, client):
+    """The app's shouldOmitSetupExtraOptions list is honoured on setup POSTs."""
+    enabled = True
+    grant(session)
+    legacy = WriteApi(client, store=_SetupStore("0102"))
+    session.enqueue(FakeResponse())
+    await legacy.set_setup_value("dev1", NODE, "window_mode_enabled", enabled)
+    legacy_body = posts(session)[-1]["json"]
+    assert "extra_options" not in legacy_body
+    assert legacy_body["window_mode_enabled"] is True
+
+    current = WriteApi(client, store=_SetupStore("0132"))
+    session.enqueue(FakeResponse())
+    await current.set_setup_value("dev1", NODE, "window_mode_enabled", enabled)
+    current_body = posts(session)[-1]["json"]
+    assert current_body["extra_options"] == {"user_duty_limit": 0}
+
+
+async def test_storage_boost_legacy_posts_the_boost_endpoint(sleeps, session, client):
+    grant(session)
+    writes = WriteApi(client)
+    session.enqueue(FakeResponse())
+    await writes.set_boost_legacy(
+        "dev1",
+        NODE,
+        on=True,
+        temperature=21.5,
+        time_minutes=60,
+        units="C",
+    )
+    assert posts(session)[-1]["url"].endswith("/boost")
+    assert posts(session)[-1]["json"] == {
+        "boost": True,
+        "boost_time": 60,
+        "stemp": "21.5",
+        "units": "C",
+    }
+    session.enqueue(FakeResponse())
+    await writes.set_boost_legacy("dev1", NODE, on=False)
+    assert posts(session)[-1]["json"] == {"boost": False}
+
+
+async def test_storage_mode_and_lock_endpoints(sleeps, session, client):
+    grant(session)
+    writes = WriteApi(client)
+    session.enqueue(FakeResponse())
+    await writes.set_storage_mode("dev1", NODE, mode="auto", stemp=21.5, units="C")
+    assert posts(session)[-1]["url"].endswith("/mode")
+    assert posts(session)[-1]["json"] == {
+        "mode": "auto",
+        "stemp": "21.5",
+        "units": "C",
+    }
+    session.enqueue(FakeResponse())
+    await writes.set_lock_endpoint("dev1", NODE, 2)
+    assert posts(session)[-1]["url"].endswith("/lock")
+    assert posts(session)[-1]["json"] == {"locked": 2}
+
+
+async def test_storage_ui_mode_and_charging_conf_merge_setup(sleeps, session, client):
+    class Store:
+        def setup(self, _dev_id, _node):
+            return {
+                "factory_options": {"ui_mode": 0, "boost_config": 1},
+                "charging_conf": {"active_days": [1] * 7},
+            }
+
+        def prog(self, _dev_id, _node):
+            return None
+
+        def version(self, _dev_id, _node):
+            return {"pid": "081C"}
+
+    grant(session)
+    writes = WriteApi(client, store=Store())
+    session.enqueue(FakeResponse())
+    await writes.set_storage_ui_mode("dev1", NODE, 2)
+    body = posts(session)[-1]["json"]
+    assert body["factory_options"]["ui_mode"] == 2
+    assert body["factory_options"]["boost_config"] == 1
+
+    session.enqueue(FakeResponse())
+    await writes.set_charging_conf(
+        "dev1",
+        NODE,
+        active_days=[1, 0, 1, 0, 1, 0, 1],
+        slot_1={"start": 120, "end": 300},
+    )
+    body = posts(session)[-1]["json"]
+    assert body["charging_conf"]["active_days"] == [1, 0, 1, 0, 1, 0, 1]
+    assert body["charging_conf"]["slot_1"] == {"start": 120, "end": 300}
+
+
+async def test_thermostat_prog_posts_m_t_segments(sleeps, session, client):
+    grant(session)
+    writes = WriteApi(client)
+    session.enqueue(FakeResponse())
+    week = {day: [{"m": 360, "t": 19}, {"m": 1320, "t": "17.0"}] for day in "0123456"}
+    await writes.set_thermostat_prog("dev1", NodeRef("thm", "2"), week, "C")
+    call = posts(session)[-1]
+    assert call["url"].endswith("/thm/2/prog")
+    assert call["json"]["units"] == "C"
+    assert call["json"]["prog"]["0"] == [
+        {"m": 360, "t": "19.0"},
+        {"m": 1320, "t": "17.0"},
+    ]
+    assert set(call["json"]["prog"]) == set("0123456")
+
+    with pytest.raises(ValueError, match="seven days"):
+        await writes.set_thermostat_prog(
+            "dev1", NodeRef("thm", "2"), {"0": [{"m": 360, "t": 19}]}, "C"
+        )
+
+
+async def test_charging_conf_validates_before_any_get(sleeps, session, client):
+    writes = WriteApi(client)
+    with pytest.raises(ValueError, match="at least one"):
+        await writes.set_charging_conf("dev1", NODE)
+    with pytest.raises(ValueError, match="bounds"):
+        await writes.set_charging_conf("dev1", NODE, slot_1={"start": -1, "end": 10})
+    assert session.calls == []
+
+
+async def test_storage_lock_endpoint_rejects_bool(sleeps, session, client):
+    writes = WriteApi(client)
+    locked = True
+    with pytest.raises(ValueError, match="0/1/2"):
+        await writes.set_lock_endpoint("dev1", NODE, locked)  # type: ignore[arg-type]
+
+
+async def test_legacy_extra_options_write_is_omitted(sleeps, session, client):
+    writes = WriteApi(client, store=_SetupStore("0102"))
+    grant(session)
+    session.enqueue(FakeResponse())
+    await writes.set_extra_options("dev1", NODE, {"boost_temp": "20.0"})
+    body = posts(session)[-1]["json"]
+    assert "extra_options" not in body
+    assert WriteApi.supports_extra_options("0102") is False
+    assert WriteApi.supports_extra_options("0132") is True
+
+
+@pytest.mark.parametrize(
+    ("pid", "supports"),
+    [
+        ("0101", False),
+        ("0102", False),
+        ("0107", False),
+        ("0108", False),
+        ("010B", True),
+        ("010C", True),
+        ("010D", False),
+        ("0110", False),
+        ("0111", False),
+        ("0113", False),
+        ("0116", False),
+        ("0118", False),
+        ("011B", False),
+        ("011E", False),
+        ("011F", False),
+        ("0132", True),
+    ],
+)
+def test_extra_options_support_matches_the_app_omission_list(pid, supports):
+    """The omission set is the app's exact ``shouldOmitSetupExtraOptions`` list."""
+    assert WriteApi.supports_extra_options(pid) is supports
+
+
+async def test_store_without_version_keeps_extra_options(sleeps, session, client):
+    class OldStore:
+        def setup(self, _dev_id, _node):
+            return {"extra_options": {"user_duty_limit": 0}}
+
+        def prog(self, _dev_id, _node):
+            return None
+
+    writes = WriteApi(client, store=OldStore())
+    grant(session)
+    session.enqueue(FakeResponse())
+    enabled = True
+    await writes.set_setup_value("dev1", NODE, "window_mode_enabled", enabled)
+    assert posts(session)[-1]["json"]["extra_options"] == {"user_duty_limit": 0}
+
+
+async def test_thermostat_prog_rejects_non_finite_temperature(sleeps, session, client):
+    writes = WriteApi(client)
+    week = {day: [{"m": 360, "t": "nan"}] for day in "0123456"}
+    with pytest.raises(ValueError, match="finite"):
+        await writes.set_thermostat_prog("dev1", NodeRef("thm", "2"), week, "C")

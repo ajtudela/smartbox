@@ -1,5 +1,54 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* `WriteApi.set_lock()` and `SmartboxEngine.set_lock()` accept the wire enum
+  `0`/`1`/`2` as well as `bool`; integer-lock controllers distinguish
+  unblocked, locally blocked and remotely blocked.
+* `SmartboxEngine.set_prog_temps()` and `set_max_stemp_limit()` accept optional
+  `bounds_c`/`offset_c` keyword arguments, and `sanitize_prog_temps()` passes
+  them through, so the integration can apply the controller's decoded
+  per-profile bounds while `max_stemp_limit` still clamps the top.
+* `WriteApi` omits `extra_options` from setup POSTs for the app's legacy
+  ElectricHeater PID list (via the new `SlotReader.version` hook), matching
+  `shouldOmitSetupExtraOptions`.
+* Storage and thermostat write operations: `set_boost_legacy` (`/boost`),
+  `set_target_charge`, `set_storage_mode` (`/mode`), `set_lock_endpoint`
+  (`/lock`), `set_charging_conf`, `set_storage_ui_mode`, and
+  `set_thermostat_prog` with the full seven-day `{m, t}` shape.
+* `set_easy`/`set_runback` status flags and the generic `set_setup_value`
+  engine wrapper used by the adapter.
+* The CLI's `devices` output and device helpers flatten `invited_to` as well
+  as `devs`. An invited home returns an empty `devs` list with its heater under
+  `invited_to`; `devices`, `nodes`, `status`, `setup`, `prog`,
+  connected/power-limit and device lookup now work there.
+
+### Fixed
+
+* `SmartboxEngine.set_boost()` accepts `legacy=True` to force the setup+status
+  activation path even when `boost_config` is FULL, for controllers whose app
+  override bypasses `/boost_mode` (Tevolve triac). Legacy activation writes
+  `boost_temp`/`boost_time` whenever parameters are supplied, not only for
+  config 2.
+* The legacy `extra_options` omission set now matches the app exactly:
+  `01/02/07/08/0D/10/11/13/16/18/1B/1E/1F`. The Elnur `0B`/`0C` products keep
+  the object, and `11`/`1B` are omitted.
+* Legacy boost setup writes format `boost_temp` to one decimal, matching the
+  app's `.toFixed(1)`.
+* `thermostat_prog_days()` accepts integral numeric-string/float minutes and
+  normalizes them to the int wire shape.
+* The optimistic setup merge keeps the stored `extra_options` when a setup
+  POST omits it (the legacy product-code rule), so an unrelated setup write
+  no longer blanks boost parameters, duty settings or runback defaults until
+  the next setup frame.
+* A legacy boost (`boost_config` 2) on a Fahrenheit node with
+  `extra_options.version >= 2` now writes `boost_temp` back in Celsius, as the
+  app does, instead of storing the Fahrenheit value in a Celsius field.
+* Storage boost deactivation posts the app's bare `{"mode": …}` body to
+  `/mode`, without the extra `units` key the temperature write carries.
+
 ## 3.2.1 (2026-11-21)
 
 ### Added

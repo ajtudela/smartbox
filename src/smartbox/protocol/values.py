@@ -40,7 +40,8 @@ __all__ = [
 _KNOWN_UNITS = ("C", "F")
 # Cap on payload excerpts in error messages (log-hygiene guard).
 _REPR_LIMIT = 60
-# Weekly schedules are day-keyed "0".."6" (Monday..Sunday).
+# Weekly schedules are day-keyed "0".."6" (Sunday..Saturday).
+_MINUTES_PER_DAY = 1440
 _PROG_DAY_KEYS = frozenset({str(day) for day in range(7)})
 
 
@@ -270,6 +271,71 @@ def prog_days(slot: object) -> dict[str, Any] | None:
         ):
             return None
     return dict(candidate)
+
+
+def thermostat_prog_days(  # noqa: PLR0911 - one return per invalid shape
+    slot: object,
+) -> dict[str, list[dict[str, object]]] | None:
+    """Return the day-keyed thermostat ``{m, t}`` programme, or ``None``.
+
+    Thermostat days are lists of objects, unlike the heater int-slot arrays.
+    ``m`` is the segment end minute (0..1440) and ``t`` a number in the node's
+    unit. Malformed/partial shapes return ``None`` so callers can refuse a
+    merge instead of posting garbage.
+    """
+    if not isinstance(slot, Mapping):
+        return None
+    if "prog" in slot:
+        inner = slot["prog"]
+        if not isinstance(inner, Mapping):
+            return None
+        candidate = inner
+    else:
+        if any(day not in _PROG_DAY_KEYS for day in slot):
+            return None
+        candidate = slot
+    result: dict[str, list[dict[str, object]]] = {}
+    for day, segments in candidate.items():
+        if day not in _PROG_DAY_KEYS or not isinstance(segments, (list, tuple)):
+            return None
+        out: list[dict[str, object]] = []
+        for segment in segments:
+            if not isinstance(segment, Mapping):
+                return None
+            minute = segment.get("m")
+            temp = segment.get("t")
+            if isinstance(minute, bool):
+                return None
+            minute_value = parse_number_or_none(minute)
+            if (
+                minute_value is None
+                or not float(minute_value).is_integer()
+                or not 0 <= minute_value <= _MINUTES_PER_DAY
+            ):
+                return None
+            if isinstance(temp, bool) or parse_number_or_none(temp) is None:
+                return None
+            out.append({"m": int(minute_value), "t": temp})
+        result[day] = out
+    return result
+
+
+def thermostat_days_equal(left: object, right: object) -> bool:
+    """Compare two thermostat day lists segment by segment."""
+    if not isinstance(left, (list, tuple)) or not isinstance(right, (list, tuple)):
+        return left == right
+    if len(left) != len(right):
+        return False
+    for actual, expected in zip(left, right, strict=True):
+        if not isinstance(actual, Mapping) or not isinstance(expected, Mapping):
+            if actual != expected:
+                return False
+            continue
+        if not same_wire_value(actual.get("m"), expected.get("m")):
+            return False
+        if not same_wire_value(actual.get("t"), expected.get("t")):
+            return False
+    return True
 
 
 def normalize_prog(payload: object) -> dict[str, list[int]] | None:

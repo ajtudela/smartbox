@@ -186,7 +186,7 @@ async def make_engine(*, prog=None, host=None, setup=None, **engine_kwargs):
     return engine, recorder, fake, transport
 
 
-async def make_host_engine(host, *, setup=None, prog=None):
+async def make_host_engine(host, *, setup=None, prog=None, node=NODE_REF, status=None):
     """Engine over a CUSTOM write host, with the fake's snapshot ingested.
 
     The store must already hold the node: a write merges only into state the
@@ -196,8 +196,8 @@ async def make_host_engine(host, *, setup=None, prog=None):
     fake.add_device("dev1")
     fake.add_node(
         "dev1",
-        NODE_REF,
-        status=dict(STATUS),
+        node,
+        status=dict(status) if status else dict(STATUS),
         setup={"priority": 0} if setup is None else setup,
         prog=prog,
     )
@@ -649,6 +649,128 @@ async def test_set_temp_and_time_boost_rewrites_the_setup_then_the_status():
             "boost_time": 60,
         }
         assert host.posts[1][1] == {"boost": True}
+    finally:
+        await engine.stop()
+
+
+async def test_set_temp_and_time_boost_encodes_version_two_as_celsius():
+    """A Fahrenheit node's boost temp is written back as Celsius for v2."""
+    host = AcceptingHost()
+    engine, _recorder, _fake, transport = await make_host_engine(
+        host,
+        setup={
+            "factory_options": {"boost_config": 2},
+            "extra_options": {"version": 2},
+        },
+    )
+    try:
+        await transport.deliver_update(
+            "dev1", "/htr/2/status", {**STATUS, "units": "F"}
+        )
+        await engine.set_boost(
+            "dev1", NODE_REF, on=True, temperature=70.0, time_minutes=60
+        )
+        assert host.posts[0][1]["extra_options"] == {
+            "version": 2,
+            "boost_temp": "21.0",
+            "boost_time": 60,
+        }
+    finally:
+        await engine.stop()
+
+
+async def test_forced_legacy_boost_uses_setup_even_at_config_three():
+    """The triac family overrides FULL and writes the legacy setup+status."""
+    host = AcceptingHost()
+    engine, _recorder, _fake, _transport = await make_host_engine(
+        host, setup={"factory_options": {"boost_config": 3}}
+    )
+    try:
+        await engine.set_boost(
+            "dev1",
+            NODE_REF,
+            on=True,
+            temperature=21.0,
+            time_minutes=60,
+            legacy=True,
+        )
+        assert [path for path, _body in host.posts] == [
+            "devs/dev1/htr/2/setup",
+            "devs/dev1/htr/2/status",
+        ]
+        assert host.posts[0][1]["extra_options"]["boost_temp"] == "21.0"
+        assert host.posts[1][1] == {"boost": True}
+    finally:
+        await engine.stop()
+
+
+async def test_legacy_boost_parameters_are_written_without_a_config():
+    """An absent config still carries the legacy boost temperature/time."""
+    host = AcceptingHost()
+    engine, _recorder, _fake, _transport = await make_host_engine(
+        host, setup={"units": "C"}
+    )
+    try:
+        await engine.set_boost(
+            "dev1", NODE_REF, on=True, temperature=20.0, time_minutes=60
+        )
+        assert [path for path, _body in host.posts] == [
+            "devs/dev1/htr/2/setup",
+            "devs/dev1/htr/2/status",
+        ]
+    finally:
+        await engine.stop()
+
+
+async def test_storage_boost_uses_the_legacy_endpoint_then_restores_the_mode():
+    """The ACM path is /boost plus /mode, and op=1 deactivation is MANUAL."""
+    acm = NodeRef("acm", "1")
+    host = AcceptingHost()
+    engine, _recorder, _fake, _transport = await make_host_engine(
+        host,
+        node=acm,
+        status={"sync_status": "ok", "units": "C", "boost": True, "mode": "auto"},
+        setup={"operational_mode": 1, "units": "C"},
+    )
+    try:
+        await engine.set_boost("dev1", acm, on=False)
+        assert host.posts == [
+            ("devs/dev1/acm/1/boost", {"boost": False}),
+            ("devs/dev1/acm/1/mode", {"mode": "manual"}),
+        ]
+
+        await engine.set_boost("dev1", acm, on=True, temperature=20.0, time_minutes=60)
+        assert host.posts[-1] == (
+            "devs/dev1/acm/1/boost",
+            {"boost": True, "boost_time": 60, "stemp": "20.0", "units": "C"},
+        )
+    finally:
+        await engine.stop()
+
+
+async def test_thermostat_prog_frame_confirms_the_pending_write():
+    """A ``{m, t}`` prog frame is write evidence for thermostat nodes."""
+    thm = NodeRef("thm", "1")
+    week = {day: [{"m": 360, "t": "19.0"}] for day in "0123456"}
+    changed = {**week, "0": [{"m": 360, "t": "20.0"}]}
+    host = AcceptingHost()
+    engine, _recorder, _fake, transport = await make_host_engine(
+        host,
+        node=thm,
+        status={"sync_status": "ok", "mode": "auto", "stemp": "19.0", "units": "C"},
+        setup={"type": "heat"},
+        prog=week,
+    )
+    try:
+        await engine.set_thermostat_prog("dev1", thm, changed, "C")
+        assert armed_deadlines(engine, "write") == [("dev1", "thm/1", "write", "prog")]
+        await transport.deliver_update(
+            "dev1", "/thm/1/prog", {"prog": changed, "units": "C"}
+        )
+        assert armed_deadlines(engine, "write") == []
+        node = engine.node("dev1", "thm/1")
+        assert node is not None
+        assert node.available is True
     finally:
         await engine.stop()
 
@@ -1836,5 +1958,26 @@ async def test_prog_temp_clamp_uses_the_fahrenheit_grid():
             "comf_temp": "75.0",
             "units": "F",
         }
+    finally:
+        await engine.stop()
+
+
+async def test_legacy_boost_omits_extra_options_and_still_activates():
+    """The app omits extra_options on legacy PIDs; boost must not fail."""
+    host = AcceptingHost()
+    engine, _recorder, _fake, transport = await make_host_engine(
+        host,
+        setup={
+            "factory_options": {"boost_config": 2},
+            "extra_options": {"boost_temp": "21.0", "boost_time": 60},
+        },
+    )
+    try:
+        await transport.deliver_update("dev1", "/htr/2/version", {"pid": "0102"})
+        await engine.set_boost(
+            "dev1", NODE_REF, on=True, temperature=21.0, time_minutes=60
+        )
+        assert "extra_options" not in host.posts[0][1]
+        assert host.posts[1][1] == {"boost": True}
     finally:
         await engine.stop()

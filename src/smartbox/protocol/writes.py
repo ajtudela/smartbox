@@ -42,11 +42,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+import math
 from typing import TYPE_CHECKING, Literal, Protocol
 
 from .errors import SmartboxError
 from .paths import NodeRef, encode_segment, node_path
 from .values import (
+    bounded_repr,
     format_setpoint,
     node_units_to_celsius,
     prog_days,
@@ -91,6 +93,7 @@ WriteSlot = Literal[
     "power_limit",
     "node_power_limit",
     "boost_mode",
+    "boost",
 ]
 
 
@@ -132,6 +135,9 @@ class SlotReader(Protocol):
     def prog(self, dev_id: str, node: NodeRef) -> Mapping[str, Any] | None:
         """Return the node's last known schedule, day-keyed, or ``None``."""
 
+    def version(self, dev_id: str, node: NodeRef) -> Mapping[str, Any] | None:
+        """Return the node's last known version body, or ``None``."""
+
 
 @dataclass(frozen=True)
 class PostedWrite:
@@ -151,6 +157,17 @@ class PostedWrite:
     dev_id: str
     node: NodeRef | None
     slot: WriteSlot
+
+
+# App ``shouldOmitSetupExtraOptions`` product codes. These controllers reject
+# or silently drop an ``extra_options`` object, so every setup POST omits it.
+_PID_CODE_END = 4
+_DAYS_PER_WEEK = 7
+_MINUTES_PER_DAY = 1440
+_THERMOSTAT_DAY_KEYS = frozenset({"0", "1", "2", "3", "4", "5", "6"})
+_OMIT_EXTRA_OPTIONS_CODES = frozenset(
+    {"01", "02", "07", "08", "0D", "10", "11", "13", "16", "18", "1B", "1E", "1F"}
+)
 
 
 class WriteApi:
@@ -238,13 +255,48 @@ class WriteApi:
         )
 
     async def set_lock(
-        self, dev_id: str, node: NodeRef, locked: bool
+        self, dev_id: str, node: NodeRef, locked: bool | int
     ) -> tuple[str, dict[str, Any]]:
-        """POST status body ``{"locked": bool}``."""
-        _require_bool(locked, "locked")
+        """POST status body ``{"locked": bool | 0|1|2}``.
+
+        The base ElectricHeater/Haverland settings path uses a boolean; the
+        storage, Helki-wifi and Tevolve-wifi families use the wire enum
+        ``0`` (unblocked), ``1`` (locally blocked) or ``2`` (remotely blocked).
+        """
+        if not isinstance(locked, bool) and (
+            not isinstance(locked, int) or locked not in (0, 1, 2)
+        ):
+            msg = f"locked must be a bool or 0/1/2, got: {locked!r}"
+            raise ValueError(msg)
         return await self._post(
             node_path(dev_id, node, "status"),
             {"locked": locked},
+            dev_id=dev_id,
+            node=node,
+            slot="status",
+        )
+
+    async def set_easy(
+        self, dev_id: str, node: NodeRef, enabled: bool
+    ) -> tuple[str, dict[str, Any]]:
+        """POST status body ``{"easy": bool}``."""
+        _require_bool(enabled, "easy")
+        return await self._post(
+            node_path(dev_id, node, "status"),
+            {"easy": enabled},
+            dev_id=dev_id,
+            node=node,
+            slot="status",
+        )
+
+    async def set_runback(
+        self, dev_id: str, node: NodeRef, enabled: bool
+    ) -> tuple[str, dict[str, Any]]:
+        """POST status body ``{"runback": bool}``."""
+        _require_bool(enabled, "runback")
+        return await self._post(
+            node_path(dev_id, node, "status"),
+            {"runback": enabled},
             dev_id=dev_id,
             node=node,
             slot="status",
@@ -264,6 +316,249 @@ class WriteApi:
             dev_id=dev_id,
             node=node,
             slot="status",
+        )
+
+    async def set_boost_legacy(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        *,
+        on: bool,
+        temperature: float | None = None,
+        time_minutes: int | None = None,
+        units: str | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """POST the storage ``/boost`` body.
+
+        Activation carries ``{boost, boost_time, stemp, units}``; deactivation
+        is ``{"boost": false}`` alone. This is the Helki storage path, which is
+        independent of ``boost_config`` (docs/api-ws-user.md §2.3).
+        """
+        _require_bool(on, "on")
+        if not on:
+            if temperature is not None or time_minutes is not None or units is not None:
+                msg = "an inactive legacy boost takes only boost=false"
+                raise ValueError(msg)
+            body: dict[str, object] = {"boost": False}
+        else:
+            if temperature is None or time_minutes is None or units is None:
+                msg = "an active legacy boost needs temperature, time_minutes and units"
+                raise ValueError(msg)
+            require_number(temperature, "temperature")
+            _require_int(time_minutes, "time_minutes")
+            validate_units(units)
+            body = {
+                "boost": True,
+                "boost_time": time_minutes,
+                "stemp": f"{temperature:.1f}",
+                "units": units,
+            }
+        return await self._post(
+            node_path(dev_id, node, "boost"),
+            body,
+            dev_id=dev_id,
+            node=node,
+            slot="boost",
+        )
+
+    async def set_target_charge(
+        self, dev_id: str, node: NodeRef, value: int
+    ) -> tuple[str, dict[str, Any]]:
+        """POST status ``{"target_charge_per": 0|100}``."""
+        _require_int(value, "target_charge_per")
+        if value not in (0, 100):
+            msg = f"target_charge_per must be 0 or 100, got: {value!r}"
+            raise ValueError(msg)
+        return await self._post(
+            node_path(dev_id, node, "status"),
+            {"target_charge_per": value},
+            dev_id=dev_id,
+            node=node,
+            slot="status",
+        )
+
+    async def set_storage_mode(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        *,
+        mode: str,
+        stemp: float | None = None,
+        units: str | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """POST the storage ``/mode`` body ``{mode, stemp?, units?}``."""
+        if mode not in _VALID_MODES:
+            msg = f"mode must be one of {_VALID_MODES}, got: {mode!r}"
+            raise ValueError(msg)
+        body: dict[str, object] = {"mode": mode}
+        if stemp is not None:
+            require_number(stemp, "stemp")
+            body["stemp"] = f"{stemp:.1f}"
+        if units is not None:
+            validate_units(units)
+            body["units"] = units
+        return await self._post(
+            node_path(dev_id, node, "mode"),
+            body,
+            dev_id=dev_id,
+            node=node,
+            slot="status",
+        )
+
+    async def set_lock_endpoint(
+        self, dev_id: str, node: NodeRef, locked: bool | int
+    ) -> tuple[str, dict[str, Any]]:
+        """POST the storage ``/lock`` body ``{"locked": 0|1|2}``."""
+        if (
+            isinstance(locked, bool)
+            or not isinstance(locked, int)
+            or locked not in (0, 1, 2)
+        ):
+            msg = f"locked must be 0/1/2, got: {locked!r}"
+            raise ValueError(msg)
+        return await self._post(
+            node_path(dev_id, node, "lock"),
+            {"locked": locked},
+            dev_id=dev_id,
+            node=node,
+            slot="status",
+        )
+
+    async def set_thermostat_prog(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        days: Mapping[str, Sequence[Mapping[str, object]]],
+        units: str,
+    ) -> tuple[str, dict[str, Any]]:
+        """POST the thermostat ``{prog, units}`` body.
+
+        Thermostat days are lists of ``{m, t}`` objects: ``m`` is the
+        minute-of-day ending the segment, ``t`` the temperature in the node's
+        unit. The app formats ``t`` with ``toFixed(1)``.
+        """
+        validate_units(units)
+        if not isinstance(days, Mapping):
+            msg = f"thermostat prog must be a day mapping, got: {bounded_repr(days)}"
+            raise ValueError(msg)  # noqa: TRY004 - input validation contract
+        unknown = set(days) - _THERMOSTAT_DAY_KEYS
+        if unknown:
+            msg = f"unknown thermostat day keys: {sorted(unknown, key=repr)}"
+            raise ValueError(msg)
+        missing = _THERMOSTAT_DAY_KEYS - set(days)
+        if missing:
+            msg = (
+                f"thermostat prog must carry all seven days; missing: {sorted(missing)}"
+            )
+            raise ValueError(msg)
+        normalized: dict[str, list[dict[str, object]]] = {}
+        for day, segments in days.items():
+            if not isinstance(segments, (list, tuple)):
+                msg = f"thermostat day {day!r} must be a list, got: {bounded_repr(segments)}"
+                raise ValueError(msg)  # noqa: TRY004 - input validation contract
+            out: list[dict[str, object]] = []
+            for segment in segments:
+                if not isinstance(segment, Mapping):
+                    msg = f"thermostat segment must be a mapping, got: {bounded_repr(segment)}"
+                    raise ValueError(msg)  # noqa: TRY004 - input validation contract
+                minute = segment.get("m")
+                temp = segment.get("t")
+                if isinstance(minute, bool) or not isinstance(minute, int):
+                    msg = f"thermostat segment m must be an int, got: {bounded_repr(minute)}"
+                    raise ValueError(msg)  # noqa: TRY004 - input validation contract
+                if not 0 <= minute <= _MINUTES_PER_DAY:
+                    msg = f"thermostat segment m must be 0..1440, got: {minute!r}"
+                    raise ValueError(msg)
+                if isinstance(temp, bool):
+                    msg = f"thermostat segment t must be a number, got: {bounded_repr(temp)}"
+                    raise ValueError(msg)  # noqa: TRY004 - input validation contract
+                try:
+                    temp_value = float(str(temp))
+                except TypeError, ValueError:
+                    msg = f"thermostat segment t must be a number, got: {bounded_repr(temp)}"
+                    raise ValueError(msg) from None
+                if not math.isfinite(temp_value):
+                    msg = f"thermostat segment t must be finite, got: {bounded_repr(temp)}"
+                    raise ValueError(msg)
+                out.append({"m": minute, "t": f"{temp_value:.1f}"})
+            normalized[day] = out
+        return await self._post(
+            node_path(dev_id, node, "prog"),
+            {"prog": normalized, "units": units},
+            dev_id=dev_id,
+            node=node,
+            slot="prog",
+        )
+
+    async def set_charging_conf(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        *,
+        active_days: list[int] | None = None,
+        slot_1: dict[str, int] | None = None,
+        slot_2: dict[str, int] | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Merge and POST the storage ``charging_conf`` object."""
+        if active_days is None and slot_1 is None and slot_2 is None:
+            msg = "at least one of active_days, slot_1 or slot_2 is required"
+            raise ValueError(msg)
+        validated: dict[str, object] = {}
+        if active_days is not None:
+            if len(active_days) != _DAYS_PER_WEEK:
+                msg = f"active_days must have 7 entries, got: {active_days!r}"
+                raise ValueError(msg)
+            validated["active_days"] = [1 if value else 0 for value in active_days]
+        for key, value in (("slot_1", slot_1), ("slot_2", slot_2)):
+            if value is None:
+                continue
+            start = value.get("start")
+            end = value.get("end")
+            if (
+                isinstance(start, bool)
+                or not isinstance(start, int)
+                or isinstance(end, bool)
+                or not isinstance(end, int)
+            ):
+                msg = f"{key} needs integer start/end, got: {value!r}"
+                raise ValueError(msg)  # noqa: TRY004 - input validation contract
+            if not 0 <= start <= _MINUTES_PER_DAY or not 0 <= end <= _MINUTES_PER_DAY:
+                msg = f"{key} bounds must be 0..1440, got: {value!r}"
+                raise ValueError(msg)
+            validated[key] = {"start": start, "end": end}
+
+        current = await self._setup_base(dev_id, node)
+        existing = current.get("charging_conf")
+        conf: dict[str, object] = (
+            dict(existing) if isinstance(existing, Mapping) else {}
+        )
+        conf.update(validated)
+        return await self._post(
+            node_path(dev_id, node, "setup"),
+            self._setup_body(dev_id, node, current, "charging_conf", conf),
+            dev_id=dev_id,
+            node=node,
+            slot="setup",
+        )
+
+    async def set_storage_ui_mode(
+        self, dev_id: str, node: NodeRef, ui_mode: int
+    ) -> tuple[str, dict[str, Any]]:
+        """Merge ``factory_options.ui_mode`` and POST the setup."""
+        _require_int(ui_mode, "ui_mode")
+        if ui_mode not in (0, 1, 2):
+            msg = f"ui_mode must be 0/1/2, got: {ui_mode!r}"
+            raise ValueError(msg)
+        current = await self._setup_base(dev_id, node)
+        factory = current.get("factory_options")
+        merged = dict(factory) if isinstance(factory, Mapping) else {}
+        merged["ui_mode"] = ui_mode
+        return await self._post(
+            node_path(dev_id, node, "setup"),
+            self._setup_body(dev_id, node, current, "factory_options", merged),
+            dev_id=dev_id,
+            node=node,
+            slot="setup",
         )
 
     async def set_boost_mode(
@@ -543,9 +838,10 @@ class WriteApi:
         if not isinstance(existing, Mapping):
             existing = {}
         merged = {**existing, **options}
+        body = self._setup_body(dev_id, node, current, "extra_options", merged)
         return await self._post(
             node_path(dev_id, node, "setup"),
-            {**current, "extra_options": merged},
+            body,
             dev_id=dev_id,
             node=node,
             slot="setup",
@@ -629,7 +925,7 @@ class WriteApi:
 
         The base is the caller's own schedule body when it has one, else a REST
         read; either way the posted body is the complete day-keyed object nested
-        under ``"prog"`` (string day keys ``"0"``..``"6"``, Mon..Sun). A
+        under ``"prog"`` (string day keys ``"0"``..``"6"``, Sunday..Saturday). A
         value-equal schedule is returned without a POST: the wire pushes no
         confirming frame for it.
         """
@@ -670,6 +966,49 @@ class WriteApi:
         await self._client.post(path, posted)
         return path, posted
 
+    def _omit_extra_options(self, dev_id: str, node: NodeRef) -> bool:
+        """Return whether this controller's setup POST omits ``extra_options``.
+
+        The vendor app's ``shouldOmitSetupExtraOptions`` list covers the older
+        ElectricHeater families; posting the object to them is accepted but
+        dropped, and can disturb the rest of the setup. The store's version
+        slot carries the pid; a direct CLI write without a store keeps the
+        caller's body as-is.
+        """
+        if self._store is None:
+            return False
+        version_method = getattr(self._store, "version", None)
+        if not callable(version_method):
+            return False
+        version = version_method(dev_id, node)
+        if not isinstance(version, Mapping):
+            return False
+        pid = version.get("pid")
+        if not isinstance(pid, str) or len(pid) < _PID_CODE_END:
+            return False
+        return pid[2:_PID_CODE_END].upper() in _OMIT_EXTRA_OPTIONS_CODES
+
+    @staticmethod
+    def supports_extra_options(pid: str | None) -> bool:
+        """Whether this product code accepts an ``extra_options`` object."""
+        if not isinstance(pid, str) or len(pid) < _PID_CODE_END:
+            return True
+        return pid[2:_PID_CODE_END].upper() not in _OMIT_EXTRA_OPTIONS_CODES
+
+    def _setup_body(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        current: Mapping[str, Any],
+        key: str,
+        value: object,
+    ) -> dict[str, Any]:
+        """Build a full setup body, honouring the legacy extra_options rule."""
+        body = {**current, key: value}
+        if self._omit_extra_options(dev_id, node):
+            body.pop("extra_options", None)
+        return body
+
     async def _setup_write(
         self, dev_id: str, node: NodeRef, key: str, value: object
     ) -> tuple[str, dict[str, Any]]:
@@ -677,7 +1016,7 @@ class WriteApi:
         current = await self._setup_base(dev_id, node)
         return await self._post(
             node_path(dev_id, node, "setup"),
-            {**current, key: value},
+            self._setup_body(dev_id, node, current, key, value),
             dev_id=dev_id,
             node=node,
             slot="setup",

@@ -90,14 +90,32 @@ def _load_dotenv() -> None:
 
 
 def _dev_list(payload: object) -> list[dict[str, Any]]:
-    """Accept the raw ``{devs: [...]}`` envelope or a bare list."""
+    """Flatten the owned and invited devices in a ``devices`` response.
+
+    The API returns ``{"devs": [...], "invited_to": [...]}``. An invited
+    home's device is only under ``invited_to`` while ``devs`` stays empty, so
+    the CLI commands must read both lists. Duplicate dev_ids (a device can
+    appear in both) keep the first entry.
+    """
+    entries: list[dict[str, Any]] = []
     if isinstance(payload, dict):
-        devs = payload.get("devs")
-        if isinstance(devs, list):
-            return [entry for entry in devs if isinstance(entry, dict)]
-    if isinstance(payload, list):
-        return [entry for entry in payload if isinstance(entry, dict)]
-    return []
+        for key in ("devs", "invited_to"):
+            values = payload.get(key)
+            if isinstance(values, list):
+                entries.extend(entry for entry in values if isinstance(entry, dict))
+    elif isinstance(payload, list):
+        entries.extend(entry for entry in payload if isinstance(entry, dict))
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for entry in entries:
+        dev_id = entry.get("dev_id")
+        if dev_id is not None:
+            key = str(dev_id)
+            if key in seen:
+                continue
+            seen.add(key)
+        unique.append(entry)
+    return unique
 
 
 async def _client(ctx: click.Context) -> SmartboxClient:
@@ -275,7 +293,8 @@ async def smartbox(
 @smartbox.command(help="Show devices")
 @click.pass_context
 async def devices(ctx: click.Context) -> None:
-    _pretty_print(await (await _client(ctx)).get_devices())
+    client = await _client(ctx)
+    _pretty_print(_dev_list(await client.get_devices()))
 
 
 @smartbox.command(help="Show homes")

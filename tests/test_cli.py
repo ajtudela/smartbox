@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 from asyncclick.testing import CliRunner
 
-from smartbox.cli import _api_base_url, smartbox
+from smartbox.cli import _api_base_url, _dev_list, smartbox
 from smartbox.protocol import AvailableResellers
 from smartbox.protocol.auth import TokenBundle
 from smartbox.protocol.client import SmartboxClient
@@ -294,3 +294,74 @@ async def test_sessions_json_prints_the_raw_payload():
 
     assert result.exit_code == 0, result.output
     assert "d19b4d4c1234" in result.output
+
+
+def test_dev_list_flattens_invited_devices_and_dedupes():
+    """An invited home's device is under invited_to, not devs."""
+    payload = {
+        "devs": [{"dev_id": "own", "name": "Own"}],
+        "invited_to": [
+            {"dev_id": "guest", "name": "Guest"},
+            {"dev_id": "own", "name": "Own duplicate"},
+        ],
+    }
+    assert [entry["dev_id"] for entry in _dev_list(payload)] == ["own", "guest"]
+    assert _dev_list([{"dev_id": "bare"}]) == [{"dev_id": "bare"}]
+    assert _dev_list({"devs": "junk"}) == []
+
+
+async def test_nodes_lists_nodes_from_an_invited_home():
+    """The node commands must not stop at the empty owned-device list."""
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            pass
+
+        async def get_devices(self):
+            return {
+                "devs": [],
+                "invited_to": [{"dev_id": "guest", "name": "Guest home"}],
+            }
+
+        async def get_nodes(self, dev_id):
+            assert dev_id == "guest"
+            return [{"type": "htr", "addr": 2, "name": "Radiateur"}]
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox, ["-u", "user@example.test", "-p", "pw", "nodes"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "Guest home" in result.output
+    assert "Radiateur" in result.output
+    assert '"addr": 2' in result.output
+
+
+async def test_devices_flattens_an_invited_home():
+    """The raw envelope is flattened so an invited device is visible."""
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            pass
+
+        async def get_devices(self):
+            return {
+                "devs": [],
+                "invited_to": [{"dev_id": "guest", "name": "Guest home"}],
+            }
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox, ["-u", "user@example.test", "-p", "pw", "devices"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "Guest home" in result.output
+    assert "invited_to" not in result.output
