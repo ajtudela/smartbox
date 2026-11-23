@@ -8,6 +8,9 @@
   bounds helpers, family code sets/predicates and `resolve_profile()`, with no
   Home Assistant dependency. The integration's `controller.py` re-exports the
   moved facts. A golden fixture test pins all 51 product codes.
+* `smartbox.device.control_modes`: the decoded per-product control-mode
+  catalogue (family/actuation maps, UI and wire arrays, Celsius/Fahrenheit
+  labels, availability gates). The integration re-exports it.
 * `WriteApi.set_lock()` and `SmartboxEngine.set_lock()` accept the wire enum
   `0`/`1`/`2` as well as `bool`; integer-lock controllers distinguish
   unblocked, locally blocked and remotely blocked.

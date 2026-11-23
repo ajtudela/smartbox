@@ -193,6 +193,20 @@ def is_htr_mod_controller(pid: str | None, node_type: str | None = None) -> bool
     return code == "FF" and node_type == "htr_mod"
 
 
+SENSOR_MODE_NO_PROBES = 3
+
+
+def has_no_probes(setup: Mapping[str, object] | None) -> bool:
+    """Return True when the node's extra options select NO_PROBES."""
+    if not isinstance(setup, Mapping):
+        return False
+    extra = setup.get("extra_options")
+    if not isinstance(extra, Mapping):
+        return False
+    value = extra.get("sensor_mode")
+    return not isinstance(value, bool) and value == SENSOR_MODE_NO_PROBES
+
+
 def controller_limits(
     node_type: str,
     pid: str | None,

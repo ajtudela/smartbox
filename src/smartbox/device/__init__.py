@@ -1,9 +1,17 @@
 """Neutral device profiles shared by the integration and the CLI."""
 
+from .control_modes import (
+    ACTUATION,
+    EXPLICIT_FAMILY,
+    control_mode_available,
+    control_mode_choices,
+    control_mode_label,
+)
 from .profile import (
     PROFILES_BASE,
     PROFILES_HTR_MOD,
     PROFILES_WITH_OFF,
+    SENSOR_MODE_NO_PROBES,
     UI_MIN_TEMP_C,
     ControllerLimits,
     ControllerProfile,
@@ -11,6 +19,7 @@ from .profile import (
     climate_bounds,
     controller_limits,
     firmware_at_least,
+    has_no_probes,
     is_helki_heater_family,
     is_htr_mod_controller,
     is_lhz_family,
@@ -26,16 +35,23 @@ from .profile import (
 )
 
 __all__ = [
+    "ACTUATION",
+    "EXPLICIT_FAMILY",
     "PROFILES_BASE",
     "PROFILES_HTR_MOD",
     "PROFILES_WITH_OFF",
+    "SENSOR_MODE_NO_PROBES",
     "UI_MIN_TEMP_C",
     "ControllerLimits",
     "ControllerProfile",
     "boost_temperature_bounds",
     "climate_bounds",
+    "control_mode_available",
+    "control_mode_choices",
+    "control_mode_label",
     "controller_limits",
     "firmware_at_least",
+    "has_no_probes",
     "is_helki_heater_family",
     "is_htr_mod_controller",
     "is_lhz_family",
