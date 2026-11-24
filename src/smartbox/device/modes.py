@@ -3,6 +3,10 @@
 These gates depend on the product code, firmware and setup only; the adapter
 uses them to choose entity shapes and request paths. Storage semantics live in
 ``device.storage`` and the surface predicates in ``device.profile``.
+
+
+Decoded from the vendor 2.54.2 bundle; see `hass-smartbox docs/api-contract.md`
+(the wire record) for the provenance citations.
 """
 
 from __future__ import annotations
@@ -136,11 +140,6 @@ def boost_params_editable(  # noqa: PLR0911 - one return per family/config
     if code == "36":
         return True
     return code in TEVOLVE_TRIAC_CODES and code != "27"
-
-
-def boost_is_fixed_time(pid: str | None) -> bool:
-    """Whether the app activates boost in its fixed-time mode."""
-    return product_code(pid) in HAVERLAND_FIXED_TIME_CODES
 
 
 def boost_activation_takes_parameters(

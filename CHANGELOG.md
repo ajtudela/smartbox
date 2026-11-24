@@ -4,13 +4,60 @@
 
 ### Added
 
+* `smartbox.device.codes`: one reviewed product-code table (51 rows with
+  family, actuation, limits family, surface, label and capability flags).
+  `profile` and `control_modes` derive their code sets and maps from it. The
+  shared fixture records those columns plus the control-mode wire/UI arrays,
+  labels and storage UI-mode options; the device tests assert production
+  ⊆ fixture and catalogue equality.
+* `smartbox profile --pid` accepts either a 2-character product code or a
+  full `version.pid` (the code is `pid[2:4]`) and rejects an unknown code.
+  The command applies the setup's stored `max_stemp_limit`; `--max-limit-c`
+  overrides it (`0` prints the unclamped catalogue).
+* `resolve_stored_profile()` applies the setup's stored `max_stemp_limit`
+  (Celsius, `<= 0` disabled); `resolve_profile()` takes an explicit
+  `max_limit_c` override and keeps the controller catalogue when it is absent.
+* `accepts_extra_options(pid)` exposes the reviewed setup-shape flag to entity
+  gates; `ProductCode.thm_heater`, `fixed_time_boost`, `water` and
+  `stepped_charge` derive the THM heater-surface, fixed-time-boost,
+  water-storage and stepped-charge sets from the table.
+* The CLI now covers every named write: EASY/RUNBACK, storage mode/target
+  charge/`/lock`/charging schedule/UI mode, legacy and FULL boost, thermostat
+  programme, programme temperatures and max-stemp. It also adds `node-profile`, `diagnose`,
+  `node-version`, `node-power`, `rtc`, `discovery`, `dev-data`, `codes`/
+  `profiles`, `doctor`/`config` and `version`; `-d`/`-n` filters and a global
+  `--json`; `--dry-run`/`--yes`; ISO/CSV samples; `@file` JSON arguments; and
+  `listen` node/path filters. Storage, htr_mod and max-stemp commands check the
+  live product code first and refuse a node that does not support the write.
+* `smartbox.device.capabilities`: neutral operation-eligibility checks
+  (`check_storage_ui_mode`, `check_target_charge`, `check_charging_schedule`,
+  `check_legacy_boost`, `check_htr_mod_status`, `check_max_stemp_limit`,
+  `check_control_mode`, `check_easy`, `check_runback`, `check_boost`,
+  `check_boost_mode`, `check_node_power_limit`, `check_prog_temps`,
+  `check_thermostat_prog`, the storage mode/lock pair) over `NodeFacts`, with
+  stable `Reason` codes and structured detail. The CLI uses these checks; the
+  HA adapter shares the storage UI-mode pair.
+* E2 storage (20/25) no longer offers AUTO when extra energy is enabled
+  outside CONFORT, matching the app's `getAvailableUIHeatingModes`; the
+  `ProductCode.extra_energy` flag keeps the rule scoped to those rows.
+* `node-power` now requires `-d`/`-n` and refuses non-`pmo` nodes locally,
+  pointing heaters at `status.power` and the box limit at
+  `device-power-limit`, instead of surfacing the endpoint's 404.
+* `control-modes` shows the current vendor label and every accepted wire
+  index, and `set-control-mode` writes one by exact label or index; both use
+  the reviewed product catalogue. `set-setup --control-mode` now validates the
+  same catalogue instead of accepting any non-negative integer.
+* `VALID_MODES` is public from `smartbox.protocol.writes`/`smartbox.protocol`.
+* `WATER_STORAGE_CODE`, `ELNUR_STEPPED_STORAGE_CODE` and
+  `is_elnur_stepped_storage()` move the adapter's storage-code literals into
+  the neutral module.
 * `smartbox.device.profile`: neutral controller limits, programme catalogues,
   bounds helpers, family code sets/predicates and `resolve_profile()`, with no
   Home Assistant dependency. The integration's `controller.py` re-exports the
   moved facts. A golden fixture test pins all 51 product codes.
 * `smartbox.device.control_modes`: the decoded per-product control-mode
   catalogue (family/actuation maps, UI and wire arrays, Celsius/Fahrenheit
-  labels, availability gates). The integration re-exports it.
+  labels, availability gates). The integration imports it directly.
 * `smartbox.device.modes`: neutral lock kind (setup-aware `super_lock_available`
   and the fw-1.7 Haverland gate), EASY/RUNBACK support and the boost activation
   policy (kind, fixed-time override, FULL mode list, parameter editability).
@@ -51,8 +98,31 @@
   `invited_to`; `devices`, `nodes`, `status`, `setup`, `prog`,
   connected/power-limit and device lookup now work there.
 
+### Changed
+
+* `resolve_profile()` treats `max_limit_c` as an explicit override
+  (`None` keeps the controller catalogue). Callers that want the stored setup
+  ceiling use `resolve_stored_profile()`; the previous private sentinel default
+  is gone.
+* The shared product-code fixture is schema 2: each row carries every
+  `ProductCode` field (`family`, `actuation`, `limits_family`, `surface`,
+  `label`, `supports_extra_options`, `lhz_duty`, `thm_heater`,
+  `fixed_time_boost`, `water`, `stepped_charge`) plus the control-mode
+  catalogue and stored profile facts.
+
 ### Fixed
 
+* `resolve_stored_profile()` treats a non-positive `setup.max_stemp_limit`
+  (the app's `"0.0"` disabled sentinel) as unset, so the programme ranges keep
+  the controller catalogue instead of inverting.
+* An `acm` node whose product code is `00`, `03` or `22` keeps the
+  HelkiStorage limits and relay control-mode catalogue; the table-derived
+  family map no longer routes those codes to the heater catalogue.
+* An unlisted `thm` node uses the thermostat 7-35 limits, matching the
+  factory's `ThermostatController` default, and the exact `0A01` full-PID
+  match hides the max-stemp setting. `parse_max_stemp_limit()` is the single
+  sentinel/parse rule shared by the profile resolver, the core merge and the
+  adapter.
 * `SmartboxEngine.set_boost()` accepts `legacy=True` to force the setup+status
   activation path even when `boost_config` is FULL, for controllers whose app
   override bypasses `/boost_mode` (Tevolve triac). Legacy activation writes

@@ -118,7 +118,7 @@ Use the `smartbox` tool to read status information from your heaters (nodes) and
 
 ### Options
 
-`-u`/`--username` and `-p`/`--password` (your mobile-app / web-app credentials) are required for every command except `resellers` and the offline `profile` command. `-v`/`--verbose` enables debug logging.
+`-u`/`--username` and `-p`/`--password` (your mobile-app / web-app credentials) are required for every API command. The offline commands are `resellers`, `profile`, `codes`/`profiles`, `version` and `doctor`/`config` without `--check`. `-v`/`--verbose` enables debug logging.
 
 These are only needed when your reseller is not built into the package, or when a built-in row's host has moved:
 
@@ -177,16 +177,33 @@ Read-only, across every device/node:
 | `status` | live status of every node |
 | `setup` | configuration of every node |
 | `prog` | weekly heating schedule of every node |
+| `control-modes` | the node’s control-mode label, current wire index and accepted choices |
+| `node-version` | version payload of every node |
+| `node-power` | the node's own power reading (pmo nodes only; heaters report power in `status`) |
 | `device-away-status` | away status of every device |
 | `device-connected-status` | whether each device is online |
 | `device-power-limit` | power limit (watts) of every device |
+| `rtc` | the box RTC time |
+| `discovery` | the box discovery payload |
+| `dev-data` | the raw `dev_data` payload |
 | `health-check` | whether the API is alive |
 | `api-version` | API build info |
 | `sessions` | the account's active vendor sessions |
 | `resellers` | all known reseller connection details |
-| `profile` | resolve one controller profile offline from `--node-type`, `--pid`, `--fw-version` and `--setup` JSON |
+| `codes` / `profiles` | the reviewed product-code table, with filters |
+| `node-profile` | the live product row and resolved profile of one node |
+| `diagnose` | a per-node profile/identity summary with issues |
+| `doctor` / `config` | resolved reseller, host, serial, cache path; `--check` calls the API |
+| `version` | the installed library version |
+| `profile` | resolve one controller profile offline from `--node-type`, `--pid`, `--fw-version`, `--setup` JSON and an optional `--max-limit-c` override |
 
-`smartbox profile --pid 08320000 --node-type htr --fw-version 1.9 --setup '{"factory_options": {"boost_config": 2}}'` prints the neutral limits, bounds and programme ranges; it contacts no API and needs no credentials.
+`status`, `setup`, `prog`, `node-version` and `node-power` accept `-d <device>` and `-n <node addr>` filters. The device-level reads accept `-d`. `node-power` requires both and refuses a non-`pmo` node: heater power is in `status.power`, and the box limit is `device-power-limit`. The global options (`--json`, `--dry-run`, `--yes`) must come before the command. Put `--json` there to get one JSON document for a multi-device/multi-node read; a `--json` after the command is accepted only by the commands with a local `--json` option (`sessions`, `codes`/`profiles`, `doctor`/`config`):
+
+    smartbox --json status -d <device id> -n <node addr>
+
+`codes`/`profiles` filter with `--family`, `--limits-family`, `--surface`, `--relay`, `--thm` and `--search`; `codes --json` prints the raw rows.
+
+`smartbox profile --pid 08320000 --node-type htr --fw-version 1.9 --setup '{"factory_options": {"boost_config": 2}, "max_stemp_limit": "23.0"}'` prints the neutral limits, bounds and programme ranges; a stored `max_stemp_limit` shifts the programme ceilings, `--max-limit-c` overrides it (`0` prints the unclamped catalogue), and the command contacts no API and needs no credentials. `--pid` also accepts the bare two-character code (`32`); an unknown code is rejected.
 
 `smartbox resellers` prints each row's key, brand, brand key, API host,
 serial id, Basic source and referer in one table. The API hosts are HTTPS;
@@ -208,35 +225,54 @@ smartbox <auth options...> prog
 
     smartbox <auth options...> guests -h <home id>
 
-`node-samples` reads the temperature/consumption history of one node (`-s`/`-e` default to one hour before/after now):
+`node-samples` reads the temperature/consumption history of one node (`-s`/`-e` accept Unix seconds or ISO-8601 and default to one hour around now; `--csv` prints the rows as CSV):
 
-    smartbox <auth options...> node-samples -d <device id> -n <node addr> [-s <start unix ts>] [-e <end unix ts>]
+    smartbox <auth options...> node-samples -d <device id> -n <node addr> [-s 2026-11-24T00:00:00Z] [-e 2026-11-24T01:00:00Z] [--csv]
 
-Writes take named options, one per field to change:
+Writes take named options, one per field to change. `--dry-run` performs the GET half and prints the POST it would send; interactive runs ask for confirmation unless `--yes` is given (non-interactive runs skip the prompt):
 
     smartbox <auth options...> set-status -d <device id> -n <node addr> [--mode auto] [--stemp 21.5 --units C] [--locked false]
-    smartbox <auth options...> set-setup  -d <device id> -n <node addr> [--control-mode 1] [--offset 0.0] [--units C] [--true-radiant-enabled true] [--window-mode-enabled false] [--priority low]
-    smartbox <auth options...> set-prog -d <device id> -n <node addr> '{"prog": {"0": [2, 2, ...], ...}}'
-    smartbox <auth options...> set-device-away-status -d <device id> [--away true] [--enabled true] [--forced false]
+    smartbox <auth options...> set-control-mode -d <device id> -n <node addr> --mode "PID (15 min. period)"
+    smartbox <auth options...> set-htr-mod-status -d <device id> -n <node addr> [--on true] [--selected-temp comfort] [--comfort-temp 21.5] [--eco-offset -2.0] [--units C]
+    smartbox <auth options...> set-setup  -d <device id> -n <node addr> [--control-mode 1] [--offset 0.0] [--units C] [--true-radiant-enabled true] [--window-mode-enabled false] [--priority low] [--extra-json @file.json]
+    smartbox <auth options...> set-prog -d <device id> -n <node addr> @prog.json
+    smartbox <auth options...> set-device-away-status -d <device id> --away/--no-away
     smartbox <auth options...> set-device-power-limit -d <device id> <watts>
-
-New in 3.0:
 
     smartbox <auth options...> set-node-power-limit -d <device id> -n <node addr> <watts>
     smartbox <auth options...> set-boost -d <device id> -n <node addr> --on     # or --off
+    smartbox <auth options...> set-boost-legacy -d <device id> -n <node addr> --on --temperature 21 --time-minutes 60 --units C
     smartbox <auth options...> set-boost-mode -d <device id> -n <node addr> --active --mode runback --temperature 21 --time-minutes 60
 
-`listen` opens a long-lived `ws_user` connection and prints `snapshot` and `update` events until interrupted (`-d`/`--device-id` filters updates for one device):
+`runback` and `advanced_slot` are additionally gated by the unit's advertised `boost_modes_available`; the CLI cannot verify that status gate before the write, so a rejected mode remains a server-side possibility. Fixed-time families accept only `max_temp_fixed_time`.
 
-    smartbox <auth options...> listen [-d <device id>]
+    smartbox <auth options...> set-easy    -d <device id> -n <node addr> --on
+    smartbox <auth options...> set-runback -d <device id> -n <node addr> --on
+    smartbox <auth options...> set-storage-mode    -d <device id> -n <node addr> --mode auto [--stemp 21.0 --units C]
+    smartbox <auth options...> set-target-charge   -d <device id> -n <node addr> {0|100}
+    smartbox <auth options...> set-storage-lock    -d <device id> -n <node addr> {0|1|2}
+    smartbox <auth options...> set-storage-ui-mode -d <device id> -n <node addr> {0|1|2}
+    smartbox <auth options...> set-charging-schedule -d <device id> -n <node addr> [--active-days 1110111] [--slot1 07:00-09:00] [--slot2 22:00-23:00]
+    smartbox <auth options...> set-thermostat-prog -d <device id> -n <node addr> --units C --prog @thermostat.json
+    smartbox <auth options...> set-prog-temps     -d <device id> -n <node addr> [--ice 5.0] [--eco 18.0] [--comfort 21.0] [--units C]
+    smartbox <auth options...> set-max-stemp-limit -d <device id> -n <node addr> --units C 23
+    smartbox <auth options...> set-max-stemp-limit -d <device id> -n <node addr> --off
 
-Reads print the raw wire payloads; writes print the posted path and body.
+`--prog`, `--extra-json` and the offline `--setup` accept a JSON literal or `@path` (`@-` reads stdin).
+
+`control-modes` shows the vendor label and the wire index the heater stores (`control_mode` is the position in the product’s wire-order array, not the UI list position). `set-control-mode` accepts either the exact label or that index and refuses a value the product does not offer; `set-setup --control-mode` validates the same catalogue. Both also apply the app-visibility gate: the setup must carry `control_mode`, and classic Elnur, water storage, `htr_mod` and NO_PROBES thermostats are refused. Writes print a JSON object with the method, path, body and `dry_run` flag.
+
+The storage and htr_mod commands read `version.pid` first and refuse a product that does not support the write: `set-storage-ui-mode` needs an Elnur storage controller with that value offered and the current mode exposing the setting (the app hides the row once the unit is in Ecombi mode); `set-target-charge` needs an Elnur classic-accumulator mode; `set-storage-mode` needs an `acm` node that is not a classic accumulator, with a mode from `available_modes`; `set-storage-lock` needs an `acm` node; the charging schedule needs an `acm` node except water storage; legacy boost needs a non-Elnur `acm` (Helki storage); `set-htr-mod-status` needs code `0A` on any wire type, or `FF` on `htr_mod`; `set-easy`/`set-runback` use the controller EASY/RUNBACK gates; `set-boost` is the non-`acm` status-flag path (storage uses `set-boost-legacy`); `set-boost-mode` needs a non-`acm`/non-`thm` FULL controller off the legacy path, and fixed-time families only accept `max_temp_fixed_time`; `set-node-power-limit` requires `setup.power_limit`; `set-prog-temps` uses the programme-temperature gate; and `set-max-stemp-limit` uses the decoded max-stemp gate. `--dry-run` performs the same checks before printing the POST.
+
+`listen` opens a long-lived `ws_user` connection and prints `snapshot` and `update` events until interrupted (`-d`, `-n` and `--path` filter the updates):
+
+    smartbox <auth options...> listen [-d <device id>] [-n <node addr>] [--path status]
 
 ## Package layout
 
 - `smartbox.protocol` — auth, REST client, `ws_user` transport, wire values and named writes.
 - `smartbox.core` — versioned state store, merges, write confirmation, deadlines and feed supervision.
-- `smartbox.device` — neutral controller profiles, control modes, lock/boost policy, storage intents and setting gates.
+- `smartbox.device` — the reviewed product-code table, neutral controller profiles, control modes, lock/boost policy, storage intents, setting gates and the operation-eligibility checks (the storage UI-mode checks are shared with the HA adapter; the rest back the CLI).
 - `smartbox.cli` — the optional debugging CLI.
 - `smartbox.token_cache` — the CLI/tool file cache for the token bundle.
 

@@ -46,6 +46,17 @@ def test_thermostat_family_is_withheld() -> None:
     assert not control_mode_available("0404", "thm", {"control_mode": 2}, "C")
 
 
+def test_unknown_and_power_codes_keep_the_node_type_default() -> None:
+    """00/03/22 have no heating-switch case, so acm gets the storage relay UI."""
+    for code in ("00", "03", "22"):
+        choices = control_mode_choices(f"08{code}0000", "acm", {"control_mode": 1}, "C")
+        assert choices is not None
+        assert choices[0] == ("PID (15 min. period)", 5)
+    assert control_mode_choices("08000000", "thm", {"control_mode": 1}, "C") is None
+    htr = control_mode_choices("08000000", "htr", {"control_mode": 4}, "C")
+    assert control_mode_label(htr, 4) == "PID"
+
+
 def test_ui_mode_missing_from_wire_returns_none() -> None:
     """A triac UI offers PID, which the OFF-first storage wire does not contain."""
     assert _choices(HTR_TRIAC_UI, STORAGE_WIRE, MODE_LABELS_C) is None

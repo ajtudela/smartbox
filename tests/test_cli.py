@@ -391,9 +391,63 @@ async def test_cli_profile_resolves_without_credentials():
     assert payload["climate_bounds"] == [1.0, 30.0]
 
 
+async def test_cli_profile_applies_the_stored_max_limit():
+    """An omitted flag uses the setup ceiling, matching diagnostics."""
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "profile",
+            "--pid",
+            "08320000",
+            "--node-type",
+            "htr",
+            "--setup",
+            '{"max_stemp_limit": "23.0"}',
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["climate_bounds"] == [1.0, 23.0]
+    assert payload["prog_bounds"]["comf_temp"] == [1.0, 23.0]
+
+
+async def test_cli_profile_flag_overrides_the_stored_limit():
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "profile",
+            "--pid",
+            "08320000",
+            "--node-type",
+            "htr",
+            "--setup",
+            '{"max_stemp_limit": "23.0"}',
+            "--max-limit-c",
+            "30",
+        ],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["climate_bounds"] == [1.0, 30.0]
+
+
 async def test_cli_profile_rejects_bad_setup_json():
     result = await CliRunner().invoke(
         smartbox, ["profile", "--pid", "08320000", "--setup", "not-json"]
     )
     assert result.exit_code != 0
     assert "invalid JSON" in result.output
+
+
+async def test_cli_profile_accepts_a_bare_product_code():
+    """A two-character code resolves instead of silently using the fallback."""
+    result = await CliRunner().invoke(
+        smartbox, ["profile", "--pid", "1E", "--node-type", "htr"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["code"] == "1E"
+
+
+async def test_cli_profile_rejects_an_unknown_code():
+    result = await CliRunner().invoke(smartbox, ["profile", "--pid", "ZZ"])
+    assert result.exit_code != 0
+    assert "4+ character" in result.output

@@ -1,7 +1,8 @@
 """Golden profile facts for every decoded product code.
 
-The fixture is the reviewed table exported from the integration's parity test.
-It is deliberately hand-written data, not generated from this module.
+The fixture is the canonical reviewed table; the integration parity test reads
+this file from the sibling checkout. It is deliberately hand-written data, not
+generated from this module.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from smartbox.device.profile import (
     is_thermostat_surface,
     profile_bounds,
     resolve_profile,
+    resolve_stored_profile,
 )
 from smartbox.device.settings import (
     boost_available,
@@ -58,13 +60,13 @@ def _pairs(value: dict | None) -> dict | None:
 def test_every_code_resolves_to_the_reviewed_profile() -> None:
     """Every recorded field matches the exported table for all 51 codes."""
     data = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    assert data["schema"] == 1
+    assert data["schema"] == 2
     assert len(data["codes"]) == 51
     for code, row in data["codes"].items():
         setup = {} if code in {"1C", "2E"} else _setup()
         pid = f"08{code}0000"
         node_type = row["node_type"]
-        profile = resolve_profile(node_type, pid, "1.9", setup)
+        profile = resolve_profile(node_type, pid, "1.9", setup, max_limit_c=None)
         limits = profile.limits
 
         assert is_heater_surface(node_type, pid) is (row["surface"] == "heater"), code
@@ -72,7 +74,7 @@ def test_every_code_resolves_to_the_reviewed_profile() -> None:
             row["surface"] == "thermostat"
         ), code
         assert is_water_storage(pid) is row["water"], code
-        assert is_elnur_storage(pid) is row["storage_ui"], code
+        assert is_elnur_storage(pid) is row["elnur_storage"], code
         assert lock_kind(node_type, pid, "1.9", setup) == row["lock"], code
         assert supports_easy(pid) is row["easy"], code
         assert supports_runback(pid, setup) is bool(row["runback_configs"]), code
@@ -135,6 +137,72 @@ def test_unknown_pid_uses_the_electric_heater_default() -> None:
     acm = resolve_profile("acm", "08990000", "1.9", {})
     assert (htr.limits.min_c, htr.limits.max_c) == (0.0, 30.0)
     assert (acm.limits.min_c, acm.limits.max_c) == (5.0, 30.0)
+
+
+def test_unknown_and_power_codes_on_acm_use_the_storage_controller() -> None:
+    """00/03/22 have no heating-switch case, so the acm default applies."""
+    for code in ("00", "03", "22"):
+        limits = resolve_profile("acm", f"08{code}0000", "1.9", {}).limits
+        assert limits.profiles == ("frost", "eco", "comfort", "off")
+        assert (limits.min_c, limits.max_c) == (5.0, 30.0)
+
+
+def test_unlisted_thm_uses_the_thermostat_limits() -> None:
+    """The factory's THM default is ThermostatController (7-35)."""
+    for pid in ("08000000", "08030000", "08220000", "08990000"):
+        limits = resolve_profile("thm", pid, "1.9", {}).limits
+        assert (limits.min_c, limits.max_c) == (7.0, 35.0)
+
+
+def test_ff_is_htr_mod_only_on_the_htr_mod_wire() -> None:
+    htr = resolve_profile("htr", "01FF0000", "1.9", {}).limits
+    htr_mod = resolve_profile("htr_mod", "01FF0000", "1.9", {}).limits
+    assert htr.htr_mod is False
+    assert (htr.min_c, htr.max_c) == (0.0, 30.0)
+    assert htr_mod.htr_mod is True
+
+
+def test_explicit_zero_max_limit_keeps_the_catalogue() -> None:
+    profile = resolve_profile("htr", "04020000", "1.9", {}, max_limit_c=0.0)
+    assert profile.climate_bounds == (1.0, 30.0)
+
+
+def test_boost_config_matrix_matches_the_fixture() -> None:
+    """Every config 0-3 drives the same gates the parity matrix pins."""
+    rows = json.loads(FIXTURE.read_text(encoding="utf-8"))["codes"]
+    for code, row in rows.items():
+        pid = f"08{code}0000"
+        for config in (0, 1, 2, 3):
+            setup = _setup()
+            setup["factory_options"] = {
+                **setup["factory_options"],
+                "boost_config": config,
+            }
+            assert boost_available(
+                setup, node_type=row["node_type"], pid=pid, fw_version="1.9"
+            ) is (config in row["boost_configs"]), (code, config)
+            assert supports_runback(pid, setup) is (config in row["runback_configs"]), (
+                code,
+                config,
+            )
+            assert boost_params_editable(row["node_type"], pid, setup) is (
+                config in row["boost_params"]
+            ), (code, config)
+
+
+def test_stored_profile_applies_the_setup_limit_and_ignores_the_sentinel() -> None:
+    """resolve_stored_profile owns the setup read; resolve_profile stays explicit."""
+    stored = resolve_stored_profile(
+        "htr", "04020000", "1.9", {"max_stemp_limit": "23.0"}
+    )
+    assert stored.climate_bounds == (1.0, 23.0)
+    assert stored.prog_bounds is not None
+    assert stored.prog_bounds["comf_temp"] == (1.0, 23.0)
+    disabled = resolve_stored_profile(
+        "htr", "04020000", "1.9", {"max_stemp_limit": "0.0"}
+    )
+    assert disabled.climate_bounds == (1.0, 30.0)
+    assert resolve_profile("htr", "04020000", "1.9").climate_bounds == (1.0, 30.0)
 
 
 def test_surface_predicates() -> None:

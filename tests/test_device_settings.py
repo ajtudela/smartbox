@@ -58,6 +58,9 @@ def test_setting_gates_and_duty_order() -> None:
     assert away_offset_available("htr_mod", "010A0000", BASE_SETUP) is False
     assert max_temp_limit_available("htr", "04020000", BASE_SETUP) is True
     assert max_temp_limit_available("htr", "011A0000", BASE_SETUP) is False
+    # The app's array is matched as an exact pid, not a prefix.
+    assert max_temp_limit_available("htr", "0A01", BASE_SETUP) is False
+    assert max_temp_limit_available("htr", "0A010000", BASE_SETUP) is True
     assert priority_available(BASE_SETUP, box_power_limit_available=True) is True
     assert priority_available(BASE_SETUP, box_power_limit_available=False) is False
     assert duty_limit_available("0138", BASE_SETUP) is True

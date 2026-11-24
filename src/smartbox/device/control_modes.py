@@ -39,102 +39,33 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from .profile import has_no_probes, is_htr_mod_controller, product_code
+from .codes import PRODUCT_CODES, Actuation, Family, has_heating_switch_case
+from .profile import (
+    SENSOR_MODE_FLOOR_PROBE,
+    has_no_probes,
+    is_htr_mod_controller,
+    product_code,
+)
+from .storage import (
+    UI_MODE_CLASSIC_ACCUMULATOR,
+    UI_MODE_CLASSIC_COMBINED,
+    is_elnur_storage,
+    is_water_storage,
+)
 
-# Product code (version.pid[2:4]) -> family. The app's factory switch is on
-# the PID only; codes absent here use its default ElectricHeaterController
-# (the htr wire array). THM nodes are withheld by integration choice.
-EXPLICIT_FAMILY: dict[str, str] = {
-    "04": "thermostat",
-    "09": "thermostat",
-    "0F": "thermostat",
-    "1C": "storage",
-    "2E": "storage",
-    # ElectricHeater-family product codes that the app's factory routes to a
-    # heater controller. They must stay explicit: an unlisted *acm* otherwise
-    # falls back to HelkiStorageController.
-    "01": "htr",
-    "02": "htr",
-    "07": "htr",
-    "08": "htr",
-    "0B": "htr",
-    "0C": "htr",
-    "0D": "htr",
-    "10": "htr",
-    "11": "htr",
-    "12": "htr",
-    "13": "htr",
-    "16": "htr",
-    "18": "htr",
-    "1B": "htr",
-    "1F": "htr",
-    "24": "htr",
-    "0A": "htr",
-    "14": "htr",
-    "17": "htr",
-    "1A": "htr",
-    "1D": "htr",
-    "1E": "htr",
-    "20": "htr",
-    "21": "htr",
-    "23": "htr",
-    "25": "htr",
-    "27": "htr",
-    "28": "htr",
-    "2A": "htr",
-    "31": "htr",
-    "32": "htr",
-    "33": "htr",
-    "34": "htr",
-    "35": "htr",
-    "36": "htr",
-    "38": "htr",
-    "39": "htr",
-    "3D": "htr",
-    "43": "htr",
-    "47": "htr",
-    "4C": "htr",
-    "4D": "htr",
-    "FF": "htr",
+# Derived from the reviewed product-code table: family decides the
+# control-mode catalogue, actuation decides the wire array. The app's heating
+# switch has no UNKNOWN ("00") or power-meter ("03"/"22") case, so those keep
+# the node-type default (storage for an acm, thermostat for a thm, the
+# ElectricHeater catalogue otherwise).
+_HEATING_FAMILIES = frozenset({"htr", "storage", "thermostat"})
+EXPLICIT_FAMILY: dict[str, Family] = {
+    code: info.family
+    for code, info in PRODUCT_CODES.items()
+    if has_heating_switch_case(info) and info.family in _HEATING_FAMILIES
 }
-
-# Product code -> actuation type from ElectricHeaterController.getActuationType.
-# Missing codes use the app's default (TRIAC).
-ACTUATION: dict[str, str] = {
-    "01": "TRIAC",
-    "02": "RELAY",
-    "07": "TRIAC",
-    "08": "TRIAC",
-    "0D": "RELAY",
-    "10": "RELAY",
-    "11": "TRIAC",
-    "12": "RELAY",
-    "13": "RELAY",
-    "14": "TRIAC",
-    "16": "RELAY",
-    "17": "RELAY",
-    "18": "RELAY",
-    "1A": "TRIAC",
-    "1B": "TRIAC",
-    "1C": "RELAY",
-    "1E": "RELAY",
-    "1F": "TRIAC",
-    "20": "TRIAC",
-    "21": "TRIAC",
-    "23": "RELAY",
-    "25": "TRIAC",
-    "27": "TRIAC",
-    "28": "RELAY",
-    "2E": "RELAY",
-    "31": "RELAY",
-    "33": "RELAY",
-    "34": "TRIAC",
-    "35": "RELAY",
-    "36": "RELAY",
-    "38": "TRIAC",
-    "3D": "TRIAC",
-    "4C": "TRIAC",
-    "4D": "TRIAC",
+ACTUATION: dict[str, Actuation] = {
+    code: info.actuation for code, info in PRODUCT_CODES.items()
 }
 
 HTR_WIRE = (
@@ -208,13 +139,11 @@ MODE_LABELS_F: dict[str, str] = {
 }
 
 # The app omits PID_15/PID_30 from the relay UI when the floor probe is the
-# only sensor (ESensorModeValue.FLOOR_PROBE == 2).
-_SENSOR_MODE_FLOOR_PROBE = 2
+# only sensor; see SENSOR_MODE_FLOOR_PROBE.
+
 # Elnur storage products whose app hides the control-mode setting. Code 2A
 # omits it from getSettings(); codes 14/20/25 hide it in the classic UI modes.
-_ELNUR_WATER_STORAGE = "2A"
-_ELNUR_STORAGE_CODES = frozenset({"14", "20", "25"})
-_CLASSIC_UI_MODES = frozenset({1, 2})
+_CLASSIC_UI_MODES = frozenset({UI_MODE_CLASSIC_COMBINED, UI_MODE_CLASSIC_ACCUMULATOR})
 
 
 def _family(code: str | None, node_type: str) -> str | None:
@@ -238,7 +167,7 @@ def _ui_for_actuation(actuation: str, sensor_mode: object) -> tuple[str, ...]:
     """Return the vendor UI list for a heater family."""
     if actuation != "RELAY":
         return HTR_TRIAC_UI
-    if sensor_mode == _SENSOR_MODE_FLOOR_PROBE:
+    if sensor_mode == SENSOR_MODE_FLOOR_PROBE:
         return HYSTERESIS_ONLY_UI
     return HTR_RELAY_UI
 
@@ -292,10 +221,11 @@ def control_mode_choices(
     sensor_mode = extra.get("sensor_mode") if isinstance(extra, Mapping) else None
 
     if family == "storage":
-        # The app's unlisted-acm fallback is HelkiStorageHeaterController,
-        # whose storage wire array is relay-actuated even when the PID table
-        # has no actuation entry.
-        if ACTUATION.get(code or "", "RELAY") != "RELAY":
+        # An explicit storage row must be relay-actuated. The factory's
+        # unlisted-acm fallback is HelkiStorageHeaterController regardless of
+        # what the code table says about an UNKNOWN/power-meter code.
+        explicit = EXPLICIT_FAMILY.get(code or "")
+        if explicit == "storage" and ACTUATION.get(code or "") != "RELAY":
             return None
         ui = _ui_for_actuation("RELAY", sensor_mode)
         wire = STORAGE_WIRE
@@ -332,10 +262,9 @@ def control_mode_available(  # noqa: PLR0911 - one gate per controller family
         return False
     if control_mode_choices(pid, node_type, setup, units) is None:
         return False
-    code = product_code(pid)
-    if code == _ELNUR_WATER_STORAGE:
+    if is_water_storage(pid):
         return False
-    if code in _ELNUR_STORAGE_CODES:
+    if is_elnur_storage(pid):
         factory = setup.get("factory_options")
         ui_mode = factory.get("ui_mode") if isinstance(factory, Mapping) else None
         if ui_mode in _CLASSIC_UI_MODES:

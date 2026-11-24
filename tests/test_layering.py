@@ -19,7 +19,7 @@ def _imports(path: Path) -> set[str]:
 
 
 def test_lower_layers_import_no_homeassistant() -> None:
-    for layer in ("protocol", "core"):
+    for layer in ("protocol", "core", "device"):
         sources = sorted((PACKAGE_ROOT / layer).glob("*.py"))
         assert sources, f"{layer} package is missing"
         for path in sources:

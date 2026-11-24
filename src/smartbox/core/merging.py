@@ -42,6 +42,7 @@ __all__ = [
     "entry_key",
     "is_empty_slot",
     "max_stemp_limit_node",
+    "parse_max_stemp_limit",
     "sanitize_prog_temps",
     "snapshot_slot_updates",
     "valid_power_limit",
@@ -100,12 +101,23 @@ def _parse(value: object) -> float | None:
         return None
 
 
+def parse_max_stemp_limit(value: object) -> float | None:
+    """Return a positive wire max-stemp Celsius limit, else None.
+
+    ``"0.0"`` is the app's disabled sentinel; malformed values read as unset.
+    """
+    limit = _parse(value)
+    if limit is None or limit <= 0:
+        return None
+    return limit
+
+
 def max_stemp_limit_node(state: NodeState | None) -> float | None:
     """Return the setup ceiling in the node's unit (None when disabled)."""
     if state is None:
         return None
-    limit = _parse(state.setup.get("max_stemp_limit"))
-    if limit is None or limit <= 0:
+    limit = parse_max_stemp_limit(state.setup.get("max_stemp_limit"))
+    if limit is None:
         return None
     units = state.status.get("units")
     if units == "F":

@@ -1,11 +1,14 @@
 """Neutral storage semantics."""
 
+from smartbox.device.codes import PRODUCT_CODES
+from smartbox.device.profile import ELNUR_STORAGE_CODES
 from smartbox.device.storage import (
     StorageIntent,
     available_modes,
     boost_supported,
     classic_accumulator,
     current_mode,
+    is_elnur_stepped_storage,
     ui_mode_available,
     ui_mode_options,
     write_for,
@@ -75,3 +78,45 @@ def test_water_storage_filters_and_ui_modes() -> None:
     assert ui_mode_available("08140000", ECOMBI) is False
     assert boost_supported("acm", "081C") is True
     assert boost_supported("acm", "0814") is False
+
+
+def test_stepped_charge_is_code_14_only() -> None:
+    assert is_elnur_stepped_storage("08140000")
+    for pid in (
+        "08200000",
+        "08250000",
+        "082A0000",
+        "081C0000",
+        "082E0000",
+        "08170000",
+        "08990000",
+        None,
+    ):
+        assert not is_elnur_stepped_storage(pid), pid
+
+
+def test_every_elnur_storage_product_offers_ui_modes() -> None:
+    water = {code for code, info in PRODUCT_CODES.items() if info.water}
+    for code in ELNUR_STORAGE_CODES - water:
+        assert ui_mode_options(f"08{code}0000"), code
+
+
+def test_e2_extra_energy_hides_auto_outside_confort() -> None:
+    """The E2 controller filters AUTO when extra energy is on (mode 2 keeps it)."""
+    setup = {
+        "factory_options": {"ui_mode": 0},
+        "extra_nrg_conf": {"enabled": True, "mode": 1},
+    }
+    assert StorageIntent.AUTO not in available_modes("acm", "08200000", setup)
+    assert StorageIntent.AUTO not in available_modes("acm", "08250000", setup)
+    assert write_for("acm", "08200000", setup, StorageIntent.AUTO) is None
+
+    setup["extra_nrg_conf"] = {"enabled": True, "mode": 2}
+    assert StorageIntent.AUTO in available_modes("acm", "08200000", setup)
+    assert write_for("acm", "08200000", setup, StorageIntent.AUTO) is not None
+
+    setup["extra_nrg_conf"] = {"enabled": False, "mode": 1}
+    assert StorageIntent.AUTO in available_modes("acm", "08200000", setup)
+
+    # Code 14 does not inherit the E2 override.
+    assert StorageIntent.AUTO in available_modes("acm", "08140000", setup)

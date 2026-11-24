@@ -62,6 +62,8 @@ if TYPE_CHECKING:
     from typing import Any
 
 __all__ = [
+    "VALID_BOOST_MODES",
+    "VALID_MODES",
     "VALID_PRIORITIES",
     "PostedWrite",
     "SlotReader",
@@ -71,6 +73,7 @@ __all__ = [
 ]
 
 _VALID_MODES = ("off", "manual", "auto", "modified_auto", "self_learn", "presence")
+VALID_MODES = _VALID_MODES
 VALID_PRIORITIES = ("low", "medium", "high")
 # The /boost_mode mode vocabulary, exactly as the current app sends it
 # (docs/api-ws-user.md §2.3; app mobile 2.41.0 vendors.js@1533601).

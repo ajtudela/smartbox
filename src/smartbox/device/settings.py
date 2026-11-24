@@ -4,6 +4,10 @@ These predicates take the identity facts (node type, product code, firmware,
 setup and the box capability) instead of a Home Assistant node object. The
 integration's ``identity`` module wraps them for its frozen
 ``SmartboxNodeInfo``.
+
+
+Decoded from the vendor 2.54.2 bundle; see `hass-smartbox docs/api-contract.md`
+(the wire record) for the provenance citations.
 """
 
 from __future__ import annotations
@@ -12,8 +16,8 @@ from collections.abc import Mapping
 
 from smartbox.core.merging import boost_config
 from smartbox.protocol.values import BoostConfig, parse_number_or_none
-from smartbox.protocol.writes import WriteApi
 
+from .codes import accepts_extra_options
 from .profile import (
     controller_limits,
     firmware_at_least,
@@ -95,6 +99,11 @@ def away_offset_available(
     return "away_offset" in setup
 
 
+# The app's max-stemp gate also hides the setting for this exact full PID
+# (`MAX_STEMP_LIMIT_UNSUPPORTED_PIDS.includes(version.pid.toUpperCase())`).
+_MAX_STEMP_UNSUPPORTED_PIDS = frozenset({"0A01"})
+
+
 def max_temp_limit_available(  # noqa: PLR0911 - one return per family gate
     node_type: str, pid: str | None, setup: Mapping[str, object]
 ) -> bool:
@@ -102,6 +111,8 @@ def max_temp_limit_available(  # noqa: PLR0911 - one return per family gate
     if is_htr_mod_controller(pid, node_type):
         return False
     if not isinstance(pid, str) or not pid:
+        return False
+    if pid.upper() in _MAX_STEMP_UNSUPPORTED_PIDS:
         return False
     if not is_heater_surface(node_type, pid):
         return False
@@ -149,7 +160,7 @@ def duty_limit_options(  # noqa: PLR0911 - one branch per family/setup shape
     """Return the (label, value) power-limit-factor choices for a node setup."""
     if pid is None or not is_helki_heater_family(pid):
         return ()
-    if not WriteApi.supports_extra_options(pid):
+    if not accepts_extra_options(pid):
         return ()
     extra = setup.get("extra_options")
     if not isinstance(extra, Mapping) or "user_duty_limit" not in extra:

@@ -10,6 +10,10 @@ Two controller families share the ``acm`` wire type:
 
 The library returns neutral :class:`StorageIntent` values; the integration
 adapter maps them to/from Home Assistant's ``HVACMode``.
+
+
+Decoded from the vendor 2.54.2 bundle; see `hass-smartbox docs/api-contract.md`
+(the wire record) for the provenance citations.
 """
 
 from __future__ import annotations
@@ -18,11 +22,20 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 
+from .codes import PRODUCT_CODES, code_info
 from .profile import ELNUR_STORAGE_CODES, HELKI_STORAGE_CODES, product_code
 
 UI_MODE_ECOMBI = 0
 UI_MODE_CLASSIC_COMBINED = 1
 UI_MODE_CLASSIC_ACCUMULATOR = 2
+
+WATER_STORAGE_CODE = next(code for code, info in PRODUCT_CODES.items() if info.water)
+ELNUR_STEPPED_STORAGE_CODE = next(
+    code for code, info in PRODUCT_CODES.items() if info.stepped_charge
+)
+EXTRA_ENERGY_MODE_USAGE = 0
+EXTRA_ENERGY_MODE_COMBINED = 1
+EXTRA_ENERGY_MODE_CONFORT = 2
 
 OPERATIONAL_MANUAL_OFF = 0
 OPERATIONAL_AUTO_OFF = 1
@@ -58,7 +71,14 @@ def is_elnur_storage(pid: str | None) -> bool:
 
 def is_water_storage(pid: str | None) -> bool:
     """Return True for the Elnur water-storage controller (2A)."""
-    return product_code(pid) == "2A"
+    info = code_info(pid)
+    return bool(info and info.water)
+
+
+def is_elnur_stepped_storage(pid: str | None) -> bool:
+    """Return True for the stepped-charge Elnur storage controller (14)."""
+    info = code_info(pid)
+    return bool(info and info.stepped_charge)
 
 
 def _extra_nrg_conf(setup: Mapping[str, object]) -> Mapping[str, object]:
@@ -88,6 +108,16 @@ def ui_mode(setup: Mapping[str, object]) -> int | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     return int(value)
+
+
+def _extra_energy_hides_auto(pid: str | None, setup: Mapping[str, object]) -> bool:
+    """E2 storage filters AUTO when extra energy is on outside CONfort."""
+    info = code_info(pid)
+    return (
+        bool(info and info.extra_energy)
+        and water_extra_energy_enabled(setup)
+        and water_extra_energy_mode(setup) != EXTRA_ENERGY_MODE_CONFORT
+    )
 
 
 _UI_MODE_OPTIONS: dict[str, tuple[tuple[str, int], ...]] = {
@@ -132,7 +162,7 @@ def classic_accumulator(pid: str | None, setup: Mapping[str, object]) -> bool:
     return is_elnur_storage(pid) and ui_mode(setup) == UI_MODE_CLASSIC_ACCUMULATOR
 
 
-def available_modes(
+def available_modes(  # noqa: PLR0912 - one branch per controller/UI mode
     node_type: str, pid: str | None, setup: Mapping[str, object]
 ) -> list[StorageIntent]:
     """Return the storage modes the app exposes for this controller."""
@@ -155,6 +185,8 @@ def available_modes(
                 modes.append(StorageIntent.AUTO)
             if mode != UI_MODE_CLASSIC_ACCUMULATOR:
                 modes.append(StorageIntent.HEAT)
+            if _extra_energy_hides_auto(pid, setup):
+                modes = [item for item in modes if item != StorageIntent.AUTO]
     else:
         op = operational_mode(setup)
         if op == OPERATIONAL_AUTO_OFF:
@@ -162,6 +194,30 @@ def available_modes(
         modes.append(StorageIntent.HEAT)
     modes.append(StorageIntent.OFF)
     return modes or [StorageIntent.OFF]
+
+
+_MODE_TO_INTENT: dict[str, StorageIntent] = {
+    "manual": StorageIntent.HEAT,
+    "on": StorageIntent.HEAT,
+    "auto": StorageIntent.AUTO,
+    "modified_auto": StorageIntent.AUTO,
+    "off": StorageIntent.OFF,
+}
+_INTENT_TO_MODES: dict[StorageIntent, tuple[str, ...]] = {
+    StorageIntent.HEAT: ("manual",),
+    StorageIntent.AUTO: ("auto", "modified_auto"),
+    StorageIntent.OFF: ("off",),
+}
+
+
+def intent_for_mode(mode: str | None) -> StorageIntent | None:
+    """Map a status/setup wire mode to the neutral storage intent."""
+    return _MODE_TO_INTENT.get(mode or "")
+
+
+def modes_for_intent(intent: StorageIntent) -> tuple[str, ...]:
+    """Return the wire modes a caller can pass for one neutral intent."""
+    return _INTENT_TO_MODES.get(intent, ())
 
 
 def current_mode(  # noqa: PLR0911 - one return per storage mode
@@ -183,13 +239,9 @@ def current_mode(  # noqa: PLR0911 - one return per storage mode
             return StorageIntent.OFF
         return StorageIntent.HEAT
     mode = status.get("mode")
-    if mode == "off" or mode is None:
+    if not isinstance(mode, str) or mode == "off":
         return StorageIntent.OFF
-    if mode in ("auto", "modified_auto"):
-        return StorageIntent.AUTO
-    if mode in ("manual", "on"):
-        return StorageIntent.HEAT
-    return None
+    return intent_for_mode(mode)
 
 
 def write_for(  # noqa: PLR0911 - one return per mode
@@ -212,6 +264,8 @@ def write_for(  # noqa: PLR0911 - one return per mode
             return None
         if intent == StorageIntent.AUTO and water_extra_energy_mode(setup) == 0:
             return None
+    if intent == StorageIntent.AUTO and _extra_energy_hides_auto(pid, setup):
+        return None
     if intent == StorageIntent.HEAT:
         return StorageWrite("status", StorageIntent.HEAT, mode="manual")
     if intent == StorageIntent.AUTO:
@@ -232,21 +286,29 @@ def lock_endpoint(node_type: str) -> bool:
 
 
 __all__ = [
+    "ELNUR_STEPPED_STORAGE_CODE",
+    "EXTRA_ENERGY_MODE_COMBINED",
+    "EXTRA_ENERGY_MODE_CONFORT",
+    "EXTRA_ENERGY_MODE_USAGE",
     "OPERATIONAL_AUTO_OFF",
     "OPERATIONAL_MANUAL_OFF",
     "UI_MODE_CLASSIC_ACCUMULATOR",
     "UI_MODE_CLASSIC_COMBINED",
     "UI_MODE_ECOMBI",
+    "WATER_STORAGE_CODE",
     "StorageIntent",
     "StorageWrite",
     "available_modes",
     "boost_supported",
     "classic_accumulator",
     "current_mode",
+    "intent_for_mode",
+    "is_elnur_stepped_storage",
     "is_elnur_storage",
     "is_helki_storage",
     "is_water_storage",
     "lock_endpoint",
+    "modes_for_intent",
     "operational_mode",
     "ui_mode",
     "ui_mode_available",

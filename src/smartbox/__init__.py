@@ -14,4 +14,4 @@ try:
 except PackageNotFoundError:  # pragma: no cover - vendored/undist import
     __version__ = "0.0.0"
 
-__all__ = ["__version__", "core", "protocol", "token_cache"]
+__all__ = ["__version__", "core", "device", "protocol", "token_cache"]
