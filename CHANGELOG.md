@@ -18,6 +18,9 @@
   semantics (Helki/Elnur modes, classic target-charge writes, water extra-energy
   filtering, UI-mode options, boost/lock endpoints). The integration maps the
   intents to Home Assistant `HVACMode`.
+* `smartbox profile`: an offline CLI command resolving a controller profile
+  from `--node-type`, `--pid`, `--fw-version` and a `--setup` JSON object. It
+  is the second consumer of the neutral profile module.
 * `smartbox.device.settings`: neutral entity-setting gates (window mode, true
   radiant, away offset, max-temperature limit, node power limit, duty presets,
   priority, programme temperatures and boost availability), taking identity

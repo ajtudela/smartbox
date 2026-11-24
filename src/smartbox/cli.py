@@ -8,6 +8,7 @@ deliberately separate from the Home Assistant integration.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 import json
 import logging
 import os
@@ -22,6 +23,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised by users only
         "The smartbox CLI needs the optional dependency: pip install 'smartbox[cli]'"
     ) from exc
 
+from .device.profile import resolve_profile
 from .protocol import (
     AuthConfig,
     AvailableResellers,
@@ -382,6 +384,45 @@ async def setup(ctx: click.Context) -> None:
         for node in await client.get_nodes(device["dev_id"]):
             click.echo(f"{node.get('name')} (addr: {node.get('addr')})")
             _pretty_print(await client.get_node_setup(device["dev_id"], _node(node)))
+
+
+@smartbox.command(help="Resolve a controller profile from identity facts")
+@click.option("--node-type", default="htr", show_default=True, help="Wire node type.")
+@click.option("--pid", required=True, help="Wire product id (version.pid).")
+@click.option("--fw-version", default=None, help="Firmware version, when known.")
+@click.option(
+    "--setup",
+    "setup_json",
+    default="{}",
+    show_default=True,
+    help="Node setup JSON object (factory/extra options included).",
+)
+@click.option("--max-limit-c", type=float, default=None, help="Stored max limit.")
+def profile(
+    node_type: str,
+    pid: str,
+    fw_version: str | None,
+    setup_json: str,
+    max_limit_c: float | None,
+) -> None:
+    """Print the neutral controller profile without contacting the API."""
+    try:
+        setup = json.loads(setup_json)
+    except json.JSONDecodeError as ex:
+        raise click.BadParameter(f"invalid JSON: {ex}", param_hint="--setup") from ex
+    if not isinstance(setup, dict):
+        raise click.BadParameter("must be a JSON object", param_hint="--setup")
+    _pretty_print(
+        asdict(
+            resolve_profile(
+                node_type,
+                pid,
+                fw_version,
+                setup,
+                max_limit_c=max_limit_c,
+            )
+        )
+    )
 
 
 @smartbox.command(help="Show node prog")

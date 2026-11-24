@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import json
 import logging
 from unittest.mock import AsyncMock, patch
 
@@ -365,3 +366,34 @@ async def test_devices_flattens_an_invited_home():
     assert result.exit_code == 0, result.output
     assert "Guest home" in result.output
     assert "invited_to" not in result.output
+
+
+async def test_cli_profile_resolves_without_credentials():
+    """The profile command is a second consumer of the neutral resolver."""
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "profile",
+            "--pid",
+            "08320000",
+            "--node-type",
+            "htr",
+            "--fw-version",
+            "1.9",
+            "--setup",
+            '{"factory_options": {"boost_config": 2}}',
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["code"] == "32"
+    assert payload["limits"]["profiles"] == ["frost", "eco", "comfort", "off"]
+    assert payload["climate_bounds"] == [1.0, 30.0]
+
+
+async def test_cli_profile_rejects_bad_setup_json():
+    result = await CliRunner().invoke(
+        smartbox, ["profile", "--pid", "08320000", "--setup", "not-json"]
+    )
+    assert result.exit_code != 0
+    assert "invalid JSON" in result.output
