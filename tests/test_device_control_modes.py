@@ -1,6 +1,10 @@
 """Neutral control-mode catalogue for the library."""
 
 from smartbox.device.control_modes import (
+    HTR_TRIAC_UI,
+    MODE_LABELS_C,
+    STORAGE_WIRE,
+    _choices,
     control_mode_available,
     control_mode_choices,
     control_mode_label,
@@ -40,3 +44,8 @@ def test_fahrenheit_labels() -> None:
 def test_thermostat_family_is_withheld() -> None:
     assert control_mode_choices("0404", "thm", {"control_mode": 2}, "C") is None
     assert not control_mode_available("0404", "thm", {"control_mode": 2}, "C")
+
+
+def test_ui_mode_missing_from_wire_returns_none() -> None:
+    """A triac UI offers PID, which the OFF-first storage wire does not contain."""
+    assert _choices(HTR_TRIAC_UI, STORAGE_WIRE, MODE_LABELS_C) is None

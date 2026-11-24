@@ -18,6 +18,8 @@
   semantics (Helki/Elnur modes, classic target-charge writes, water extra-energy
   filtering, UI-mode options, boost/lock endpoints). The integration maps the
   intents to Home Assistant `HVACMode`.
+* `profile_bounds`/`prog_bounds_c` accept an optional `max_limit_c` and shift
+  the programme ceilings the way the vendor app's `max_stemp_limit` does.
 * `smartbox profile`: an offline CLI command resolving a controller profile
   from `--node-type`, `--pid`, `--fw-version` and a `--setup` JSON object. It
   is the second consumer of the neutral profile module.

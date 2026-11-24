@@ -118,7 +118,7 @@ Use the `smartbox` tool to read status information from your heaters (nodes) and
 
 ### Options
 
-`-u`/`--username` and `-p`/`--password` (your mobile-app / web-app credentials) are required for every command except `resellers`. `-v`/`--verbose` enables debug logging.
+`-u`/`--username` and `-p`/`--password` (your mobile-app / web-app credentials) are required for every command except `resellers` and the offline `profile` command. `-v`/`--verbose` enables debug logging.
 
 These are only needed when your reseller is not built into the package, or when a built-in row's host has moved:
 
@@ -184,6 +184,9 @@ Read-only, across every device/node:
 | `api-version` | API build info |
 | `sessions` | the account's active vendor sessions |
 | `resellers` | all known reseller connection details |
+| `profile` | resolve one controller profile offline from `--node-type`, `--pid`, `--fw-version` and `--setup` JSON |
+
+`smartbox profile --pid 08320000 --node-type htr --fw-version 1.9 --setup '{"factory_options": {"boost_config": 2}}'` prints the neutral limits, bounds and programme ranges; it contacts no API and needs no credentials.
 
 `smartbox resellers` prints each row's key, brand, brand key, API host,
 serial id, Basic source and referer in one table. The API hosts are HTTPS;
@@ -233,6 +236,7 @@ Reads print the raw wire payloads; writes print the posted path and body.
 
 - `smartbox.protocol` — auth, REST client, `ws_user` transport, wire values and named writes.
 - `smartbox.core` — versioned state store, merges, write confirmation, deadlines and feed supervision.
+- `smartbox.device` — neutral controller profiles, control modes, lock/boost policy, storage intents and setting gates.
 - `smartbox.cli` — the optional debugging CLI.
 - `smartbox.token_cache` — the CLI/tool file cache for the token bundle.
 

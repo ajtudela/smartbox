@@ -30,6 +30,7 @@ from .profile import (
 )
 from .storage import (
     UI_MODE_CLASSIC_ACCUMULATOR,
+    UI_MODE_CLASSIC_COMBINED,
     boost_supported as storage_boost_supported,
     is_elnur_storage,
     is_water_storage,
@@ -55,7 +56,10 @@ def _floor_thermostat_no_probes(
 
 def _elnur_classic_ui(pid: str | None, setup: Mapping[str, object]) -> bool:
     """ElnurStorage hides radiance/window settings in the classic UI modes."""
-    return is_elnur_storage(pid) and ui_mode(setup) in (1, 2)
+    return is_elnur_storage(pid) and ui_mode(setup) in {
+        UI_MODE_CLASSIC_COMBINED,
+        UI_MODE_CLASSIC_ACCUMULATOR,
+    }
 
 
 def window_mode_available(
@@ -105,7 +109,7 @@ def max_temp_limit_available(  # noqa: PLR0911 - one return per family gate
         return False
     if is_tevolve_triac_family(pid) or is_tevolve_wifi_family(pid):
         return False
-    if pid[2:4].upper() == "1D":
+    if product_code(pid) == "1D":
         return False
     return "max_stemp_limit" in setup
 

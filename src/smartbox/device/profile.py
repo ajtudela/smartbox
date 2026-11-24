@@ -255,11 +255,20 @@ def boost_temperature_bounds(limits: ControllerLimits) -> tuple[float, float]:
     return 5.0, ceiling
 
 
-def _profile_ranges(limits: ControllerLimits) -> dict[str, tuple[float, float]]:
-    """Return the programme ranges in Celsius, keyed by profile."""
+def _profile_ranges(
+    limits: ControllerLimits, max_limit_c: float | None = None
+) -> dict[str, tuple[float, float]]:
+    """Return the programme ranges in Celsius, keyed by profile.
+
+    The vendor app applies ``max_stemp_limit`` as the programme ceiling (it
+    replaces ``maxCTemp`` in ``getUserDefinedTempLimits``), so the energy
+    offsets are subtracted from that ceiling when the node has one.
+    """
     offset = limits.profile_offset_c
     prog_min = limits.prog_min_c if limits.prog_min_c is not None else limits.min_c
     prog_max = limits.prog_max_c if limits.prog_max_c is not None else limits.max_c
+    if max_limit_c is not None and max_limit_c < prog_max:
+        prog_max = max_limit_c
     ice_min = limits.ice_min_c if limits.ice_min_c is not None else prog_min
     ice_max = (
         limits.ice_max_c if limits.ice_max_c is not None else prog_max - 2.0 * offset
@@ -275,7 +284,10 @@ def _profile_ranges(limits: ControllerLimits) -> dict[str, tuple[float, float]]:
 
 
 def profile_bounds(
-    limits: ControllerLimits, profile: str
+    limits: ControllerLimits,
+    profile: str,
+    *,
+    max_limit_c: float | None = None,
 ) -> tuple[float, float] | None:
     """Return ``(min, max)`` Celsius for one editable programme profile."""
     if profile == "off":
@@ -284,15 +296,17 @@ def profile_bounds(
         return {"eco": (10.0, 18.0), "comfort": (18.0, 28.0)}.get(profile)
     if profile == "frost" and not limits.ice_editable:
         return None
-    return _profile_ranges(limits).get(profile)
+    return _profile_ranges(limits, max_limit_c).get(profile)
 
 
-def prog_bounds_c(limits: ControllerLimits) -> dict[str, tuple[float, float]] | None:
+def prog_bounds_c(
+    limits: ControllerLimits, *, max_limit_c: float | None = None
+) -> dict[str, tuple[float, float]] | None:
     """Return the write-sanitizer bounds in Celsius, or None for htr_mod."""
     if limits.htr_mod:
         return None
     names = {"ice_temp": "frost", "eco_temp": "eco", "comf_temp": "comfort"}
-    ranges = _profile_ranges(limits)
+    ranges = _profile_ranges(limits, max_limit_c)
     return {key: ranges[profile] for key, profile in names.items()}
 
 
@@ -375,7 +389,7 @@ def resolve_profile(
         climate_bounds=climate_bounds(limits, max_limit_c),
         max_limit_bounds=max_limit_bounds(limits),
         boost_bounds=boost_temperature_bounds(limits),
-        prog_bounds=prog_bounds_c(limits),
+        prog_bounds=prog_bounds_c(limits, max_limit_c=max_limit_c),
     )
 
 
@@ -426,7 +440,7 @@ HELKI_HEATER_CODES = _HELKI_HEATER_CODES
 LHZ_HEATER_CODES = _LHZ_HEATER_CODES
 HAVERLAND_CODES = _HAVERLAND_CODES
 HAVERLAND_HTR_MOD_CODES = _HAVERLAND_HTR_MOD_CODES
-HAVERLAND_FIXED_TIME_CODES = frozenset({"17", "1D", "47"})
+HAVERLAND_FIXED_TIME_CODES = _HAVERLAND_CODES
 TEVOLVE_TRIAC_CODES = _TEVOLVE_TRIAC_CODES
 TEVOLVE_WIFI_CODES = _TEVOLVE_WIFI_CODES
 TEVOLVE_ATC_CODES = _TEVOLVE_ATC_CODES

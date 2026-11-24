@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .profile import product_code
+from .profile import ELNUR_STORAGE_CODES, HELKI_STORAGE_CODES, product_code
 
 UI_MODE_ECOMBI = 0
 UI_MODE_CLASSIC_COMBINED = 1
@@ -26,9 +26,6 @@ UI_MODE_CLASSIC_ACCUMULATOR = 2
 
 OPERATIONAL_MANUAL_OFF = 0
 OPERATIONAL_AUTO_OFF = 1
-
-_HELKI_STORAGE_CODES = frozenset({"1C", "2E"})
-_ELNUR_STORAGE_CODES = frozenset({"14", "20", "25", "2A"})
 
 
 class StorageIntent(StrEnum):
@@ -51,12 +48,12 @@ class StorageWrite:
 
 def is_helki_storage(pid: str | None) -> bool:
     """Return True for the 1C/2E storage controller."""
-    return product_code(pid) in _HELKI_STORAGE_CODES
+    return product_code(pid) in HELKI_STORAGE_CODES
 
 
 def is_elnur_storage(pid: str | None) -> bool:
     """Return True for the Elnur 14/20/25/2A storage controllers."""
-    return product_code(pid) in _ELNUR_STORAGE_CODES
+    return product_code(pid) in ELNUR_STORAGE_CODES
 
 
 def is_water_storage(pid: str | None) -> bool:

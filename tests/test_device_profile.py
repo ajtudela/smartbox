@@ -9,11 +9,24 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from smartbox.device.modes import (
+    boost_params_editable,
+    lock_kind,
+    supports_easy,
+    supports_runback,
+)
 from smartbox.device.profile import (
     is_heater_surface,
     is_thermostat_surface,
+    profile_bounds,
     resolve_profile,
 )
+from smartbox.device.settings import (
+    boost_available,
+    duty_limit_options,
+    max_temp_limit_available,
+)
+from smartbox.device.storage import is_elnur_storage, is_water_storage
 
 FIXTURE = Path(__file__).parent / "fixtures" / "product_codes.json"
 
@@ -25,6 +38,7 @@ def _setup() -> dict[str, object]:
         "max_stemp_limit": "30.0",
         "extra_options": {"user_duty_limit": 0, "sensor_mode": 0},
         "factory_options": {
+            "boost_config": 2,
             "lst_available": True,
             "lst_value": 25,
             "bbc_available": True,
@@ -35,16 +49,49 @@ def _setup() -> dict[str, object]:
     }
 
 
+def _pairs(value: dict | None) -> dict | None:
+    if value is None:
+        return None
+    return {key: tuple(bounds) for key, bounds in value.items()}
+
+
 def test_every_code_resolves_to_the_reviewed_profile() -> None:
-    """Limits, bounds and profiles match the exported table for all 51 codes."""
+    """Every recorded field matches the exported table for all 51 codes."""
     data = json.loads(FIXTURE.read_text(encoding="utf-8"))
     assert data["schema"] == 1
     assert len(data["codes"]) == 51
     for code, row in data["codes"].items():
         setup = {} if code in {"1C", "2E"} else _setup()
-        profile = resolve_profile(row["node_type"], f"08{code}0000", "1.9", setup)
+        pid = f"08{code}0000"
+        node_type = row["node_type"]
+        profile = resolve_profile(node_type, pid, "1.9", setup)
         limits = profile.limits
+
+        assert is_heater_surface(node_type, pid) is (row["surface"] == "heater"), code
+        assert is_thermostat_surface(node_type, pid) is (
+            row["surface"] == "thermostat"
+        ), code
+        assert is_water_storage(pid) is row["water"], code
+        assert is_elnur_storage(pid) is row["storage_ui"], code
+        assert lock_kind(node_type, pid, "1.9", setup) == row["lock"], code
+        assert supports_easy(pid) is row["easy"], code
+        assert supports_runback(pid, setup) is bool(row["runback_configs"]), code
+        assert boost_available(
+            setup,
+            node_type=node_type,
+            pid=pid,
+            fw_version="1.9",
+        ) is bool(row["boost_configs"]), code
+        assert boost_params_editable(node_type, pid, setup) is (
+            2 in row["boost_params"]
+        ), code
+        assert duty_limit_options(setup, pid) == tuple(
+            (label, value) for label, value in row["duty_options"]
+        ), code
+        assert max_temp_limit_available(node_type, pid, setup) is row["max_limit"], code
+
         if row["min_c"] is None:
+            # The power monitor has no heater profile; its bounds are skipped.
             continue
         assert limits.min_c == row["min_c"], code
         assert limits.max_c == row["max_c"], code
@@ -55,12 +102,6 @@ def test_every_code_resolves_to_the_reviewed_profile() -> None:
         assert profile.boost_bounds == tuple(row["boost_bounds"]), code
         assert limits.boost_max_minutes == row["boost_cap"], code
         assert limits.ice_editable == row["ice_editable"], code
-
-
-def _pairs(value: dict | None) -> dict | None:
-    if value is None:
-        return None
-    return {key: tuple(bounds) for key, bounds in value.items()}
 
 
 def test_storage_profile_is_firmware_gated() -> None:
@@ -91,3 +132,71 @@ def test_surface_predicates() -> None:
     assert not is_heater_surface("thm", "01040000")
     assert is_thermostat_surface("thm", "01040000")
     assert not is_thermostat_surface("thm", "01280000")
+
+
+def test_max_stemp_limit_clamps_programme_ranges() -> None:
+    """The app's max-stemp ceiling replaces maxCTemp for every profile range."""
+    profile = resolve_profile(
+        "htr",
+        "04020000",
+        "1.9",
+        {},
+        max_limit_c=23.0,
+    )
+    assert profile.prog_bounds == {
+        "ice_temp": (0.0, 22.0),
+        "eco_temp": (0.5, 22.5),
+        "comf_temp": (1.0, 23.0),
+    }
+    assert profile.climate_bounds == (1.0, 23.0)
+
+
+def test_programme_ranges_follow_the_max_limit_per_family() -> None:
+    """The app's maxCTemp replacement is applied to every controller family."""
+    cases = {
+        "04020000": {
+            "frost": (0.0, 22.0),
+            "eco": (0.5, 22.5),
+            "comfort": (1.0, 23.0),
+        },
+        "01320000": {
+            "frost": (0.0, 22.0),
+            "eco": (0.5, 22.5),
+            "comfort": (1.0, 23.0),
+        },
+        "01170000": {
+            "frost": (5.0, 7.0),
+            "eco": (7.0, 21.0),
+            "comfort": (9.0, 23.0),
+        },
+        "014C0000": {
+            "frost": (5.0, 10.0),
+            "eco": (5.5, 22.5),
+            "comfort": (6.0, 23.0),
+        },
+        "011E0000": {
+            "frost": (0.0, 22.0),
+            "eco": (0.5, 22.5),
+            "comfort": (1.0, 23.0),
+        },
+        "013D0000": {
+            "frost": (0.0, 22.0),
+            "eco": (0.5, 22.5),
+            "comfort": (1.0, 23.0),
+        },
+    }
+    for pid, expected in cases.items():
+        limits = resolve_profile("htr", pid, "1.9", {}).limits
+        for profile, bounds in expected.items():
+            assert profile_bounds(limits, profile, max_limit_c=23.0) == bounds, (
+                pid,
+                profile,
+            )
+
+
+def test_htr_mod_ignores_the_stored_max_limit() -> None:
+    """htr_mod keeps its fixed eco/comfort ranges and no frost slider."""
+    limits = resolve_profile("htr_mod", "010A0000", "1.9", {}).limits
+    assert profile_bounds(limits, "frost", max_limit_c=23.0) is None
+    assert profile_bounds(limits, "eco", max_limit_c=23.0) == (10.0, 18.0)
+    assert profile_bounds(limits, "comfort", max_limit_c=23.0) == (18.0, 28.0)
