@@ -14,8 +14,10 @@
 * `smartbox.device.modes`: neutral lock kind (setup-aware `super_lock_available`
   and the fw-1.7 Haverland gate), EASY/RUNBACK support and the boost activation
   policy (kind, fixed-time override, FULL mode list, parameter editability).
-* `smartbox.device.profile` also owns the heater/thermostat surface predicates
-  (`is_heater_surface`, `is_thermostat_surface`).
+* `smartbox.device.storage`: neutral `StorageIntent`/`StorageWrite` storage
+  semantics (Helki/Elnur modes, classic target-charge writes, water extra-energy
+  filtering, UI-mode options, boost/lock endpoints). The integration maps the
+  intents to Home Assistant `HVACMode`.
 * `WriteApi.set_lock()` and `SmartboxEngine.set_lock()` accept the wire enum
   `0`/`1`/`2` as well as `bool`; integer-lock controllers distinguish
   unblocked, locally blocked and remotely blocked.
