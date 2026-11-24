@@ -18,6 +18,9 @@
   semantics (Helki/Elnur modes, classic target-charge writes, water extra-energy
   filtering, UI-mode options, boost/lock endpoints). The integration maps the
   intents to Home Assistant `HVACMode`.
+* `ControllerProfile.programme_kind` distinguishes heater profiles (`profiles`),
+  htr_mod, thermostat thresholds, water-storage ON/OFF_AUTO and power monitors;
+  non-heater kinds report no programme bounds.
 * `profile_bounds`/`prog_bounds_c` accept an optional `max_limit_c` and shift
   the programme ceilings the way the vendor app's `max_stemp_limit` does.
 * `smartbox profile`: an offline CLI command resolving a controller profile

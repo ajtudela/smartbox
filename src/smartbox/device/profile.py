@@ -368,6 +368,7 @@ class ControllerProfile:
     max_limit_bounds: tuple[float, float]
     boost_bounds: tuple[float, float]
     prog_bounds: dict[str, tuple[float, float]] | None
+    programme_kind: str  # profiles | htr_mod | thresholds | on_off_auto | none
 
 
 def resolve_profile(
@@ -383,13 +384,30 @@ def resolve_profile(
     resolve the same profile. Runtime capability gates stay in the adapter.
     """
     limits = controller_limits(node_type, pid, fw_version, setup)
+    code = product_code(pid)
+    if node_type == "pmo":
+        programme_kind = "none"
+    elif is_thermostat_surface(node_type, pid):
+        programme_kind = "thresholds"
+    elif node_type == "acm" and code == "2A":
+        programme_kind = "on_off_auto"
+    elif limits.htr_mod:
+        programme_kind = "htr_mod"
+    else:
+        programme_kind = "profiles"
+    prog_bounds = (
+        None
+        if programme_kind in {"htr_mod", "thresholds", "on_off_auto", "none"}
+        else prog_bounds_c(limits, max_limit_c=max_limit_c)
+    )
     return ControllerProfile(
-        code=product_code(pid),
+        code=code,
         limits=limits,
         climate_bounds=climate_bounds(limits, max_limit_c),
         max_limit_bounds=max_limit_bounds(limits),
         boost_bounds=boost_temperature_bounds(limits),
-        prog_bounds=prog_bounds_c(limits, max_limit_c=max_limit_c),
+        prog_bounds=prog_bounds,
+        programme_kind=programme_kind,
     )
 
 

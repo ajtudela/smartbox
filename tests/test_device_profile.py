@@ -96,7 +96,20 @@ def test_every_code_resolves_to_the_reviewed_profile() -> None:
         assert limits.min_c == row["min_c"], code
         assert limits.max_c == row["max_c"], code
         assert limits.profiles == tuple(row["profiles"]), code
-        assert profile.prog_bounds == _pairs(row["prog_bounds"]), code
+        expected_kind = (
+            "thresholds"
+            if row["surface"] == "thermostat"
+            else "on_off_auto"
+            if row["water"]
+            else "htr_mod"
+            if row["node_type"] == "htr_mod"
+            else "profiles"
+        )
+        assert profile.programme_kind == expected_kind, code
+        if expected_kind == "profiles":
+            assert profile.prog_bounds == _pairs(row["prog_bounds"]), code
+        else:
+            assert profile.prog_bounds is None, code
         assert profile.climate_bounds == tuple(row["climate_bounds"]), code
         assert profile.max_limit_bounds == tuple(row["max_limit_bounds"]), code
         assert profile.boost_bounds == tuple(row["boost_bounds"]), code
@@ -200,3 +213,28 @@ def test_htr_mod_ignores_the_stored_max_limit() -> None:
     assert profile_bounds(limits, "frost", max_limit_c=23.0) is None
     assert profile_bounds(limits, "eco", max_limit_c=23.0) == (10.0, 18.0)
     assert profile_bounds(limits, "comfort", max_limit_c=23.0) == (18.0, 28.0)
+
+
+def test_programme_kinds_are_explicit() -> None:
+    """Thermostat, water storage and power nodes do not claim heater profiles."""
+    assert resolve_profile("thm", "01040000", "1.9", {}).programme_kind == "thresholds"
+    assert resolve_profile("acm", "082A0000", "1.9", {}).programme_kind == "on_off_auto"
+    assert resolve_profile("pmo", "01030000", "1.9", {}).programme_kind == "none"
+    assert resolve_profile("htr_mod", "010A0000", "1.9", {}).programme_kind == "htr_mod"
+    assert resolve_profile("htr", "04020000", "1.9", {}).programme_kind == "profiles"
+
+
+def test_max_limit_on_storage_and_triac_families() -> None:
+    """The app override also shifts storage and triac programme ranges."""
+    storage = resolve_profile("acm", "081C0000", "1.9", {}, max_limit_c=23.0)
+    assert storage.prog_bounds == {
+        "ice_temp": (5.0, 22.0),
+        "eco_temp": (5.5, 22.5),
+        "comf_temp": (6.0, 23.0),
+    }
+    triac = resolve_profile("htr", "011A0000", "1.9", {}, max_limit_c=30.0)
+    assert triac.prog_bounds == {
+        "ice_temp": (7.0, 29.0),
+        "eco_temp": (7.5, 29.5),
+        "comf_temp": (8.0, 30.0),
+    }
