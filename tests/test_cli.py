@@ -5,14 +5,18 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 import json
 import logging
+import os
 from unittest.mock import AsyncMock, patch
 
 from asyncclick.testing import CliRunner
+import pytest
 
-from smartbox.cli import _api_base_url, _dev_list, smartbox
+from smartbox.cli import cli as cli_entry, smartbox
+from smartbox.cli.common import _api_base_url, _dev_list, _load_env_file
 from smartbox.protocol import AvailableResellers
 from smartbox.protocol.auth import TokenBundle
 from smartbox.protocol.client import SmartboxClient
+from smartbox.protocol.errors import SmartboxError
 from smartbox.protocol.reseller import SMARTBOX_GENERIC_BASIC_AUTH
 from smartbox.token_cache import FileTokenCache
 
@@ -111,7 +115,7 @@ async def test_no_token_cache_ignores_a_preexisting_record(tmp_path):
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -151,7 +155,7 @@ async def test_cli_seeds_the_client_from_the_cache_and_persists_grants(tmp_path)
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -247,7 +251,7 @@ async def test_sessions_masks_sids_and_marks_the_current_row():
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -279,7 +283,7 @@ async def test_sessions_json_prints_the_raw_payload():
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -331,7 +335,7 @@ async def test_nodes_lists_nodes_from_an_invited_home():
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox, ["-u", "user@example.test", "-p", "pw", "nodes"]
         )
@@ -358,7 +362,7 @@ async def test_devices_flattens_an_invited_home():
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox, ["-u", "user@example.test", "-p", "pw", "devices"]
         )
@@ -451,3 +455,29 @@ async def test_cli_profile_rejects_an_unknown_code():
     result = await CliRunner().invoke(smartbox, ["profile", "--pid", "ZZ"])
     assert result.exit_code != 0
     assert "4+ character" in result.output
+
+
+def test_entrypoint_loads_dotenv_and_wraps_protocol_errors():
+    """The console script keeps the .env load and the clean error path."""
+    with (
+        patch("smartbox.cli._load_dotenv") as load,
+        patch("smartbox.cli.smartbox", side_effect=SmartboxError("boom")),
+        pytest.raises(SystemExit, match="Error: boom"),
+    ):
+        cli_entry()
+    load.assert_called_once_with()
+
+
+def test_env_file_parser_is_defensive(tmp_path, monkeypatch):
+    """An empty key or undecodable file must not break every CLI call."""
+    good = tmp_path / "good.env"
+    good.write_text("=bad\nGOOD_KEY=value\nexport OTHER=quoted\n", encoding="utf-8")
+    monkeypatch.delenv("GOOD_KEY", raising=False)
+    monkeypatch.delenv("OTHER", raising=False)
+    _load_env_file(good)
+    assert os.environ["GOOD_KEY"] == "value"
+    assert os.environ["OTHER"] == "quoted"
+
+    bad = tmp_path / "bad.env"
+    bad.write_bytes(b"\xff\xfe")
+    _load_env_file(bad)

@@ -5,10 +5,8 @@ strings (``"20.0"``), setpoints live on a 0.5 °C grid, RTC months are
 0-indexed, and sync status distinguishes "lost" payloads. Core builds its typed
 accessors on THESE primitives; the module stays small and dependency-free.
 
-Open wire questions, documented rather than special-cased:
-
-- RTC month indexing is assumed ``n + 1`` (September -> 8 -> 9); December
-  (``n=11`` -> 12) is unverified live.
+RTC month indexing is 0-indexed with ``n + 1`` (September -> 8 -> 9; the
+2026-11-24 frame reported n=10 for November).
 """
 
 from __future__ import annotations

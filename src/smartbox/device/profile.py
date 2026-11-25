@@ -17,8 +17,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
-from smartbox.core.merging import parse_max_stemp_limit
-
 from .codes import (
     PRODUCT_CODES,
     LimitsFamily,
@@ -27,6 +25,7 @@ from .codes import (
     has_heating_switch_case,
     product_code,
 )
+from .setup import SetupView
 
 Profile = Literal["frost", "eco", "comfort", "off"]
 
@@ -68,6 +67,7 @@ class ControllerLimits:
     ice_min_c: float | None = None
     ice_max_c: float | None = None
     profile_offset_c: float = 0.5
+    setpoint_step_c: float = 0.5
     comfort_eco_offset_c: float | None = None
     ice_editable: bool = True
     profiles: tuple[Profile, ...] = PROFILES_BASE
@@ -88,10 +88,13 @@ _HAVERLAND_LIMITS = ControllerLimits(
     profile_offset_c=2.0,
     profiles=PROFILES_WITH_OFF,
 )
+HTR_MOD_SETPOINT_STEP_C = 1.0
+
 _HTR_MOD_LIMITS = ControllerLimits(
     min_c=5.0,
     max_c=28.0,
     profile_offset_c=1.0,
+    setpoint_step_c=HTR_MOD_SETPOINT_STEP_C,
     profiles=PROFILES_HTR_MOD,
     htr_mod=True,
     ice_editable=False,
@@ -200,13 +203,7 @@ SENSOR_MODE_NO_PROBES = 3
 
 def has_no_probes(setup: Mapping[str, object] | None) -> bool:
     """Return True when the node's extra options select NO_PROBES."""
-    if not isinstance(setup, Mapping):
-        return False
-    extra = setup.get("extra_options")
-    if not isinstance(extra, Mapping):
-        return False
-    value = extra.get("sensor_mode")
-    return not isinstance(value, bool) and value == SENSOR_MODE_NO_PROBES
+    return SetupView(setup or {}).sensor_mode == SENSOR_MODE_NO_PROBES
 
 
 def controller_limits(  # noqa: PLR0911 - one return per dispatch branch
@@ -401,7 +398,7 @@ class HtrModPolicy:
 
 # HaverlandHtrModController: the only htr_mod controller in the 2.54.2 bundles.
 HAVERLAND_HTR_MOD_POLICY = HtrModPolicy(
-    step_c=1.0,
+    step_c=HTR_MOD_SETPOINT_STEP_C,
     comfort_c=(18.0, 28.0),
     eco_max_c=18.0,
     offset_c=(4, 8),
@@ -437,9 +434,7 @@ class ControllerProfile:
 
 def _setup_max_limit_c(setup: Mapping[str, object] | None) -> float | None:
     """Return the node's stored max-stemp ceiling, ignoring the 0 sentinel."""
-    if not isinstance(setup, Mapping):
-        return None
-    return parse_max_stemp_limit(setup.get("max_stemp_limit"))
+    return SetupView(setup or {}).max_stemp_limit
 
 
 def resolve_profile(

@@ -24,6 +24,7 @@ from enum import StrEnum
 
 from .codes import PRODUCT_CODES, code_info
 from .profile import ELNUR_STORAGE_CODES, HELKI_STORAGE_CODES, product_code
+from .setup import SetupView
 
 UI_MODE_ECOMBI = 0
 UI_MODE_CLASSIC_COMBINED = 1
@@ -81,33 +82,19 @@ def is_elnur_stepped_storage(pid: str | None) -> bool:
     return bool(info and info.stepped_charge)
 
 
-def _extra_nrg_conf(setup: Mapping[str, object]) -> Mapping[str, object]:
-    value = setup.get("extra_nrg_conf")
-    return value if isinstance(value, Mapping) else {}
-
-
 def water_extra_energy_enabled(setup: Mapping[str, object]) -> bool:
     """Whether the 2A extra-energy configuration is enabled."""
-    return bool(_extra_nrg_conf(setup).get("enabled"))
+    return SetupView(setup).extra_nrg_enabled
 
 
 def water_extra_energy_mode(setup: Mapping[str, object]) -> int | None:
-    """Return the 2A extra-energy mode (0 EXTRA_ENERGY_USAGE) when numeric."""
-    value = _extra_nrg_conf(setup).get("mode")
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    return int(value)
+    """Return the 2A extra-energy mode when numeric."""
+    return SetupView(setup).extra_nrg_mode
 
 
 def ui_mode(setup: Mapping[str, object]) -> int | None:
     """Return ``factory_options.ui_mode`` (0/1/2) when present."""
-    factory = setup.get("factory_options")
-    if not isinstance(factory, Mapping):
-        return None
-    value = factory.get("ui_mode")
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    return int(value)
+    return SetupView(setup).ui_mode
 
 
 def _extra_energy_hides_auto(pid: str | None, setup: Mapping[str, object]) -> bool:
@@ -151,10 +138,7 @@ def ui_mode_available(pid: str | None, setup: Mapping[str, object]) -> bool:
 
 def operational_mode(setup: Mapping[str, object]) -> int | None:
     """Return ``setup.operational_mode`` (0 manual, 1 auto) when present."""
-    value = setup.get("operational_mode")
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    return int(value)
+    return SetupView(setup).operational_mode
 
 
 def classic_accumulator(pid: str | None, setup: Mapping[str, object]) -> bool:
@@ -175,7 +159,7 @@ def available_modes(  # noqa: PLR0912 - one branch per controller/UI mode
         if is_water_storage(pid):
             if not water_extra_energy_enabled(setup):
                 modes.extend((StorageIntent.AUTO, StorageIntent.HEAT))
-            elif water_extra_energy_mode(setup) == 0:
+            elif water_extra_energy_mode(setup) == EXTRA_ENERGY_MODE_USAGE:
                 modes.append(StorageIntent.HEAT)
             else:
                 modes.append(StorageIntent.AUTO)
@@ -260,9 +244,15 @@ def write_for(  # noqa: PLR0911 - one return per mode
             return StorageWrite("charge", StorageIntent.OFF, target_charge=0)
         return None
     if is_water_storage(pid) and water_extra_energy_enabled(setup):
-        if intent == StorageIntent.HEAT and water_extra_energy_mode(setup) != 0:
+        if (
+            intent == StorageIntent.HEAT
+            and water_extra_energy_mode(setup) != EXTRA_ENERGY_MODE_USAGE
+        ):
             return None
-        if intent == StorageIntent.AUTO and water_extra_energy_mode(setup) == 0:
+        if (
+            intent == StorageIntent.AUTO
+            and water_extra_energy_mode(setup) == EXTRA_ENERGY_MODE_USAGE
+        ):
             return None
     if intent == StorageIntent.AUTO and _extra_energy_hides_auto(pid, setup):
         return None

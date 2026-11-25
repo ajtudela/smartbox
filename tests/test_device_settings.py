@@ -6,6 +6,7 @@ from smartbox.device.settings import (
     duty_limit_available,
     duty_limit_options,
     max_temp_limit_available,
+    pir_enabled,
     priority_available,
     prog_temps_available,
     true_radiant_available,
@@ -78,3 +79,10 @@ def test_programme_temperature_gate() -> None:
     assert prog_temps_available("htr", "04020000", "1.9", BASE_SETUP) is True
     assert prog_temps_available("htr_mod", "010A0000", "1.9", BASE_SETUP) is False
     assert prog_temps_available("acm", "082A0000", "1.9", BASE_SETUP) is False
+
+
+def test_pir_gate_reads_the_extra_option() -> None:
+    assert pir_enabled({"extra_options": {"pir_enabled": True}}) is True
+    assert pir_enabled({"extra_options": {"pir_enabled": False}}) is False
+    assert pir_enabled({"extra_options": {"pir_enabled": "true"}}) is False
+    assert pir_enabled({}) is False

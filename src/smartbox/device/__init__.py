@@ -1,13 +1,17 @@
-"""Neutral device profiles shared by the integration and the CLI.
+"""Neutral device facts and operation eligibility shared by the adapters.
 
-The public surface is the controller/profile entry points and the gates an
-adapter needs. Family code sets, wire tables and other implementation details
-stay in their modules.
+This is the package's downstream API: the reviewed product rows, the
+controller profile resolver, the storage intents/mode catalogue, the setup
+view and the operation checks. First-party adapters import submodules directly
+to keep their dependency direction explicit; the curated facade is what a
+downstream consumer can rely on across releases. Adapter-specific predicates
+and setting gates stay in their modules.
 """
 
 from .capabilities import (
     Check,
     NodeFacts,
+    OperationRefusedError,
     Reason,
     check_boost,
     check_boost_mode,
@@ -26,6 +30,7 @@ from .capabilities import (
     check_storage_ui_mode_available,
     check_target_charge,
     check_thermostat_prog,
+    require,
 )
 from .codes import (
     PRODUCT_CODE_LABELS,
@@ -33,88 +38,46 @@ from .codes import (
     ProductCode,
     accepts_extra_options,
     code_info,
+    product_code,
 )
 from .control_modes import (
     control_mode_available,
     control_mode_choices,
     control_mode_label,
 )
-from .modes import (
-    boost_activation_takes_parameters,
-    boost_params_editable,
-    boost_uses_legacy_path,
-    lock_kind,
-    supports_easy,
-    supports_runback,
-)
 from .profile import (
-    PROFILES_BASE,
-    UI_MIN_TEMP_C,
     ControllerLimits,
     ControllerProfile,
-    boost_temperature_bounds,
-    climate_bounds,
     controller_limits,
     is_heater_surface,
     is_thermostat_surface,
-    max_limit_bounds,
-    product_code,
-    profile_bounds,
-    prog_bounds_c,
     resolve_profile,
     resolve_stored_profile,
 )
-from .settings import (
-    away_offset_available,
-    boost_available,
-    duty_limit_available,
-    duty_limit_options,
-    duty_limit_value,
-    max_temp_limit_available,
-    node_power_limit_available,
-    priority_available,
-    prog_temps_available,
-    true_radiant_available,
-    window_mode_available,
-)
+from .setup import SetupView
 from .storage import (
     StorageIntent,
     StorageWrite,
     available_modes,
-    boost_supported,
     current_mode,
-    is_elnur_stepped_storage,
-    is_elnur_storage,
-    is_helki_storage,
-    is_water_storage,
-    lock_endpoint,
-    ui_mode_available,
-    ui_mode_options,
     write_for,
 )
 
 __all__ = [
     "PRODUCT_CODES",
     "PRODUCT_CODE_LABELS",
-    "PROFILES_BASE",
-    "UI_MIN_TEMP_C",
     "Check",
     "ControllerLimits",
     "ControllerProfile",
     "NodeFacts",
+    "OperationRefusedError",
     "ProductCode",
     "Reason",
+    "SetupView",
     "StorageIntent",
     "StorageWrite",
     "accepts_extra_options",
     "available_modes",
-    "away_offset_available",
-    "boost_activation_takes_parameters",
-    "boost_available",
-    "boost_params_editable",
-    "boost_supported",
-    "boost_temperature_bounds",
-    "boost_uses_legacy_path",
     "check_boost",
     "check_boost_mode",
     "check_charging_schedule",
@@ -132,39 +95,17 @@ __all__ = [
     "check_storage_ui_mode_available",
     "check_target_charge",
     "check_thermostat_prog",
-    "climate_bounds",
     "code_info",
     "control_mode_available",
     "control_mode_choices",
     "control_mode_label",
     "controller_limits",
     "current_mode",
-    "duty_limit_available",
-    "duty_limit_options",
-    "duty_limit_value",
-    "is_elnur_stepped_storage",
-    "is_elnur_storage",
     "is_heater_surface",
-    "is_helki_storage",
     "is_thermostat_surface",
-    "is_water_storage",
-    "lock_endpoint",
-    "lock_kind",
-    "max_limit_bounds",
-    "max_temp_limit_available",
-    "node_power_limit_available",
-    "priority_available",
     "product_code",
-    "profile_bounds",
-    "prog_bounds_c",
-    "prog_temps_available",
+    "require",
     "resolve_profile",
     "resolve_stored_profile",
-    "supports_easy",
-    "supports_runback",
-    "true_radiant_available",
-    "ui_mode_available",
-    "ui_mode_options",
-    "window_mode_available",
     "write_for",
 ]

@@ -32,6 +32,7 @@ from .profile import (
     is_tevolve_wifi_family,
     product_code,
 )
+from .setup import SetupView
 from .storage import (
     UI_MODE_CLASSIC_ACCUMULATOR,
     UI_MODE_CLASSIC_COMBINED,
@@ -40,11 +41,6 @@ from .storage import (
     is_water_storage,
     ui_mode,
 )
-
-
-def _factory_options(setup: Mapping[str, object]) -> dict[str, object]:
-    factory = setup.get("factory_options")
-    return dict(factory) if isinstance(factory, Mapping) else {}
 
 
 def _floor_thermostat_no_probes(
@@ -60,7 +56,7 @@ def _floor_thermostat_no_probes(
 
 def _elnur_classic_ui(pid: str | None, setup: Mapping[str, object]) -> bool:
     """ElnurStorage hides radiance/window settings in the classic UI modes."""
-    return is_elnur_storage(pid) and ui_mode(setup) in {
+    return is_elnur_storage(pid) and SetupView(setup).ui_mode in {
         UI_MODE_CLASSIC_COMBINED,
         UI_MODE_CLASSIC_ACCUMULATOR,
     }
@@ -74,7 +70,12 @@ def window_mode_available(
         return False
     if is_water_storage(pid) or _elnur_classic_ui(pid, setup):
         return False
-    return bool(_factory_options(setup).get("window_mode_available", False))
+    return bool(SetupView(setup).factory_options.get("window_mode_available", False))
+
+
+def pir_enabled(setup: Mapping[str, object]) -> bool:
+    """Whether the PIR presence controller is enabled in setup."""
+    return SetupView(setup).extra_options.get("pir_enabled") is True
 
 
 def true_radiant_available(
@@ -85,7 +86,7 @@ def true_radiant_available(
         return False
     if is_water_storage(pid) or _elnur_classic_ui(pid, setup):
         return False
-    return bool(_factory_options(setup).get("true_radiant_available", False))
+    return bool(SetupView(setup).factory_options.get("true_radiant_available", False))
 
 
 def away_offset_available(
@@ -148,13 +149,12 @@ def _percent(value: object) -> int | None:
 
 def duty_limit_value(setup: Mapping[str, object]) -> int | None:
     """Return the stored power-limit factor, or None when absent or unreadable."""
-    extra = setup.get("extra_options")
-    raw = extra.get("user_duty_limit") if isinstance(extra, Mapping) else None
+    raw = SetupView(setup).extra_options.get("user_duty_limit")
     number = parse_number_or_none(raw)
     return None if number is None else int(number)
 
 
-def duty_limit_options(  # noqa: PLR0911 - one branch per family/setup shape
+def duty_limit_options(
     setup: Mapping[str, object], pid: str | None = None
 ) -> tuple[tuple[str, int], ...]:
     """Return the (label, value) power-limit-factor choices for a node setup."""
@@ -162,15 +162,13 @@ def duty_limit_options(  # noqa: PLR0911 - one branch per family/setup shape
         return ()
     if not accepts_extra_options(pid):
         return ()
-    extra = setup.get("extra_options")
-    if not isinstance(extra, Mapping) or "user_duty_limit" not in extra:
+    view = SetupView(setup)
+    if "user_duty_limit" not in view.extra_options:
         return ()
-    power = parse_number_or_none(setup.get("power"))
+    power = parse_number_or_none(view.power)
     if not power:
         return ()
-    factory = setup.get("factory_options")
-    if not isinstance(factory, Mapping):
-        return ((DUTY_LIMIT_OFF, 0),)
+    factory = view.factory_options
 
     choices: list[tuple[str, int]] = [(DUTY_LIMIT_OFF, 0)]
     seen = {0}

@@ -97,6 +97,9 @@ def test_every_code_resolves_to_the_reviewed_profile() -> None:
             continue
         assert limits.min_c == row["min_c"], code
         assert limits.max_c == row["max_c"], code
+        assert limits.setpoint_step_c == (
+            1.0 if row["node_type"] == "htr_mod" else 0.5
+        ), code
         assert limits.profiles == tuple(row["profiles"]), code
         expected_kind = (
             "thresholds"

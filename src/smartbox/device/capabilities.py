@@ -19,23 +19,30 @@ from typing import Any
 
 from smartbox.core.merging import boost_config
 from smartbox.protocol.values import BoostConfig
+from smartbox.protocol.writes import VALID_BOOST_MODES
 
 from .codes import code_info, product_code
 from .control_modes import control_mode_available, control_mode_choices
 from .modes import boost_uses_legacy_path, supports_easy, supports_runback
-from .profile import is_heater_surface, is_htr_mod_controller, is_thermostat_surface
+from .profile import (
+    TEVOLVE_ATC_CODES,
+    TEVOLVE_WIFI_CODES,
+    is_htr_mod_controller,
+    is_thermostat_surface,
+)
 from .settings import (
     boost_available,
     max_temp_limit_available,
     node_power_limit_available,
     prog_temps_available,
 )
+from .setup import SetupView
 from .storage import (
     available_modes,
-    boost_supported,
     classic_accumulator,
     intent_for_mode,
     is_elnur_storage,
+    is_helki_storage,
     is_water_storage,
     modes_for_intent,
     ui_mode_available,
@@ -61,7 +68,24 @@ class NodeFacts:
     node_type: str
     pid: str | None
     fw_version: str | None = None
-    setup: Mapping[str, object] = field(default_factory=dict)
+    setup: SetupView = field(default_factory=SetupView)
+
+    def __init__(
+        self,
+        node_type: str,
+        pid: str | None,
+        fw_version: str | None = None,
+        setup: Mapping[str, object] | SetupView | None = None,
+    ) -> None:
+        """Normalize the setup input to the typed view."""
+        object.__setattr__(self, "node_type", node_type)
+        object.__setattr__(self, "pid", pid)
+        object.__setattr__(self, "fw_version", fw_version)
+        object.__setattr__(
+            self,
+            "setup",
+            setup if isinstance(setup, SetupView) else SetupView(setup or {}),
+        )
 
 
 @dataclass(frozen=True)
@@ -81,6 +105,28 @@ class Check:
     def refused(cls, reason: Reason, **detail: object) -> Check:
         """Return a refused result with a stable reason and detail."""
         return cls(ok=False, reason=reason, detail=detail)
+
+
+class OperationRefusedError(Exception):
+    """A capability check refused an operation.
+
+    Consumers translate ``check.reason``/``detail``; the exception keeps the
+    structured result available instead of flattening it to a string.
+    """
+
+    def __init__(self, check: Check, operation: str | None = None) -> None:
+        """Build the refusal from one failed check."""
+        self.check = check
+        self.operation = operation
+        reason = check.reason.value if check.reason is not None else "refused"
+        super().__init__(f"{operation or 'operation'} refused: {reason}")
+
+
+def require(check: Check, operation: str | None = None) -> Check:
+    """Return an allowed check or raise :class:`OperationRefusedError`."""
+    if not check.ok:
+        raise OperationRefusedError(check, operation)
+    return check
 
 
 def _product_detail(facts: NodeFacts) -> dict[str, object]:
@@ -183,7 +229,12 @@ def check_charging_schedule(facts: NodeFacts) -> Check:
 
 def check_legacy_boost(facts: NodeFacts) -> Check:
     """Check that the node uses the Helki storage /boost endpoint."""
-    if not boost_supported(facts.node_type, facts.pid):
+    info = code_info(facts.pid)
+    if (
+        facts.node_type != "acm"
+        or is_elnur_storage(facts.pid)
+        or (info is not None and not is_helki_storage(facts.pid))
+    ):
         return Check.refused(Reason.WRONG_FAMILY, **_product_detail(facts))
     return Check.allowed()
 
@@ -220,18 +271,14 @@ def check_thermostat_prog(facts: NodeFacts) -> Check:
 
 def check_easy(facts: NodeFacts) -> Check:
     """Whether the controller exposes the EASY flag."""
-    if not is_heater_surface(facts.node_type, facts.pid) or not supports_easy(
-        facts.pid, facts.setup
-    ):
+    if facts.node_type == "pmo" or not supports_easy(facts.pid, facts.setup):
         return Check.refused(Reason.NOT_AVAILABLE, **_product_detail(facts))
     return Check.allowed()
 
 
 def check_runback(facts: NodeFacts) -> Check:
     """Whether the controller exposes the RUNBACK flag."""
-    if not is_heater_surface(facts.node_type, facts.pid) or not supports_runback(
-        facts.pid, facts.setup
-    ):
+    if facts.node_type == "pmo" or not supports_runback(facts.pid, facts.setup):
         return Check.refused(Reason.NOT_AVAILABLE, **_product_detail(facts))
     return Check.allowed()
 
@@ -267,23 +314,19 @@ def check_boost_mode(  # noqa: PLR0911 - one return per refusal
         return Check.refused(Reason.NOT_AVAILABLE, **_product_detail(facts))
     if mode is not None:
         info = code_info(facts.pid)
-        fixed_time = bool(info and info.fixed_time_boost)
-        offered = ["max_temp_fixed_time"] if fixed_time else ["temp_and_time"]
-        if fixed_time and mode != "max_temp_fixed_time":
+        if info is not None and info.fixed_time_boost:
+            allowed = {"max_temp_fixed_time"}
+        elif info is not None and (
+            info.code in TEVOLVE_WIFI_CODES or info.code in TEVOLVE_ATC_CODES
+        ):
+            # The endpoint-present override can post fixed-time on these too.
+            allowed = set(VALID_BOOST_MODES)
+        else:
+            allowed = {"temp_and_time", "runback", "advanced_slot"}
+        if mode not in allowed:
             return Check.refused(
                 Reason.VALUE_NOT_OFFERED,
-                offered=offered,
-                requested=mode,
-                **_product_detail(facts),
-            )
-        if not fixed_time and mode not in {
-            "temp_and_time",
-            "runback",
-            "advanced_slot",
-        }:
-            return Check.refused(
-                Reason.VALUE_NOT_OFFERED,
-                offered=offered,
+                offered=[{"label": item, "value": item} for item in sorted(allowed)],
                 requested=mode,
                 **_product_detail(facts),
             )
@@ -316,6 +359,7 @@ def check_control_mode(facts: NodeFacts, value: int | None = None) -> Check:
 __all__ = [
     "Check",
     "NodeFacts",
+    "OperationRefusedError",
     "Reason",
     "check_boost",
     "check_boost_mode",
@@ -334,4 +378,5 @@ __all__ = [
     "check_storage_ui_mode_available",
     "check_target_charge",
     "check_thermostat_prog",
+    "require",
 ]

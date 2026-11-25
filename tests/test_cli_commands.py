@@ -141,7 +141,7 @@ class FakeClient:
 
 
 async def _invoke(*args: str) -> tuple[object, FakeClient]:
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -234,12 +234,11 @@ async def test_diagnose_covers_every_node_and_reports_issues():
     assert payload[-1]["issues"] == ["product code 99 is not reviewed"]
 
 
-async def test_codes_and_profiles_are_offline_tables():
-    for command in ("codes", "profiles"):
-        result = await CliRunner().invoke(smartbox, [command, "--relay"])
-        assert result.exit_code == 0, result.output
-        assert "28" in result.output
-        assert "01" not in result.output
+async def test_codes_is_an_offline_table():
+    result = await CliRunner().invoke(smartbox, ["codes", "--relay"])
+    assert result.exit_code == 0, result.output
+    assert "28" in result.output
+    assert "01" not in result.output
     raw = await CliRunner().invoke(smartbox, ["codes", "--json", "--family", "storage"])
     assert raw.exit_code == 0, raw.output
     assert {row["code"] for row in _json(raw)} == {"1C", "2E"}
@@ -256,6 +255,11 @@ async def test_codes_and_profiles_are_offline_tables():
     )
     assert search.exit_code == 0, search.output
     assert {row["code"] for row in _json(search)} == {"0F"}
+    renamed = await CliRunner().invoke(smartbox, ["profiles"])
+    assert renamed.exit_code != 0
+    assert "renamed to `codes`" in renamed.output
+    config = await CliRunner().invoke(smartbox, ["config", "--help"])
+    assert config.exit_code == 0, config.output
 
 
 async def test_version_and_doctor():
@@ -618,18 +622,6 @@ async def test_invalid_invocations_send_nothing():
             "--stemp",
             "20",
         ),
-        (
-            "set-status",
-            "-d",
-            "dev1",
-            "-n",
-            "2",
-            "--locked",
-            "false",
-            "--selected-temp",
-            "comfort",
-        ),
-        ("set-status", "-d", "dev1", "-n", "2", "--on", "true"),
         ("set-easy", "-d", "dev1", "-n", "2", "--on"),
         ("set-runback", "-d", "dev1", "-n", "2", "--on"),
         ("set-boost", "-d", "dev1", "-n", "1", "--on"),
@@ -650,27 +642,38 @@ async def test_invalid_invocations_send_nothing():
             "-d",
             "dev1",
             "-n",
+            "3",
+            "--active",
+            "--mode",
+            "runback",
+        ),
+        (
+            "set-boost-mode",
+            "-d",
+            "dev1",
+            "-n",
+            "2",
+            "--active",
+            "--mode",
+            "runback",
+        ),
+        ("set-status", "-d", "dev1", "-n", "2", "--selected-temp", "comfort"),
+        ("set-setup", "-d", "dev1", "-n", "2", "--control-mode", "6"),
+        (
+            "set-boost-mode",
+            "-d",
+            "dev1",
+            "-n",
             "1",
             "--active",
             "--mode",
             "runback",
         ),
         ("set-node-power-limit", "-d", "dev1", "-n", "2", "1000"),
+        ("set-setup", "-d", "dev1", "-n", "2", "--offset", "-1"),
         ("control-modes", "-d", "dev1", "-n", "1"),
         ("set-control-mode", "-d", "dev1", "-n", "1", "--mode", "5"),
         ("set-control-mode", "-d", "dev1", "-n", "4", "--mode", "5"),
-        ("set-setup", "-d", "dev1", "-n", "4", "--control-mode", "5"),
-        (
-            "set-setup",
-            "-d",
-            "dev1",
-            "-n",
-            "2",
-            "--control-mode",
-            "6",
-            "--offset",
-            "-1",
-        ),
         (
             "set-storage-mode",
             "-d",
@@ -793,7 +796,7 @@ async def test_profile_accepts_a_setup_file(tmp_path):
 
 async def test_write_confirmation_requires_yes_only_on_a_tty():
     # CliRunner is not a TTY, so the command proceeds without --yes.
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -919,23 +922,68 @@ async def test_set_control_mode_accepts_labels_and_rejects_unoffered_values():
     assert "offers" in result.output
     assert client.posts == []
 
-    result, client = await _invoke(
-        "set-setup", "-d", "dev1", "-n", "2", "--control-mode", "6"
-    )
-    assert result.exit_code == 0, result.output
-    assert client.posts[0][1]["control_mode"] == 6
-
-    result, client = await _invoke(
-        "set-setup", "-d", "dev1", "-n", "2", "--control-mode", "4"
-    )
-    assert result.exit_code != 0
-    assert client.posts == []
-
 
 async def test_set_setup_posts_each_named_field():
     result, client = await _invoke(
-        "set-setup", "-d", "dev1", "-n", "2", "--priority", "high", "--units", "C"
+        "set-setup",
+        "-d",
+        "dev1",
+        "-n",
+        "2",
+        "--priority",
+        "high",
+        "--units",
+        "C",
+        "--offset",
+        "2",
+        "--true-radiant-enabled",
+        "true",
+        "--window-mode-enabled",
+        "false",
     )
     assert result.exit_code == 0, result.output
-    assert client.posts[0][1]["priority"] == "high"
-    assert client.posts[1][1]["units"] == "C"
+    bodies = [body for _path, body in client.posts]
+    assert any(body.get("priority") == "high" for body in bodies)
+    assert any(body.get("units") == "C" for body in bodies)
+    assert any(body.get("away_offset") == "2.0" for body in bodies)
+    assert any(body.get("true_radiant_enabled") is True for body in bodies)
+    assert any(body.get("window_mode_enabled") is False for body in bodies)
+
+
+async def test_dry_run_reads_the_current_setup_through_the_proxy():
+    result, client = await _invoke(
+        "--dry-run",
+        "set-setup",
+        "-d",
+        "dev1",
+        "-n",
+        "2",
+        "--extra-json",
+        '{"boost_temp": "21.0"}',
+    )
+    assert result.exit_code == 0, result.output
+    assert client.posts == []
+    payload = _json(result)
+    assert payload["dry_run"] is True
+    assert payload["body"]["extra_options"] == {
+        "user_duty_limit": 25,
+        "boost_temp": "21.0",
+    }
+
+
+async def test_doctor_check_reports_the_probe_results():
+    result, _client = await _invoke("doctor", "--check", "--json")
+    assert result.exit_code == 0, result.output
+    payload = _json(result)
+    assert payload["health"] == {"status": "ok"}
+    assert payload["api_version"] == {"version": "test"}
+    assert payload["devices"] == 1
+
+
+async def test_control_mode_migration_hint_accepts_a_label():
+    result, client = await _invoke(
+        "set-setup", "-d", "dev1", "-n", "2", "--control-mode", "PID"
+    )
+    assert result.exit_code != 0
+    assert "moved to set-control-mode" in result.output
+    assert client.posts == []

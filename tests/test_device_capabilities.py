@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 from smartbox.device.capabilities import (
     NodeFacts,
+    OperationRefusedError,
     Reason,
     check_boost,
     check_boost_mode,
@@ -22,6 +25,7 @@ from smartbox.device.capabilities import (
     check_storage_ui_mode_available,
     check_target_charge,
     check_thermostat_prog,
+    require,
 )
 
 
@@ -213,8 +217,15 @@ def test_boost_mode_requires_the_fixed_time_mode_for_that_family() -> None:
         setup={"factory_options": {"boost_config": 3}},
     )
     assert check_boost_mode(generic, "runback").ok
+    assert check_boost_mode(generic, "max_temp_fixed_time").ok
+    generic_relay = NodeFacts(
+        node_type="htr",
+        pid="08360000",
+        setup={"factory_options": {"boost_config": 3}},
+    )
+    assert check_boost_mode(generic_relay, "runback").ok
     assert (
-        check_boost_mode(generic, "max_temp_fixed_time").reason
+        check_boost_mode(generic_relay, "max_temp_fixed_time").reason
         is Reason.VALUE_NOT_OFFERED
     )
 
@@ -230,3 +241,12 @@ def test_programme_temperature_and_thermostat_programme_checks() -> None:
         check_thermostat_prog(_facts("htr", "04020000")).reason
         is Reason.WRONG_NODE_TYPE
     )
+
+
+def test_require_raises_the_structured_refusal() -> None:
+    check = check_charging_schedule(_facts("htr", "04020000"))
+    with pytest.raises(OperationRefusedError) as err:
+        require(check, "set_charging_schedule")
+    assert err.value.operation == "set_charging_schedule"
+    assert err.value.check.reason is Reason.WRONG_FAMILY
+    assert err.value.check.detail["code"] == "02"

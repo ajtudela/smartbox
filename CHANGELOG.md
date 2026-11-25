@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Compatibility notes (3.3.0)
+
+* This is a minor release: the documented public APIs are additive, and the
+  `smartbox.device` package is new. The package facade in
+  `smartbox/device/__init__.py` is the compatibility surface; predicates and
+  wire tables remain module-level implementation details.
+* `SlotReader` gained a `version()` member. Core supplies the reader, so this
+  is not an external extension point; a custom `SlotReader` implementation
+  must add the method.
+* Setup POSTs now omit `extra_options` for the app's legacy ElectricHeater
+  PID list. Callers that compare request bodies will see the omission.
+* CLI behaviour changed: write output is an object with `path`/`body`/
+  `dry_run`, reads accept `-d`/`-n` and a global `--json`, `node-power` is
+  pmo-only, and control-mode labels/indices are distinct.
+* `resolve_profile()` takes an explicit `max_limit_c` override; use
+  `resolve_stored_profile()` for the stored setup ceiling. Both APIs are new
+  in this release.
+
 ### Added
 
 * `smartbox.device.codes`: one reviewed product-code table (51 rows with
@@ -24,8 +42,8 @@
 * The CLI now covers every named write: EASY/RUNBACK, storage mode/target
   charge/`/lock`/charging schedule/UI mode, legacy and FULL boost, thermostat
   programme, programme temperatures and max-stemp. It also adds `node-profile`, `diagnose`,
-  `node-version`, `node-power`, `rtc`, `discovery`, `dev-data`, `codes`/
-  `profiles`, `doctor`/`config` and `version`; `-d`/`-n` filters and a global
+  `node-version`, `node-power`, `rtc`, `discovery`, `dev-data`, `codes`,
+  `doctor`/`config` and `version`; `-d`/`-n` filters and a global
   `--json`; `--dry-run`/`--yes`; ISO/CSV samples; `@file` JSON arguments; and
   `listen` node/path filters. Storage, htr_mod and max-stemp commands check the
   live product code first and refuse a node that does not support the write.
@@ -45,16 +63,30 @@
   `device-power-limit`, instead of surfacing the endpoint's 404.
 * `control-modes` shows the current vendor label and every accepted wire
   index, and `set-control-mode` writes one by exact label or index; both use
-  the reviewed product catalogue. `set-setup --control-mode` now validates the
-  same catalogue instead of accepting any non-negative integer.
+  the reviewed product catalogue. `set-control-mode` and
+  `set-htr-mod-status` are the canonical paths; the generic `set-setup` no
+  longer carries `--control-mode` and `set-status` no longer carries the
+  htr_mod fields.
+* `ControllerLimits.setpoint_step_c` records the controller's Celsius setpoint
+  grid; `settings.pir_enabled` owns the PIR setup gate.
+* `SetupView` keeps the setup mapping conventions in one typed read-only
+  view; `NodeFacts` normalizes its setup automatically.
+* `OperationRefusedError`/`require()` give consumers a structured refusal
+  carrying the `Check` instead of flattening it to text.
+* The CLI is now the `smartbox.cli` package (`common`, `read`, `write`,
+  `diagnostics`) instead of one 2k-line module; `python -m smartbox.cli` and
+  the `smartbox` entry point are unchanged.
+* The `smartbox.device` facade is curated: product rows, profile resolution,
+  storage intents/modes and the operation checks are public; family sets,
+  predicates and setting gates stay in their modules.
 * `VALID_MODES` is public from `smartbox.protocol.writes`/`smartbox.protocol`.
 * `WATER_STORAGE_CODE`, `ELNUR_STEPPED_STORAGE_CODE` and
   `is_elnur_stepped_storage()` move the adapter's storage-code literals into
   the neutral module.
 * `smartbox.device.profile`: neutral controller limits, programme catalogues,
   bounds helpers, family code sets/predicates and `resolve_profile()`, with no
-  Home Assistant dependency. The integration's `controller.py` re-exports the
-  moved facts. A golden fixture test pins all 51 product codes.
+  Home Assistant dependency. The adapter imports the moved facts directly. A
+  golden fixture test pins all 51 product codes.
 * `smartbox.device.control_modes`: the decoded per-product control-mode
   catalogue (family/actuation maps, UI and wire arrays, Celsius/Fahrenheit
   labels, availability gates). The integration imports it directly.
