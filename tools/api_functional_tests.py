@@ -187,7 +187,8 @@ async def run_tests(addr: int, confirm: bool) -> int:
 
         # Restore: one key per POST. Multi-key status posts are silently
         # PARTIALLY applied (locked+mode stored, stemp dropped) — the API
-        # only reliably honors single-key updates (see api-notes.md).
+        # only reliably honors single-key updates
+        # (see hass-smartbox docs/api-contract.md §5.1).
         for payload in (
             {"locked": base["locked"]},
             {"stemp": base["stemp"], "units": "C"},

@@ -1,7 +1,7 @@
 """Real ``ws_user`` transport: one WebSocket per user, push-only.
 
-The wire facts and the fallback doctrine live in hass-smartbox docs/api-contract.md §4 and
-docs/webapi-spec.md. What this module relies on:
+The wire facts and the fallback doctrine live in hass-smartbox
+docs/api-contract.md §4 and docs/api-ws-user.md §1. What this module relies on:
 
 - URL ``wss://<host>:443/api/v2/ws_user?token=...&user_id=...`` (see
   :func:`build_ws_url`). A FRESH token per connect is load-bearing: the endpoint

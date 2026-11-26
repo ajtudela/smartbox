@@ -1,9 +1,9 @@
 """Live A/B probe for setpoint-in-auto and mode:"modified_auto" engagement.
 
 On fw 1.9 htr nodes, POST {"stemp", "units"} inside mode auto stores the
-value (GET-confirmed, api-notes.md T1b) but reportedly does NOT drive the
-heater (HA user report, 2026-09-28). The official app adds
-"mode": "modified_auto" to the same body (webapi-spec.md §4.2). This probe
+value (GET-confirmed, hass-smartbox docs/api-contract.md §5.2) but reportedly
+does NOT drive the heater (HA user report, 2026-09-28). The official app adds
+"mode": "modified_auto" to the same body (api-contract.md §5.2). This probe
 writes DISTINCT set points with and without the mode key on one auto node
 so the physical heater's response is unambiguous, polls wire state during
 configurable observation windows (watch the heater to see which set point

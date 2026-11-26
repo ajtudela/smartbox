@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import json
 import logging
+import os
 from unittest.mock import AsyncMock, patch
 
 from asyncclick.testing import CliRunner
+import pytest
 
-from smartbox.cli import _api_base_url, smartbox
+from smartbox.cli import cli as cli_entry, smartbox
+from smartbox.cli.common import _api_base_url, _dev_list, _load_env_file
 from smartbox.protocol import AvailableResellers
 from smartbox.protocol.auth import TokenBundle
 from smartbox.protocol.client import SmartboxClient
+from smartbox.protocol.errors import SmartboxError
 from smartbox.protocol.reseller import SMARTBOX_GENERIC_BASIC_AUTH
-from smartbox.token_cache import FileTokenCache
+from smartbox.token_cache import FileTokenCache, account_stamp, default_cache_path
 
 _ACCOUNT = "api:1:user@example.test:https://users-api.helki.com"
 
@@ -89,6 +94,63 @@ async def test_forget_tokens_deletes_the_cached_session(tmp_path):
     assert not path.exists()
 
 
+async def test_forget_tokens_works_for_commands_without_a_client(tmp_path):
+    """`codes` never opens a client; the cache is still cleared."""
+    path = tmp_path / "tokens.json"
+    await FileTokenCache(path, account=_ACCOUNT).async_save(
+        TokenBundle(
+            access_token="a",
+            refresh_token="r",
+            expires_at=datetime.now(UTC) + timedelta(hours=4),
+        )
+    )
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "--token-cache-path",
+            str(path),
+            "--forget-tokens",
+            "codes",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert not path.exists()
+
+
+async def test_forget_tokens_default_path_resolves_the_account(tmp_path, monkeypatch):
+    """The default cache path is cleared without --token-cache-path."""
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    base = "https://users-api.helki.com"
+    path = default_cache_path("api", "1", "user@example.test", base)
+    await FileTokenCache(
+        path,
+        account=account_stamp("api", "1", "user@example.test", base),
+    ).async_save(
+        TokenBundle(
+            access_token="a",
+            refresh_token="r",
+            expires_at=datetime.now(UTC) + timedelta(hours=4),
+        )
+    )
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "-a",
+            "api",
+            "-u",
+            "user@example.test",
+            "-i",
+            "1",
+            "--api-host",
+            base,
+            "--forget-tokens",
+            "codes",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert not path.exists()
+
+
 async def test_no_token_cache_ignores_a_preexisting_record(tmp_path):
     path = tmp_path / "tokens.json"
     await FileTokenCache(path, account=_ACCOUNT).async_save(
@@ -110,7 +172,7 @@ async def test_no_token_cache_ignores_a_preexisting_record(tmp_path):
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -150,7 +212,7 @@ async def test_cli_seeds_the_client_from_the_cache_and_persists_grants(tmp_path)
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -246,7 +308,7 @@ async def test_sessions_masks_sids_and_marks_the_current_row():
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -278,7 +340,7 @@ async def test_sessions_json_prints_the_raw_payload():
         async def close(self):
             return None
 
-    with patch("smartbox.cli.SmartboxClient", FakeClient):
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
         result = await CliRunner().invoke(
             smartbox,
             [
@@ -294,3 +356,185 @@ async def test_sessions_json_prints_the_raw_payload():
 
     assert result.exit_code == 0, result.output
     assert "d19b4d4c1234" in result.output
+
+
+def test_dev_list_flattens_invited_devices_and_dedupes():
+    """An invited home's device is under invited_to, not devs."""
+    payload = {
+        "devs": [{"dev_id": "own", "name": "Own"}],
+        "invited_to": [
+            {"dev_id": "guest", "name": "Guest"},
+            {"dev_id": "own", "name": "Own duplicate"},
+        ],
+    }
+    assert [entry["dev_id"] for entry in _dev_list(payload)] == ["own", "guest"]
+    assert _dev_list([{"dev_id": "bare"}]) == [{"dev_id": "bare"}]
+    assert _dev_list({"devs": "junk"}) == []
+
+
+async def test_nodes_lists_nodes_from_an_invited_home():
+    """The node commands must not stop at the empty owned-device list."""
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            pass
+
+        async def get_devices(self):
+            return {
+                "devs": [],
+                "invited_to": [{"dev_id": "guest", "name": "Guest home"}],
+            }
+
+        async def get_nodes(self, dev_id):
+            assert dev_id == "guest"
+            return [{"type": "htr", "addr": 2, "name": "Radiateur"}]
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox, ["-u", "user@example.test", "-p", "pw", "nodes"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "Guest home" in result.output
+    assert "Radiateur" in result.output
+    assert '"addr": 2' in result.output
+
+
+async def test_devices_flattens_an_invited_home():
+    """The raw envelope is flattened so an invited device is visible."""
+
+    class FakeClient:
+        def __init__(self, _config, **kwargs):
+            pass
+
+        async def get_devices(self):
+            return {
+                "devs": [],
+                "invited_to": [{"dev_id": "guest", "name": "Guest home"}],
+            }
+
+        async def close(self):
+            return None
+
+    with patch("smartbox.cli.common.SmartboxClient", FakeClient):
+        result = await CliRunner().invoke(
+            smartbox, ["-u", "user@example.test", "-p", "pw", "devices"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "Guest home" in result.output
+    assert "invited_to" not in result.output
+
+
+async def test_cli_profile_resolves_without_credentials():
+    """The profile command is a second consumer of the neutral resolver."""
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "profile",
+            "--pid",
+            "08320000",
+            "--node-type",
+            "htr",
+            "--fw-version",
+            "1.9",
+            "--setup",
+            '{"factory_options": {"boost_config": 2}}',
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["code"] == "32"
+    assert payload["limits"]["profiles"] == ["frost", "eco", "comfort", "off"]
+    assert payload["climate_bounds"] == [1.0, 30.0]
+
+
+async def test_cli_profile_applies_the_stored_max_limit():
+    """An omitted flag uses the setup ceiling, matching diagnostics."""
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "profile",
+            "--pid",
+            "08320000",
+            "--node-type",
+            "htr",
+            "--setup",
+            '{"max_stemp_limit": "23.0"}',
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["climate_bounds"] == [1.0, 23.0]
+    assert payload["prog_bounds"]["comf_temp"] == [1.0, 23.0]
+
+
+async def test_cli_profile_flag_overrides_the_stored_limit():
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "profile",
+            "--pid",
+            "08320000",
+            "--node-type",
+            "htr",
+            "--setup",
+            '{"max_stemp_limit": "23.0"}',
+            "--max-limit-c",
+            "30",
+        ],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["climate_bounds"] == [1.0, 30.0]
+
+
+async def test_cli_profile_rejects_bad_setup_json():
+    result = await CliRunner().invoke(
+        smartbox, ["profile", "--pid", "08320000", "--setup", "not-json"]
+    )
+    assert result.exit_code != 0
+    assert "invalid JSON" in result.output
+
+
+async def test_cli_profile_accepts_a_bare_product_code():
+    """A two-character code resolves instead of silently using the fallback."""
+    result = await CliRunner().invoke(
+        smartbox, ["profile", "--pid", "1E", "--node-type", "htr"]
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output)["code"] == "1E"
+
+
+async def test_cli_profile_rejects_an_unknown_code():
+    result = await CliRunner().invoke(smartbox, ["profile", "--pid", "ZZ"])
+    assert result.exit_code != 0
+    assert "4+ character" in result.output
+
+
+def test_entrypoint_loads_dotenv_and_wraps_protocol_errors():
+    """The console script keeps the .env load and the clean error path."""
+    with (
+        patch("smartbox.cli._load_dotenv") as load,
+        patch("smartbox.cli.smartbox", side_effect=SmartboxError("boom")),
+        pytest.raises(SystemExit, match="Error: boom"),
+    ):
+        cli_entry()
+    load.assert_called_once_with()
+
+
+def test_env_file_parser_is_defensive(tmp_path, monkeypatch):
+    """An empty key or undecodable file must not break every CLI call."""
+    good = tmp_path / "good.env"
+    good.write_text("=bad\nGOOD_KEY=value\nexport OTHER=quoted\n", encoding="utf-8")
+    monkeypatch.delenv("GOOD_KEY", raising=False)
+    monkeypatch.delenv("OTHER", raising=False)
+    _load_env_file(good)
+    assert os.environ["GOOD_KEY"] == "value"
+    assert os.environ["OTHER"] == "quoted"
+
+    bad = tmp_path / "bad.env"
+    bad.write_bytes(b"\xff\xfe")
+    _load_env_file(bad)

@@ -1,17 +1,17 @@
 """Smartbox protocol and domain layers.
 
 The package is Home Assistant-agnostic: ``smartbox.protocol`` owns the
-wire and the ``smartbox.core`` package owns the domain state. Both are
-usable without the HA test harness.
+wire, ``smartbox.core`` owns the domain state, and ``smartbox.device`` owns
+the decoded controller facts. All are usable without the HA test harness.
 """
 
 from importlib.metadata import PackageNotFoundError, version
 
-from . import core, protocol, token_cache
+from . import core, device, protocol, token_cache
 
 try:
     __version__ = version("smartbox")
 except PackageNotFoundError:  # pragma: no cover - vendored/undist import
     __version__ = "0.0.0"
 
-__all__ = ["__version__", "core", "protocol", "token_cache"]
+__all__ = ["__version__", "core", "device", "protocol", "token_cache"]

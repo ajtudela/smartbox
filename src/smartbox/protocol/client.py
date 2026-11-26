@@ -194,7 +194,7 @@ class SmartboxClient:
         """GET ``.../samples?start=&end=`` -> the rows.
 
         The wire wraps the rows in ``{"samples": [...]}``
-        (hass-smartbox docs/api-contract.md §3.1 E19); a bare list is accepted for the
+        (hass-smartbox docs/api-contract.md §3.2 E19); a bare list is accepted for the
         endpoint's raw variant. Anything else is a malformed success.
         """
         payload = await self._get(
@@ -217,7 +217,7 @@ class SmartboxClient:
 
         A separate read from the device-level power limit at
         ``htr_system/power_limit``; the asymmetry with that write is unverified
-        on pmo hardware (hass-smartbox docs/api-contract.md §3.1).
+        on pmo hardware (hass-smartbox docs/api-contract.md §3.2).
         """
         response = await self._get(node_path(dev_id, node, "power"))
         try:

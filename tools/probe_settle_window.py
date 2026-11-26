@@ -1,7 +1,8 @@
 """Live probe for writes inside the post-write settle window.
 
 After every accepted POST the server pushes a transient
-{"sync_status": "lost"} frame for the node (api-notes.md §Write semantics)
+{"sync_status": "lost"} frame for the node
+(hass-smartbox docs/api-contract.md §5.4)
 — a settle window of a few seconds. User reports (HA, 2026-09-28) that a
 setpoint write issued right after a mode write appears stored in the UI
 (optimistic) but the heater never applies it — hypothesised: the second

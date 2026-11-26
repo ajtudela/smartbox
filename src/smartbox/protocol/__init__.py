@@ -23,7 +23,13 @@ from .reseller import API_HOST, AvailableResellers, SmartboxReseller, api_base_u
 from .retry import backoff_delay
 from .transport import EventHandler, Transport
 from .values import bounded_repr, format_setpoint, is_lost, parse_number
-from .writes import VALID_BOOST_MODES, VALID_PRIORITIES, WriteApi, WriteHost
+from .writes import (
+    VALID_BOOST_MODES,
+    VALID_MODES,
+    VALID_PRIORITIES,
+    WriteApi,
+    WriteHost,
+)
 from .ws_user import (
     TokenSource,
     WsCredentials,
@@ -35,6 +41,7 @@ from .ws_user import (
 __all__ = [
     "API_HOST",
     "VALID_BOOST_MODES",
+    "VALID_MODES",
     "VALID_PRIORITIES",
     "AuthConfig",
     "AuthError",

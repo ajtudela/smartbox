@@ -1,6 +1,6 @@
 [project]
 name = "smartbox"
-version = "3.2.1"
+version = "3.3.0rc1"
 requires-python = ">=3.14.2"
 authors = [
   { name="Alberto Tudela", email="ajtudela@gmail.com" },
@@ -76,7 +76,7 @@ markers = [
 # and by the `--help`/reseller smoke tests, not by the core coverage gate.
 # The `*/` prefix matches both the src tree and the copy installed by tox
 # (site-packages), which is what pytest-cov actually measures under tox.
-omit = ["*/smartbox/cli.py"]
+omit = ["*/smartbox/cli/*"]
 
 [tool.coverage.report]
 fail_under = 95
@@ -155,7 +155,7 @@ max-complexity = 25
     "B018",
     "PT011",
 ]
-"src/smartbox/cli.py" = [
+"src/smartbox/cli/*.py" = [
     "ANN401",
     "D10",
     "EM101",

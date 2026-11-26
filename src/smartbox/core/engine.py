@@ -57,10 +57,15 @@ from ..protocol.paths import NodeRef
 from ..protocol.values import (
     BoostConfig,
     bounded_repr,
+    celsius_to_node_units,
     is_lost,
+    node_units_to_celsius,
     parse_number,
+    parse_number_or_none,
     prog_days,
     same_wire_value,
+    thermostat_days_equal,
+    thermostat_prog_days,
 )
 from ..protocol.writes import PostedWrite, WriteApi, WriteHost, WriteSlot
 from .deadlines import DueDeadline, NodeDeadline, NodeDeadlines
@@ -103,6 +108,9 @@ if TYPE_CHECKING:
 __all__ = ["ChangeHandler", "SmartboxEngine"]
 
 _LOGGER = logging.getLogger(__name__)
+
+# extra_options stores temperatures in Celsius from this version onward.
+_EXTRA_OPTIONS_CELSIUS_VERSION = 2
 
 ChangeHandler = Callable[[Change], Awaitable[None]]
 
@@ -158,6 +166,16 @@ def _node_write_slot(posted: PostedWrite) -> NodeField | None:
     return _NODE_WRITE_SLOTS.get(posted.slot)
 
 
+def _boost_legacy_intent(body: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Map a storage ``/boost`` body onto the confirming status keys."""
+    if body.get("boost") is not True:
+        return {"boost": False}
+    intent: dict[str, Any] = {"boost": True}
+    if "stemp" in body:
+        intent["stemp"] = body["stemp"]
+    return intent
+
+
 def _boost_mode_intent(body: Mapping[str, Any]) -> Mapping[str, Any]:
     """Map a posted ``/boost_mode`` body onto the status frame that confirms it.
 
@@ -199,6 +217,13 @@ class _EngineSlots:
         if state is None:
             return None
         return prog_days(state.prog)
+
+    def version(self, dev_id: str, node: NodeRef) -> Mapping[str, Any] | None:
+        """Return the node's last known version body, or ``None``."""
+        state = self._engine.node(dev_id, node_key(node.node_type, node.addr))
+        if state is None or not state.version:
+            return None
+        return state.version
 
 
 # Supervision restart ladder (mirrors the transport's own policy shape).
@@ -910,9 +935,111 @@ class SmartboxEngine:
         """Write the node mode (see ``WriteApi.set_mode``)."""
         await self._write(dev_id, node, lambda api: api.set_mode(dev_id, node, mode))
 
-    async def set_lock(self, dev_id: str, node: NodeRef, locked: bool) -> None:
+    async def set_lock(self, dev_id: str, node: NodeRef, locked: bool | int) -> None:
         """Write the child lock (see ``WriteApi.set_lock``)."""
         await self._write(dev_id, node, lambda api: api.set_lock(dev_id, node, locked))
+
+    async def set_boost_legacy(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        *,
+        on: bool,
+        temperature: float | None = None,
+        time_minutes: int | None = None,
+        units: str | None = None,
+    ) -> None:
+        """Write the storage ``/boost`` endpoint."""
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_boost_legacy(
+                dev_id,
+                node,
+                on=on,
+                temperature=temperature,
+                time_minutes=time_minutes,
+                units=units,
+            ),
+        )
+
+    async def set_target_charge(self, dev_id: str, node: NodeRef, value: int) -> None:
+        """Write the classic-accumulator target charge."""
+        await self._write(
+            dev_id, node, lambda api: api.set_target_charge(dev_id, node, value)
+        )
+
+    async def set_storage_mode(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        *,
+        mode: str,
+        stemp: float | None = None,
+        units: str | None = None,
+    ) -> None:
+        """Write the storage ``/mode`` endpoint."""
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_storage_mode(
+                dev_id, node, mode=mode, stemp=stemp, units=units
+            ),
+        )
+
+    async def set_lock_endpoint(
+        self, dev_id: str, node: NodeRef, locked: bool | int
+    ) -> None:
+        """Write the storage ``/lock`` endpoint."""
+        await self._write(
+            dev_id, node, lambda api: api.set_lock_endpoint(dev_id, node, locked)
+        )
+
+    async def set_thermostat_prog(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        days: Mapping[str, Sequence[Mapping[str, object]]],
+        units: str,
+    ) -> None:
+        """Write the thermostat programme."""
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_thermostat_prog(dev_id, node, days, units),
+        )
+
+    async def set_charging_conf(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        *,
+        active_days: list[int] | None = None,
+        slot_1: dict[str, int] | None = None,
+        slot_2: dict[str, int] | None = None,
+    ) -> None:
+        """Merge and write the storage ``charging_conf``."""
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_charging_conf(
+                dev_id,
+                node,
+                active_days=active_days,
+                slot_1=slot_1,
+                slot_2=slot_2,
+            ),
+        )
+
+    async def set_storage_ui_mode(
+        self, dev_id: str, node: NodeRef, ui_mode: int
+    ) -> None:
+        """Write ``factory_options.ui_mode`` for a storage heater."""
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_storage_ui_mode(dev_id, node, ui_mode),
+        )
 
     async def set_boost_mode(
         self,
@@ -938,6 +1065,73 @@ class SmartboxEngine:
             ),
         )
 
+    async def set_easy(self, dev_id: str, node: NodeRef, enabled: bool) -> None:
+        """Write the Tevolve EASY mode flag."""
+        await self._write(dev_id, node, lambda api: api.set_easy(dev_id, node, enabled))
+
+    async def set_runback(self, dev_id: str, node: NodeRef, enabled: bool) -> None:
+        """Write the Tevolve RUNBACK mode flag."""
+        await self._write(
+            dev_id, node, lambda api: api.set_runback(dev_id, node, enabled)
+        )
+
+    async def _set_storage_boost(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        state: NodeState | None,
+        on: bool,
+        temperature: float | None,
+        time_minutes: int | None,
+    ) -> None:
+        """Write the storage ``/boost`` path (Helki 1C/2E)."""
+        units = (
+            (state.status.get("units") if state is not None else None)
+            or (state.setup.get("units") if state is not None else None)
+            or "C"
+        )
+        if not on:
+            await self.set_boost_legacy(dev_id, node, on=False)
+            operational = (
+                state.setup.get("operational_mode") if state is not None else None
+            )
+            mode = "manual" if operational == 1 else "auto"
+            await self.set_storage_mode(dev_id, node, mode=mode)
+            return
+        extra = state.setup.get("extra_options") if state is not None else None
+        extra = extra if isinstance(extra, Mapping) else {}
+        if temperature is None:
+            temperature = parse_number_or_none(
+                state.status.get("stemp") if state is not None else None
+            )
+            if temperature is None:
+                extra_temp = parse_number_or_none(extra.get("boost_temp"))
+                if extra_temp is not None:
+                    version = parse_number_or_none(extra.get("version"))
+                    if (
+                        units == "F"
+                        and version is not None
+                        and version >= _EXTRA_OPTIONS_CELSIUS_VERSION
+                    ):
+                        extra_temp = node_units_to_celsius(extra_temp, "F")
+                    temperature = extra_temp
+            if temperature is None:
+                temperature = (
+                    20.0 if units == "C" else celsius_to_node_units(20.0, units)
+                )
+        if time_minutes is None:
+            parsed_minutes = parse_number_or_none(extra.get("boost_time"))
+            time_minutes = int(parsed_minutes) if parsed_minutes is not None else 60
+        await self.set_boost_legacy(
+            dev_id,
+            node,
+            on=True,
+            temperature=temperature,
+            time_minutes=int(time_minutes),
+            units=units,
+        )
+        return
+
     async def set_boost(
         self,
         dev_id: str,
@@ -946,18 +1140,24 @@ class SmartboxEngine:
         *,
         temperature: float | None = None,
         time_minutes: int | None = None,
+        legacy: bool = False,
     ) -> None:
-        """Write boost, choosing the path the unit's ``boost_config`` uses.
+        """Write boost, choosing the path the unit's controller family uses.
 
-        The vendor app treats ``boost_config`` 3 (FULL) as the ``/boost_mode``
-        endpoint with ``{active, mode, temp, time}``; 1 and 2 use the status
-        flag (2 additionally stores the temp/time in the setup, which the
-        boost number entities own). The app is the spec here
-        (docs/api-ws-user.md §2.3).
+        ``boost_config`` 3 (FULL) uses ``/boost_mode``; 1 and 2 use the legacy
+        path. The legacy activation writes the temperature/time into the setup
+        and then sets the status flag. ``legacy=True`` forces that path for the
+        Tevolve triac family, whose controller overrides activation even when
+        the config is FULL. Storage ``acm`` always uses ``/boost``.
         """
         state = self.node(dev_id, node_key(node.node_type, node.addr))
+        if node.node_type == "acm":
+            await self._set_storage_boost(
+                dev_id, node, state, on, temperature, time_minutes
+            )
+            return
         config = boost_config(state.setup if state is not None else {})
-        if config == BoostConfig.FULL:
+        if config == BoostConfig.FULL and not legacy:
             await self.set_boost_mode(
                 dev_id,
                 node,
@@ -967,17 +1167,27 @@ class SmartboxEngine:
                 time_minutes=time_minutes if on else None,
             )
             return
-        if (
-            config == BoostConfig.SET_TEMP_AND_TIME
-            and on
-            and (temperature is not None or time_minutes is not None)
-        ):
+        if on and (temperature is not None or time_minutes is not None):
             # The app's legacy activation writes the defaults into the setup
             # (extra_options.boost_temp/boost_time) and then sets the status
-            # flag. Both are the node's own display-unit values.
+            # flag. extra_options.version >= 2 stores temperatures in Celsius;
+            # older blocks use the node's display scale.
             options: dict[str, object] = {}
             if temperature is not None:
-                options["boost_temp"] = f"{temperature}"
+                extra_temp = temperature
+                if (
+                    state is not None
+                    and state.status.get("units") == "F"
+                    and isinstance(state.setup.get("extra_options"), Mapping)
+                ):
+                    extra = state.setup["extra_options"]
+                    version = parse_number(extra.get("version"))
+                    if (
+                        version is not None
+                        and version >= _EXTRA_OPTIONS_CELSIUS_VERSION
+                    ):
+                        extra_temp = node_units_to_celsius(temperature, "F")
+                options["boost_temp"] = f"{extra_temp:.1f}"
             if time_minutes is not None:
                 options["boost_time"] = int(time_minutes)
             await self._write(
@@ -1029,6 +1239,8 @@ class SmartboxEngine:
         comf_temp: float | None,
         units: str | None,
         changed: str | None = None,
+        bounds_c: Mapping[str, tuple[float, float]] | None = None,
+        offset_c: float | None = None,
     ) -> None:
         """Write the profile temps (see ``WriteApi.set_prog_temps``).
 
@@ -1045,7 +1257,13 @@ class SmartboxEngine:
             "eco_temp": eco_temp,
             "comf_temp": comf_temp,
         }
-        sanitized = sanitize_prog_temps(state, values, changed=changed)
+        sanitized = sanitize_prog_temps(
+            state,
+            values,
+            changed=changed,
+            bounds_c=bounds_c,
+            offset_c=offset_c,
+        )
         await self._write(
             dev_id,
             node,
@@ -1057,6 +1275,24 @@ class SmartboxEngine:
                 comf_temp=sanitized["comf_temp"],
                 units=units or (state.status.get("units") if state else None),
             ),
+        )
+
+    async def set_setup_value(
+        self, dev_id: str, node: NodeRef, key: str, value: object
+    ) -> None:
+        """Write one generic setup key (GET-merge-POST)."""
+        await self._write(
+            dev_id, node, lambda api: api.set_setup_value(dev_id, node, key, value)
+        )
+
+    async def set_prog_resolution(
+        self, dev_id: str, node: NodeRef, resolution: int
+    ) -> None:
+        """Write the programme resolution (0 hourly, 1 half-hourly)."""
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_prog_resolution(dev_id, node, resolution),
         )
 
     async def set_window_mode(self, dev_id: str, node: NodeRef, enabled: bool) -> None:
@@ -1083,6 +1319,9 @@ class SmartboxEngine:
         node: NodeRef,
         limit: float | None,
         units: str | None,
+        *,
+        bounds_c: Mapping[str, tuple[float, float]] | None = None,
+        offset_c: float | None = None,
     ) -> None:
         """Write the setup max-setpoint limit (GET-merge-POST).
 
@@ -1095,9 +1334,18 @@ class SmartboxEngine:
             node,
             lambda api: api.set_max_stemp_limit(dev_id, node, limit, units),
         )
-        await self._correct_prog_temps_after_limit(dev_id, node)
+        await self._correct_prog_temps_after_limit(
+            dev_id, node, bounds_c=bounds_c, offset_c=offset_c
+        )
 
-    async def _correct_prog_temps_after_limit(self, dev_id: str, node: NodeRef) -> None:
+    async def _correct_prog_temps_after_limit(
+        self,
+        dev_id: str,
+        node: NodeRef,
+        *,
+        bounds_c: Mapping[str, tuple[float, float]] | None = None,
+        offset_c: float | None = None,
+    ) -> None:
         """Post clamped profile temps when a new ceiling leaves one above it."""
         state = self.node(dev_id, node_key(node.node_type, node.addr))
         limit = max_stemp_limit_node(state)
@@ -1121,6 +1369,8 @@ class SmartboxEngine:
             eco_temp=current["eco_temp"],
             comf_temp=current["comf_temp"],
             units=units,
+            bounds_c=bounds_c,
+            offset_c=offset_c,
         )
 
     async def set_priority(self, dev_id: str, node: NodeRef, priority: str) -> None:
@@ -1272,6 +1522,9 @@ class SmartboxEngine:
             # The confirming frame is a status frame carrying boost/boost_mode.
             slot = "status"
             changed = _boost_mode_intent(posted.body)
+        elif posted.slot == "boost":
+            slot = "status"
+            changed = _boost_legacy_intent(posted.body)
         elif target_slot is None:
             return None
         else:
@@ -1371,6 +1624,8 @@ class SmartboxEngine:
             changes = self._optimistic_node_power_limit(dev_id, key, posted.body)
         elif posted.slot == "boost_mode":
             changes = self._optimistic_boost_mode_merge(dev_id, key, posted.body)
+        elif posted.slot == "boost":
+            changes = self._optimistic_legacy_boost_merge(dev_id, key, posted.body)
         else:
             slot = _node_write_slot(posted)
             if slot is None:  # pragma: no cover - WriteSlot is a closed union
@@ -1432,7 +1687,8 @@ class SmartboxEngine:
 
         status is a KEY MERGE over the stored dict - unlike the frame path's
         full-body replacement, only the written keys exist here yet. setup and
-        prog store the complete posted object.
+        prog store the complete posted object, except that a legacy code's
+        omitted extra_options keeps the stored object.
 
         A write never creates a node: the node list is authoritative, so a write
         that outlives its node's removal must not put the node back.
@@ -1449,6 +1705,18 @@ class SmartboxEngine:
             value: Any = {**base, **body}
         else:
             value = dict(body)
+            if (
+                slot == "setup"
+                and "extra_options" not in value
+                and isinstance(current, Mapping)
+                and "extra_options" in current
+            ):
+                # Legacy product codes omit extra_options from every setup
+                # POST (the server drops it), so the posted body is not a
+                # complete replacement for the stored object. Keep the last
+                # known value rather than blanking fields the write could not
+                # address. A later setup frame still replaces the slot.
+                value["extra_options"] = current["extra_options"]
         if value == current:
             return []
         node = self._store_node(
@@ -1521,6 +1789,28 @@ class SmartboxEngine:
             temp = body.get("temp")
             if isinstance(temp, str):
                 status["stemp"] = temp
+        if status == old.status:
+            return []
+        node = self._store_node(
+            dev_id, key, replace(old, revision=old.revision + 1, status=status)
+        )
+        return [NodeChange(dev_id, key, "status", node)]
+
+    def _optimistic_legacy_boost_merge(
+        self, dev_id: str, key: str, body: Mapping[str, Any]
+    ) -> list[Change]:
+        """Patch status from a posted storage ``/boost`` body."""
+        device = self._world.devices.get(dev_id)
+        if device is None:
+            return []
+        old = device.node_states.get(key)
+        if old is None:
+            return []
+        active = body.get("boost") is True
+        status = dict(old.status)
+        status["boost"] = active
+        if active and isinstance(body.get("stemp"), str):
+            status["stemp"] = body["stemp"]
         if status == old.status:
             return []
         node = self._store_node(
@@ -1754,7 +2044,11 @@ class SmartboxEngine:
         """Return a usable verification body, or ``None`` for no evidence."""
         if not isinstance(body, Mapping) or not body:
             return None
-        if slot == "prog" and prog_days(body) is None:
+        if (
+            slot == "prog"
+            and prog_days(body) is None
+            and thermostat_prog_days(body) is None
+        ):
             _LOGGER.warning(
                 "Write confirmation check for %r/%r returned malformed prog data",
                 dev_id,
@@ -1774,14 +2068,20 @@ class SmartboxEngine:
             return True
         evidence: Mapping[str, Any] = body
         if slot == "prog":
-            days = prog_days(body)
+            days = prog_days(body) or thermostat_prog_days(body)
             if days is None:  # pragma: no cover - rejected by _verification_body
                 return False
             evidence = days
-        return all(
-            key in evidence and same_wire_value(evidence[key], value)
-            for key, value in intent.items()
-        )
+        for key, value in intent.items():
+            if key not in evidence:
+                return False
+            actual = evidence[key]
+            if isinstance(value, list):
+                if not thermostat_days_equal(actual, value):
+                    return False
+            elif not same_wire_value(actual, value):
+                return False
+        return True
 
     # --- availability windows ---
 
@@ -1826,7 +2126,7 @@ class SmartboxEngine:
         if slot == "prog":
             # A prog frame wraps the week under ``prog`` (or carries a bare
             # day map); compare the day evidence, not the wrapper.
-            evidence = prog_days(body)
+            evidence = prog_days(body) or thermostat_prog_days(body)
         if evidence is not None and self._deadlines.confirm_write(
             dev_id, key, slot, evidence
         ):
