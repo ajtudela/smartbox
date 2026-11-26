@@ -289,7 +289,7 @@ The storage and htr_mod commands read `version.pid` first and refuse a product t
 - `smartbox.cli` — the optional debugging CLI.
 - `smartbox.token_cache` — the CLI/tool file cache for the token bundle.
 
-The canonical wire record lives in the sibling [`hass-smartbox`](https://github.com/jandado/hass-smartbox) repository under `docs/` (`api-endpoints.md`, `api-contract.md`, `api-ws-user.md`); [`webapi-spec.md`](./webapi-spec.md) in this repo is a pointer to them.
+The canonical wire record lives in the sibling [`hass-smartbox`](https://github.com/ajtudela/hass-smartbox) repository under `docs/` (`api-endpoints.md`, `api-contract.md`, `api-ws-user.md`); [`webapi-spec.md`](./webapi-spec.md) in this repo is a pointer to them.
 
 ## Development
 
