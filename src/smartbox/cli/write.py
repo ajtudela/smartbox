@@ -14,6 +14,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised by users only
     ) from exc
 
 from smartbox.device.capabilities import (
+    check_away_offset,
     check_boost,
     check_boost_mode,
     check_charging_schedule,
@@ -30,7 +31,10 @@ from smartbox.device.capabilities import (
     check_storage_ui_mode,
     check_target_charge,
     check_thermostat_prog,
+    check_true_radiant,
+    check_window_mode,
 )
+from smartbox.device.codes import accepts_extra_options
 from smartbox.device.control_modes import control_mode_choices, control_mode_label
 from smartbox.device.modes import lock_kind
 from smartbox.protocol.writes import VALID_BOOST_MODES, VALID_MODES, VALID_PRIORITIES
@@ -199,7 +203,7 @@ async def set_status(
 @click.option("--window-mode-enabled", type=bool)
 @click.option("--extra-json", help="JSON object (or @file) merged into extra_options")
 @click.pass_context
-async def set_setup(
+async def set_setup(  # noqa: PLR0912 - one guarded branch per named field
     ctx: click.Context,
     device_id: str,
     node_addr: str,
@@ -238,6 +242,16 @@ async def set_setup(
         raise click.ClickException("nothing to set")
     if offset is not None and offset < 0:
         raise click.ClickException("away offset must be >= 0")
+    if extra is not None and not accepts_extra_options(facts.pid):
+        raise click.ClickException(
+            "this controller does not accept extra_options; --extra-json refused"
+        )
+    if offset is not None:
+        _require_check(check_away_offset(facts), facts, node, "away-offset")
+    if true_radiant_enabled is not None:
+        _require_check(check_true_radiant(facts), facts, node, "true-radiant")
+    if window_mode_enabled is not None:
+        _require_check(check_window_mode(facts), facts, node, "window-mode")
     _confirm(ctx, f"set node setup on {device_id}/{node_addr}")
     if offset is not None:
         _show_write(ctx, await writes.set_away_offset(device_id, node, offset))
@@ -268,8 +282,13 @@ async def set_prog(
     ctx: click.Context, device_id: str, node_addr: str, prog_json: str
 ) -> None:
     client = await _client(ctx)
-    writes = _write_api(ctx, client)
     device_id, node = await _find_node(client, device_id, node_addr)
+    facts = await _node_facts(client, device_id, node)
+    if check_thermostat_prog(facts).ok:
+        raise click.ClickException(
+            "thermostat programmes use set-thermostat-prog (day-keyed {m,t})"
+        )
+    writes = _write_api(ctx, client)
     parsed = _load_json_object(prog_json, "PROG")
     days = parsed.get("prog") if isinstance(parsed, dict) else None
     if not isinstance(days, dict):

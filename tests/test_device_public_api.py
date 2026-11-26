@@ -52,6 +52,7 @@ EXPECTED = {
     "control_mode_label",
     "controller_limits",
     "current_mode",
+    "diagnostic_fields",
     "is_heater_surface",
     "is_thermostat_surface",
     "product_code",

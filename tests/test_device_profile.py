@@ -17,6 +17,7 @@ from smartbox.device.modes import (
     supports_runback,
 )
 from smartbox.device.profile import (
+    diagnostic_fields,
     is_heater_surface,
     is_thermostat_surface,
     profile_bounds,
@@ -309,3 +310,20 @@ def test_max_limit_on_storage_and_triac_families() -> None:
         "eco_temp": (7.5, 29.5),
         "comf_temp": (8.0, 30.0),
     }
+
+
+def test_diagnostic_fields_are_gated_by_controller_family() -> None:
+    """The field availability follows the decoded controller classes."""
+    common = {"error_code", "pcb_temp", "true_radiant_active"}
+    assert diagnostic_fields("04020000", "htr") == common
+    assert diagnostic_fields("010A0000", "htr_mod") == common | {
+        "act_duty",
+        "power_pcb_temp",
+    }
+    assert diagnostic_fields("01320000", "htr") == common | {
+        "act_duty",
+        "power_pcb_temp",
+        "power_fail_det",
+    }
+    assert diagnostic_fields(None, "htr") == frozenset()
+    assert diagnostic_fields("01320000", "acm") == frozenset()

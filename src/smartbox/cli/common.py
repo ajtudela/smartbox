@@ -216,7 +216,13 @@ def _confirm(ctx: click.Context, action: str) -> None:
     """Ask before an interactive write; --dry-run and --yes skip the prompt."""
     if ctx.obj["dry_run"] or ctx.obj["yes"]:
         return
-    if sys.stdin.isatty() and not click.confirm(f"{action}?", default=False):
+    if not sys.stdin.isatty():
+        click.echo(
+            f"warning: stdin is not a tty; proceeding without confirmation for {action}",
+            err=True,
+        )
+        return
+    if not click.confirm(f"{action}?", default=False):
         raise click.Abort
 
 
@@ -695,6 +701,11 @@ async def _clear_forgotten_tokens(ctx: click.Context) -> None:
     if path is None:
         username = ctx.obj.get("username")
         if not username:
+            click.echo(
+                "warning: --forget-tokens needs -u or --token-cache-path; "
+                "nothing was cleared",
+                err=True,
+            )
             return
         _reseller, base_url = _resolve_reseller(ctx)
         path = str(

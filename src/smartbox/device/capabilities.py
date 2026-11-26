@@ -31,10 +31,13 @@ from .profile import (
     is_thermostat_surface,
 )
 from .settings import (
+    away_offset_available,
     boost_available,
     max_temp_limit_available,
     node_power_limit_available,
     prog_temps_available,
+    true_radiant_available,
+    window_mode_available,
 )
 from .setup import SetupView
 from .storage import (
@@ -266,6 +269,27 @@ def check_thermostat_prog(facts: NodeFacts) -> Check:
     """Whether the node carries the thermostat {m,t} programme shape."""
     if not is_thermostat_surface(facts.node_type, facts.pid):
         return Check.refused(Reason.WRONG_NODE_TYPE, **_product_detail(facts))
+    return Check.allowed()
+
+
+def check_away_offset(facts: NodeFacts) -> Check:
+    """Whether the away-offset setting applies to this node."""
+    if not away_offset_available(facts.node_type, facts.pid, facts.setup):
+        return Check.refused(Reason.NOT_AVAILABLE, **_product_detail(facts))
+    return Check.allowed()
+
+
+def check_true_radiant(facts: NodeFacts) -> Check:
+    """Whether the true-radiant setting applies to this node."""
+    if not true_radiant_available(facts.node_type, facts.pid, facts.setup):
+        return Check.refused(Reason.NOT_AVAILABLE, **_product_detail(facts))
+    return Check.allowed()
+
+
+def check_window_mode(facts: NodeFacts) -> Check:
+    """Whether the window-mode setting applies to this node."""
+    if not window_mode_available(facts.node_type, facts.pid, facts.setup):
+        return Check.refused(Reason.NOT_AVAILABLE, **_product_detail(facts))
     return Check.allowed()
 
 

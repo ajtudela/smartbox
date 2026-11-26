@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.3.0
 
 ### Compatibility notes (3.3.0)
 
@@ -19,9 +19,15 @@
 * `resolve_profile()` takes an explicit `max_limit_c` override; use
   `resolve_stored_profile()` for the stored setup ceiling. Both APIs are new
   in this release.
+* The new heater diagnostic entities are disabled by default. Upgraders from a
+  pre-release build may see stale orphaned diagnostic registry entries; delete
+  them from the HA entity registry if they were enabled during testing.
 
 ### Added
 
+* `smartbox.device.profile.diagnostic_fields()`: decoded status-field
+  availability for the common htr/htr_mod telemetry, TRIAC act-duty and
+  power-PCB temperatures, and the WiFi heater power-failure flag.
 * `smartbox.device.codes`: one reviewed product-code table (51 rows with
   family, actuation, limits family, surface, label and capability flags).
   `profile` and `control_modes` derive their code sets and maps from it. The

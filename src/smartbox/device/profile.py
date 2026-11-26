@@ -200,6 +200,17 @@ def is_htr_mod_controller(pid: str | None, node_type: str | None = None) -> bool
     return is_htr_mod_code(product_code(pid), node_type)
 
 
+def is_htr_mod_node(code: str | None, node_type: str | None = None) -> bool:
+    """Decide htr_mod from a decoded code, falling back to the wire type.
+
+    A reviewed code always wins; an absent or unreviewed code keeps the
+    discovery wire type so a missing PID does not change the entity surface.
+    """
+    if code is not None and code in PRODUCT_CODES:
+        return is_htr_mod_code(code, node_type)
+    return node_type == "htr_mod"
+
+
 def diagnostic_fields(pid: str | None, node_type: str | None = None) -> frozenset[str]:
     """Return the diagnostic status fields a heater controller reports.
 
@@ -562,6 +573,7 @@ __all__ = [
     "is_helki_heater_family",
     "is_htr_mod_code",
     "is_htr_mod_controller",
+    "is_htr_mod_node",
     "is_lhz_family",
     "is_lhz_relay",
     "is_tevolve_atc_family",

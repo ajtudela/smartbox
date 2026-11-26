@@ -60,6 +60,7 @@ STATUS = {
 SETUP = {
     "units": "C",
     "control_mode": 5,
+    "away_offset": "0.0",
     "max_stemp_limit": "23.0",
     "factory_options": {"ui_mode": 2, "boost_config": 3},
     "extra_options": {"user_duty_limit": 25},
@@ -978,18 +979,48 @@ async def test_set_setup_posts_each_named_field():
         "C",
         "--offset",
         "2",
-        "--true-radiant-enabled",
-        "true",
-        "--window-mode-enabled",
-        "false",
     )
     assert result.exit_code == 0, result.output
     bodies = [body for _path, body in client.posts]
     assert any(body.get("priority") == "high" for body in bodies)
     assert any(body.get("units") == "C" for body in bodies)
     assert any(body.get("away_offset") == "2.0" for body in bodies)
-    assert any(body.get("true_radiant_enabled") is True for body in bodies)
-    assert any(body.get("window_mode_enabled") is False for body in bodies)
+
+
+async def test_set_setup_refuses_unavailable_settings():
+    """The named setup fields now go through the capability gates."""
+    result, client = await _invoke(
+        "set-setup",
+        "-d",
+        "dev1",
+        "-n",
+        "2",
+        "--true-radiant-enabled",
+        "true",
+    )
+    assert result.exit_code != 0
+    assert "does not support" in result.output
+    assert client.posts == []
+
+
+async def test_set_setup_refuses_extra_options_on_omit_list_products():
+    """The omission rule must not silently drop an explicit extra_options write."""
+    result, client = await _invoke(
+        "set-setup", "-d", "dev1", "-n", "2", "--extra-json", '{"x": 1}'
+    )
+    assert result.exit_code != 0
+    assert "extra_options" in result.output
+    assert client.posts == []
+
+
+async def test_set_prog_refuses_thermostat_surfaces():
+    """Thermostat nodes need the {m,t} programme command."""
+    result, client = await _invoke(
+        "set-prog", "-d", "dev1", "-n", "3", '{"prog": {"0": [2, 22]}}'
+    )
+    assert result.exit_code != 0
+    assert "set-thermostat-prog" in result.output
+    assert client.posts == []
 
 
 async def test_dry_run_reads_the_current_setup_through_the_proxy():
