@@ -157,12 +157,47 @@ class _DryRunHost:
         return await self.client.get_node_prog(dev_id, node)
 
 
-def _write_api(ctx: click.Context, client: SmartboxClient) -> WriteApi:
+class _VersionStore:
+    """One-node version cache for the setup omission rule."""
+
+    def __init__(self, dev_id: str, node: NodeRef, facts: NodeFacts) -> None:
+        self._dev_id = dev_id
+        self._node = node
+        self._version = {"pid": facts.pid, "fw_version": facts.fw_version}
+
+    def version(self, dev_id: str, node: NodeRef) -> dict[str, str | None] | None:
+        """Return the cached version for this node, else None."""
+        if dev_id == self._dev_id and node == self._node:
+            return self._version
+        return None
+
+    def setup(self, dev_id: str, node: NodeRef) -> None:  # noqa: ARG002
+        """No setup cache; merges fall back to REST."""
+        return
+
+    def prog(self, dev_id: str, node: NodeRef) -> None:  # noqa: ARG002
+        """No prog cache; merges fall back to REST."""
+        return
+
+
+def _write_api(
+    ctx: click.Context,
+    client: SmartboxClient,
+    *,
+    facts: NodeFacts | None = None,
+    dev_id: str | None = None,
+    node: NodeRef | None = None,
+) -> WriteApi:
     """Build a WriteApi, using a recording host under --dry-run."""
     host: Any = client
     if ctx.obj["dry_run"]:
         host = _DryRunHost(client)
-    return WriteApi(host)
+    store = (
+        _VersionStore(dev_id, node, facts)
+        if facts is not None and dev_id is not None and node is not None
+        else None
+    )
+    return WriteApi(host, store=store)
 
 
 def _show_write(ctx: click.Context, result: tuple[str, dict[str, Any]]) -> None:
@@ -491,6 +526,7 @@ async def _client(ctx: click.Context) -> SmartboxClient:
         ctx.obj["token_cache_path"] = str(cache.path)
     if ctx.obj["forget_tokens"] and cache is not None and not await cache.async_clear():
         click.echo(f"warning: could not remove {cache.path}", err=True)
+    ctx.obj["forget_tokens"] = False
     if cache_enabled and cache is not None:
         stored = await cache.async_load()
         if stored is not None:
@@ -648,6 +684,31 @@ async def smartbox(
         "forget_tokens": forget_tokens,
         "verbose": verbose,
     }
+    if forget_tokens:
+        await _clear_forgotten_tokens(ctx)
+
+
+async def _clear_forgotten_tokens(ctx: click.Context) -> None:
+    """Clear the account's cached session before a command that may skip it."""
+    path = ctx.obj.get("token_cache_path")
+    account = ""
+    if path is None:
+        username = ctx.obj.get("username")
+        if not username:
+            return
+        _reseller, base_url = _resolve_reseller(ctx)
+        path = str(
+            default_cache_path(
+                ctx.obj["api_name"], ctx.obj["serial_id"], username, base_url
+            )
+        )
+        account = account_stamp(
+            ctx.obj["api_name"], ctx.obj["serial_id"], username, base_url
+        )
+    cache = FileTokenCache(Path(path), account=account)
+    if not await cache.async_clear():
+        click.echo(f"warning: could not remove {cache.path}", err=True)
+    ctx.obj["forget_tokens"] = False
 
 
 def _node(node: dict[str, Any]) -> NodeRef:

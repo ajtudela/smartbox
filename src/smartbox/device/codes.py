@@ -5,8 +5,8 @@ per-code limits derive from this table; the control-mode UI/wire arrays and
 storage UI-mode options stay in their own modules. Adding a code means adding
 one row here, adding the reviewed fixture row (``tests/fixtures/
 product_codes.json``) and updating the catalogue modules when the new product
-needs one. There is no fixture generator; see ``docs/device-semantics.md``
-("Changing a controller fact").
+needs one. There is no fixture generator; see the hass-smartbox
+``CONTRIBUTING.md`` ("Changing a controller fact").
 
 Decoded from the vendor 2.54.2 bundle; see `hass-smartbox docs/api-contract.md`
 (the wire record) for the provenance citations.

@@ -1,4 +1,4 @@
-"""The extracted layers stay Home Assistant-free."""
+"""The extracted layers stay Home Assistant-free and point downward."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import ast
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "src" / "smartbox"
+_LAYER_ORDER = {"protocol": 0, "core": 1, "device": 2}
 
 
 def _imports(path: Path) -> set[str]:
@@ -28,3 +29,16 @@ def test_lower_layers_import_no_homeassistant() -> None:
                 module == "homeassistant" or module.startswith("homeassistant.")
                 for module in imports
             ), f"{path} imports Home Assistant"
+
+
+def test_imports_point_downward() -> None:
+    for layer, level in _LAYER_ORDER.items():
+        for path in sorted((PACKAGE_ROOT / layer).glob("*.py")):
+            for module in _imports(path):
+                parts = module.split(".")
+                if len(parts) < 2 or parts[0] != "smartbox":
+                    continue
+                target = parts[1]
+                if target in _LAYER_ORDER and _LAYER_ORDER[target] > level:
+                    msg = f"{path} imports upward into smartbox.{target}"
+                    raise AssertionError(msg)

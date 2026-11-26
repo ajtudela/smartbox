@@ -187,6 +187,9 @@ async def diagnose(
     ctx: click.Context, device_id: str | None, node_addr: str | None
 ) -> None:
     client = await _client(ctx)
+    if device_id is not None:
+        device = await _find_device(client, device_id)
+        device_id = str(device["dev_id"])
     payloads: list[dict[str, Any]] = []
     async for device, dev_id, node, node_ref in _targets(client, device_id, node_addr):
         payload = await _profile_payload_for(client, device, dev_id, node, node_ref)
@@ -204,10 +207,13 @@ async def diagnose(
             f"{product['actuation'] if product else '?'} | "
             f"limits {limits['min_c']}-{limits['max_c']} "
             f"{','.join(limits['profiles'])} | "
-            f"climate {profile['climate_bounds'][0]}-{profile['climate_bounds'][1]}"
+            f"climate {profile['climate_bounds'][0]}-{profile['climate_bounds'][1]} | "
+            f"sync {payload['status'].get('sync_status') or '?'}"
         )
         for issue in payload["issues"]:
             click.echo(f"  issue: {issue}")
+    if not payloads:
+        raise click.ClickException("no nodes matched the device/node filter")
     if ctx.obj["json"]:
         _pretty_print(payloads)
 
@@ -479,6 +485,17 @@ async def listen(
     path: str | None,
 ) -> None:
     client = await _client(ctx)
+    if device_id is not None:
+        device = await _find_device(client, device_id)
+        device_id = str(device["dev_id"])
+    if node_addr is not None:
+        nodes = await client.get_nodes(device_id) if device_id else []
+        if device_id and not any(
+            str(node.get("addr")) == str(node_addr) for node in nodes
+        ):
+            raise click.ClickException(
+                f"node {node_addr!r} not found on device {device_id!r}"
+            )
 
     async def on_event(event: Event) -> None:
         if isinstance(event, Snapshot):
@@ -491,7 +508,10 @@ async def listen(
                 return
             if path is not None and path not in event.path:
                 return
-            click.echo(f"update {event.dev_id} {event.path}")
+            sync = (
+                event.body.get("sync_status") if isinstance(event.body, dict) else None
+            )
+            click.echo(f"update {event.dev_id} {event.path} sync={sync or '?'}")
             _pretty_print(event.body)
         elif isinstance(event, SocketClosed):
             click.echo(f"closed code={event.code} expected={event.expected}")

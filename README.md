@@ -26,7 +26,12 @@ The base package only depends on `aiohttp`; the CLI pulls in `asyncclick`. The p
 ```python
 import asyncio
 
-from smartbox.protocol import AuthConfig, AvailableResellers, SmartboxClient, api_base_url
+from smartbox.protocol import (
+    AuthConfig,
+    AvailableResellers,
+    SmartboxClient,
+    api_base_url,
+)
 
 reseller = AvailableResellers("api").reseller
 CONFIG = AuthConfig(
@@ -38,6 +43,7 @@ CONFIG = AuthConfig(
     referer=reseller.web_url or None,
 )
 
+
 async def main() -> None:
     client = SmartboxClient(CONFIG)
     try:
@@ -48,6 +54,7 @@ async def main() -> None:
     finally:
         await client.close()
 
+
 asyncio.run(main())
 ```
 
@@ -56,7 +63,7 @@ Methods return the raw `dict`/`list` payloads from the API (raw passthrough): th
 ```python
 from smartbox.protocol import NodeRef, WriteApi
 
-writes = WriteApi(client)   # the client from the example above
+writes = WriteApi(client)  # the client from the example above
 node = NodeRef(node_type="htr_mod", addr="1")
 await writes.set_setpoint("mydev", node, 21.5, "C")
 ```
@@ -82,12 +89,14 @@ from smartbox.protocol import (
 reseller = AvailableResellers("api").reseller
 transport = WsUserTransport(ManagedTokenSource(client.auth), api_base_url(reseller))
 
+
 async def on_event(event) -> None:
     print(event)
 
+
 transport.subscribe(on_event)
-await transport.run()   # reconnects per policy; CancelledError stops it
-await transport.close() # terminal
+await transport.run()  # reconnects per policy; CancelledError stops it
+await transport.close()  # terminal
 ```
 
 `run()` raises `AuthError` (credentials keep being rejected — start a reauthentication flow) and `TransportUnsupportedError` (deterministic handshake rejection — the host does not serve `ws_user`). `check_ws_user_support` runs the one-shot probe if you want to know before subscribing. Transient trouble is retried inside `run()` and never surfaces as terminal.
@@ -99,15 +108,17 @@ import asyncio
 
 from smartbox.core import SmartboxEngine
 
-engine = SmartboxEngine(client)          # client enables the write path
+engine = SmartboxEngine(client)  # client enables the write path
+
 
 def on_change(change) -> None:
     print(change)
 
+
 engine.subscribe(on_change)
-engine.supervise(transport)              # wires events in, restarts on failure
+engine.supervise(transport)  # wires events in, restarts on failure
 ...
-await engine.stop()                      # cancels the supervision task
+await engine.stop()  # cancels the supervision task
 ```
 
 Subscribers receive typed changes (`NodeChange`, `DeviceChange`, `FeedChange`, ...); handler exceptions are isolated log-and-continue. `engine.world` exposes the current `WorldState` at any time, and `NodeState.available` is engine-derived so stale feeds render as unavailable instead of showing stale values.
@@ -278,7 +289,7 @@ The storage and htr_mod commands read `version.pid` first and refuse a product t
 - `smartbox.cli` — the optional debugging CLI.
 - `smartbox.token_cache` — the CLI/tool file cache for the token bundle.
 
-The canonical wire record lives in the sibling [`hass-smartbox`](https://github.com/jandado/hass-smartbox) repository under `docs/` (`api-contract.md`, `api-ws-user.md`, `webapi-spec.md`); [`webapi-spec.md`](./webapi-spec.md) in this repo is a pointer to them.
+The canonical wire record lives in the sibling [`hass-smartbox`](https://github.com/jandado/hass-smartbox) repository under `docs/` (`api-endpoints.md`, `api-contract.md`, `api-ws-user.md`); [`webapi-spec.md`](./webapi-spec.md) in this repo is a pointer to them.
 
 ## Development
 

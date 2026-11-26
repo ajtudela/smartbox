@@ -3,12 +3,12 @@
 
 The official web app speaks a plain JSON websocket protocol on
 `wss://<api host>:443/api/v2/ws_user?token=<enc>&user_id=<id>` — no
-socket.io/engineio layer (documented in api-notes.md,
-"Transports — socket_io vs ws_user").
+socket.io/engineio layer (documented in hass-smartbox docs/api-contract.md
+Appendix A, "Transports — socket_io vs ws_user").
 This probe characterises the live behaviour of that endpoint on a real
 account. The transport it validated is implemented in
-`src/smartbox/ws_user.py` (see api-notes.md, "Transports — socket_io vs
-ws_user").
+`src/smartbox/ws_user.py` (see hass-smartbox docs/api-contract.md §4 and
+Appendix A, "Transports — socket_io vs ws_user").
 
 Steps:
 1. Authenticate via the library's REST session (credentials from .env).

@@ -330,7 +330,7 @@ See GitHub release notes: https://github.com/jandado/smartbox/releases
 * Per-user `ws_user` websocket transport (`WsUserSocketSession`,
   `check_ws_user_support`): one connection serves every device of the
   account, replacing N per-device `socket_io` sessions. Wire protocol
-  and every failure mode verified live (api-notes.md, "Transports —
+  and every failure mode verified live (pre-contract notes, now git history — "Transports —
   socket_io vs ws_user"). Selected via the new `ws_user_socket=` kwarg
   on `UpdateManager`; the default transport is unchanged.
 * `WsUserUnsupportedError` + the fallback doctrine: only deterministic
@@ -440,7 +440,7 @@ version bump).
   writes to unreachable nodes are ACKed OK with no device ack (observed
   live). Frame taps register lazily; both features share them, each
   enables them independently. Backed by live probes 2026-09-26/30
-  (api-notes.md, "Node reachability").
+  (pre-contract notes, now git history, "Node reachability").
 
 ## 2.6.0
 

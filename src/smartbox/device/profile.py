@@ -185,15 +185,19 @@ def _helki_storage_limits(
     )
 
 
-def is_htr_mod_controller(pid: str | None, node_type: str | None = None) -> bool:
-    """Return True for the product codes that use htr_mod control."""
-    code = product_code(pid)
+def is_htr_mod_code(code: str | None, node_type: str | None = None) -> bool:
+    """Return True for a decoded product code that uses htr_mod control."""
     if code not in _HAVERLAND_HTR_MOD_CODES:
         return False
     if code == "0A":
         return True
     # FF is htr_mod only on the htr_mod wire; a plain htr is a base heater.
     return node_type == "htr_mod"
+
+
+def is_htr_mod_controller(pid: str | None, node_type: str | None = None) -> bool:
+    """Return True for the product codes that use htr_mod control."""
+    return is_htr_mod_code(product_code(pid), node_type)
 
 
 # ESensorModeValue.FLOOR_PROBE: the only sensor is the floor probe.
@@ -534,6 +538,7 @@ __all__ = [
     "htr_mod_policy",
     "is_heater_surface",
     "is_helki_heater_family",
+    "is_htr_mod_code",
     "is_htr_mod_controller",
     "is_lhz_family",
     "is_lhz_relay",

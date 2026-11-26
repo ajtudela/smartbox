@@ -572,6 +572,48 @@ async def test_dry_run_prints_the_post_without_sending_it():
     assert payload["body"] == {"easy": True}
 
 
+async def test_setup_write_omits_legacy_extra_options():
+    """The CLI setup path runs the same omission rule as the engine."""
+    result, client = await _invoke("set-max-stemp-limit", "-d", "dev1", "-n", "2", "24")
+    assert result.exit_code == 0, result.output
+    assert client.posts
+    _path, body = client.posts[0]
+    assert "extra_options" not in body
+
+
+async def test_diagnose_reports_a_missed_filter():
+    """A typo in the device filter must not look like an empty account."""
+    result, _client_obj = await _invoke("diagnose", "-d", "no-such-device")
+    assert result.exit_code != 0
+    assert "not found" in result.output
+
+
+async def test_status_lock_accepts_the_integer_enum():
+    """Integer-lock families take 0/1/2; a boolean is rejected."""
+    result, client = await _invoke(
+        "set-status", "-d", "dev1", "-n", "7", "--locked", "2"
+    )
+    assert result.exit_code == 0, result.output
+    assert client.posts == [("devs/dev1/htr/7/status", {"locked": 2})]
+
+    result, client = await _invoke(
+        "set-status", "-d", "dev1", "-n", "7", "--locked", "true"
+    )
+    assert result.exit_code != 0
+    assert "expects 0, 1 or 2" in result.output
+    assert client.posts == []
+
+
+async def test_status_lock_refuses_storage():
+    """Storage lock writes use the dedicated /lock endpoint."""
+    result, client = await _invoke(
+        "set-status", "-d", "dev1", "-n", "1", "--locked", "1"
+    )
+    assert result.exit_code != 0
+    assert "set-storage-lock" in result.output
+    assert client.posts == []
+
+
 async def test_status_and_boost_writes_keep_their_bodies():
     result, client = await _invoke(
         "set-status", "-d", "dev1", "-n", "2", "--locked", "false", "--mode", "auto"
@@ -774,7 +816,7 @@ async def test_json_arguments_accept_at_file(tmp_path):
     extra = tmp_path / "extra.json"
     extra.write_text('{"boost_temp": "21.0"}', encoding="utf-8")
     result, client = await _invoke(
-        "set-setup", "-d", "dev1", "-n", "2", f"--extra-json=@{extra}"
+        "set-setup", "-d", "dev1", "-n", "7", f"--extra-json=@{extra}"
     )
     assert result.exit_code == 0, result.output
     assert client.posts[0][1]["extra_options"] == {
@@ -957,7 +999,7 @@ async def test_dry_run_reads_the_current_setup_through_the_proxy():
         "-d",
         "dev1",
         "-n",
-        "2",
+        "7",
         "--extra-json",
         '{"boost_temp": "21.0"}',
     )

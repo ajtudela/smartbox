@@ -32,6 +32,7 @@ from smartbox.device.capabilities import (
     check_thermostat_prog,
 )
 from smartbox.device.control_modes import control_mode_choices, control_mode_label
+from smartbox.device.modes import lock_kind
 from smartbox.protocol.writes import VALID_BOOST_MODES, VALID_MODES, VALID_PRIORITIES
 
 from .common import (
@@ -112,7 +113,10 @@ async def set_control_mode(
         f"set control mode {resolved} (wire index {value}) on {dev_id}/{node_addr}",
     )
     _show_write(
-        ctx, await _write_api(ctx, client).set_control_mode(dev_id, node, value)
+        ctx,
+        await _write_api(
+            ctx, client, facts=facts, dev_id=dev_id, node=node
+        ).set_control_mode(dev_id, node, value),
     )
 
 
@@ -122,7 +126,7 @@ async def set_control_mode(
 )
 @click.option("-d", "--device-id", required=True)
 @click.option("-n", "--node-addr", required=True)
-@click.option("--locked", type=bool)
+@click.option("--locked", type=str, metavar="BOOL|0|1|2")
 @click.option("--mode", type=click.Choice(VALID_MODES))
 @click.option("--stemp", type=float)
 @click.option("--units", type=click.Choice(("C", "F")))
@@ -135,7 +139,7 @@ async def set_status(
     ctx: click.Context,
     device_id: str,
     node_addr: str,
-    locked: bool | None,
+    locked: str | None,
     mode: str | None,
     stemp: float | None,
     units: str | None,
@@ -162,7 +166,22 @@ async def set_status(
         raise click.ClickException("nothing to set: use --locked, --mode or --stemp")
     _confirm(ctx, f"set node status on {device_id}/{node_addr}")
     if locked is not None:
-        _show_write(ctx, await writes.set_lock(device_id, node, locked))
+        if node.node_type == "acm":
+            raise click.ClickException(
+                "storage lock uses set-storage-lock (the /lock endpoint)"
+            )
+        facts = await _node_facts(client, device_id, node)
+        kind = lock_kind(facts.node_type, facts.pid, facts.fw_version, facts.setup)
+        value: bool | int
+        if kind == "int":
+            if locked not in ("0", "1", "2"):
+                raise click.ClickException("integer lock expects 0, 1 or 2")
+            value = int(locked)
+        else:
+            if locked.lower() not in ("true", "false", "1", "0"):
+                raise click.ClickException("boolean lock expects true or false")
+            value = locked.lower() in ("true", "1")
+        _show_write(ctx, await writes.set_lock(device_id, node, value))
     if mode is not None:
         _show_write(ctx, await writes.set_mode(device_id, node, mode))
     if stemp is not None and units is not None:
@@ -197,8 +216,9 @@ async def set_setup(
             "--control-mode moved to set-control-mode (label or wire index)"
         )
     client = await _client(ctx)
-    writes = _write_api(ctx, client)
     device_id, node = await _find_node(client, device_id, node_addr)
+    facts = await _node_facts(client, device_id, node)
+    writes = _write_api(ctx, client, facts=facts, dev_id=device_id, node=node)
     extra = (
         _load_json_object(extra_json, "--extra-json")
         if extra_json is not None
@@ -608,7 +628,9 @@ async def set_charging_schedule(
     _confirm(ctx, f"set charging schedule on {dev_id}/{node_addr}")
     _show_write(
         ctx,
-        await _write_api(ctx, client).set_charging_conf(
+        await _write_api(
+            ctx, client, facts=facts, dev_id=dev_id, node=node
+        ).set_charging_conf(
             dev_id,
             node,
             active_days=parsed_days,
@@ -639,7 +661,9 @@ async def set_storage_ui_mode(
     _confirm(ctx, f"set storage UI mode {ui_mode} on {dev_id}/{node_addr}")
     _show_write(
         ctx,
-        await _write_api(ctx, client).set_storage_ui_mode(dev_id, node, int(ui_mode)),
+        await _write_api(
+            ctx, client, facts=facts, dev_id=dev_id, node=node
+        ).set_storage_ui_mode(dev_id, node, int(ui_mode)),
     )
 
 
@@ -763,9 +787,9 @@ async def set_max_stemp_limit(
     _confirm(ctx, f"set max-stemp limit on {dev_id}/{node_addr}")
     _show_write(
         ctx,
-        await _write_api(ctx, client).set_max_stemp_limit(
-            dev_id, node, None if off else limit, units
-        ),
+        await _write_api(
+            ctx, client, facts=facts, dev_id=dev_id, node=node
+        ).set_max_stemp_limit(dev_id, node, None if off else limit, units),
     )
 
 

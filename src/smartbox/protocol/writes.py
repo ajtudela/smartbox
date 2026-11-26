@@ -682,7 +682,7 @@ class WriteApi:
         formatted in the status's scale, so an off-grid Celsius value is
         quantized like any other setpoint. The app's 4-key body always carries
         ``units``; a status without a scale is refused rather than posting a
-        body the app never sends (docs/webapi-spec.md §4 item 4). The engine
+        body the app never sends (hass-smartbox docs/api-contract.md §5.2). The engine
         applies the app's per-profile clamp before calling this primitive.
         """
         provided = [t for t in (ice_temp, eco_temp, comf_temp) if t is not None]
@@ -878,8 +878,8 @@ class WriteApi:
 
         STRINGIFIED, as the vendor app posts ``powerLimit.toFixed(0)``
         (contract §9/E18). ``0`` means no limit; the box endpoint's ``"0"``
-        clear is live-verified (2026-10-18), while node-level acceptance
-        remains unverified, so the value passes through as-is.
+        clear is live-verified (2026-10-18). The pmo node write is a separate
+        endpoint (E47) and passes through the same string form.
         """
         _require_int(value, "power_limit")
         if value < 0:

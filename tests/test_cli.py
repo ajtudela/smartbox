@@ -18,7 +18,7 @@ from smartbox.protocol.auth import TokenBundle
 from smartbox.protocol.client import SmartboxClient
 from smartbox.protocol.errors import SmartboxError
 from smartbox.protocol.reseller import SMARTBOX_GENERIC_BASIC_AUTH
-from smartbox.token_cache import FileTokenCache
+from smartbox.token_cache import FileTokenCache, account_stamp, default_cache_path
 
 _ACCOUNT = "api:1:user@example.test:https://users-api.helki.com"
 
@@ -90,6 +90,63 @@ async def test_forget_tokens_deletes_the_cached_session(tmp_path):
             ],
         )
 
+    assert result.exit_code == 0, result.output
+    assert not path.exists()
+
+
+async def test_forget_tokens_works_for_commands_without_a_client(tmp_path):
+    """`codes` never opens a client; the cache is still cleared."""
+    path = tmp_path / "tokens.json"
+    await FileTokenCache(path, account=_ACCOUNT).async_save(
+        TokenBundle(
+            access_token="a",
+            refresh_token="r",
+            expires_at=datetime.now(UTC) + timedelta(hours=4),
+        )
+    )
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "--token-cache-path",
+            str(path),
+            "--forget-tokens",
+            "codes",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert not path.exists()
+
+
+async def test_forget_tokens_default_path_resolves_the_account(tmp_path, monkeypatch):
+    """The default cache path is cleared without --token-cache-path."""
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    base = "https://users-api.helki.com"
+    path = default_cache_path("api", "1", "user@example.test", base)
+    await FileTokenCache(
+        path,
+        account=account_stamp("api", "1", "user@example.test", base),
+    ).async_save(
+        TokenBundle(
+            access_token="a",
+            refresh_token="r",
+            expires_at=datetime.now(UTC) + timedelta(hours=4),
+        )
+    )
+    result = await CliRunner().invoke(
+        smartbox,
+        [
+            "-a",
+            "api",
+            "-u",
+            "user@example.test",
+            "-i",
+            "1",
+            "--api-host",
+            base,
+            "--forget-tokens",
+            "codes",
+        ],
+    )
     assert result.exit_code == 0, result.output
     assert not path.exists()
 

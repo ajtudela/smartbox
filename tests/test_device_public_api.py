@@ -6,7 +6,13 @@ consumers may rely on.
 
 from __future__ import annotations
 
+import smartbox
 from smartbox import device
+
+
+def test_root_package_binds_device() -> None:
+    assert smartbox.device is device
+
 
 EXPECTED = {
     "PRODUCT_CODES",
