@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from smartbox.device.modes import (
     boost_params_editable,
@@ -34,7 +35,7 @@ from smartbox.device.storage import is_elnur_storage, is_water_storage
 FIXTURE = Path(__file__).parent / "fixtures" / "product_codes.json"
 
 
-def _setup() -> dict[str, object]:
+def _setup() -> dict[str, Any]:
     return {
         "units": "C",
         "power": "2000.0",
