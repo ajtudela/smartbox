@@ -54,9 +54,18 @@ def test_unknown_and_power_codes_keep_the_node_type_default() -> None:
         assert choices[0] == ("PID (15 min. period)", 5)
     assert control_mode_choices("08000000", "thm", {"control_mode": 1}, "C") is None
     htr = control_mode_choices("08000000", "htr", {"control_mode": 4}, "C")
+    assert htr is not None
     assert control_mode_label(htr, 4) == "PID"
 
 
 def test_ui_mode_missing_from_wire_returns_none() -> None:
     """A triac UI offers PID, which the OFF-first storage wire does not contain."""
     assert _choices(HTR_TRIAC_UI, STORAGE_WIRE, MODE_LABELS_C) is None
+
+
+def test_control_mode_edges_return_none() -> None:
+    assert control_mode_choices(None, "htr", {}, "C") is None
+    assert control_mode_choices("0402", "pmo", {}, "C") is None
+    assert control_mode_choices("0199", "thm", {}, "C") is None
+    assert control_mode_label((("A", 1),), None) is None
+    assert control_mode_label((("A", 1),), 99) is None

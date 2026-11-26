@@ -7,6 +7,7 @@ plumbing (no retry on 5xx) and the 401 -> one-resend behaviour.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 import logging
 
 import aiohttp
@@ -1055,3 +1056,135 @@ async def test_thermostat_prog_rejects_non_finite_temperature(sleeps, session, c
     week = {day: [{"m": 360, "t": "nan"}] for day in "0123456"}
     with pytest.raises(ValueError, match="finite"):
         await writes.set_thermostat_prog("dev1", NodeRef("thm", "2"), week, "C")
+
+
+async def test_set_prog_resolution_omits_extra_options_on_legacy_products(
+    sleeps,
+    session,
+    client,
+):
+    """The resolution write honours the legacy omission list too."""
+    grant(session)
+    legacy = WriteApi(client, store=_SetupStore("0102"))
+    session.enqueue(
+        FakeResponse(
+            payload={"priority": "low", "extra_options": {"user_duty_limit": 0}}
+        )
+    )
+    session.enqueue(FakeResponse())
+    await legacy.set_prog_resolution("dev1", NODE, 1)
+    body = posts(session)[-1]["json"]
+    assert "extra_options" not in body
+    assert body["prog_resolution"] == 1
+
+
+async def test_non_mapping_version_keeps_extra_options(sleeps, session, client):
+    """A version slot that is not a mapping leaves the body untouched."""
+
+    class OpaqueVersionStore:
+        def setup(self, _dev_id, _node):
+            return {"extra_options": {"user_duty_limit": 0}}
+
+        def prog(self, _dev_id, _node):
+            return None
+
+        def version(self, _dev_id, _node):
+            return None
+
+    writes = WriteApi(client, store=OpaqueVersionStore())
+    grant(session)
+    session.enqueue(FakeResponse())
+    enabled = True
+    await writes.set_setup_value("dev1", NODE, "window_mode_enabled", enabled)
+    assert posts(session)[-1]["json"]["extra_options"] == {"user_duty_limit": 0}
+
+
+async def test_writes_reject_malformed_input_before_any_network_call(
+    sleeps,
+    session,
+    client,
+):
+    """Every write validates its own inputs and posts nothing when it refuses."""
+    writes = WriteApi(client)
+    thm = NodeRef("thm", "2")
+    week = {day: [{"m": 360, "t": 19}] for day in "0123456"}
+    cases: list[tuple[Callable[[], Awaitable[object]], str]] = [
+        (lambda: writes.set_boost_legacy("dev1", NODE, on=True), "needs temperature"),
+        (
+            lambda: writes.set_boost_legacy("dev1", NODE, on=False, temperature=20.0),
+            "inactive legacy boost",
+        ),
+        (lambda: writes.set_target_charge("dev1", NODE, 50), "0 or 100"),
+        (
+            lambda: writes.set_storage_mode("dev1", NODE, mode="bogus"),
+            "mode must be one of",
+        ),
+        (
+            lambda: writes.set_thermostat_prog("dev1", thm, [{"m": 360, "t": 19}], "C"),  # type: ignore[arg-type]
+            "day mapping",
+        ),
+        (
+            lambda: writes.set_thermostat_prog("dev1", thm, {**week, "7": []}, "C"),
+            "unknown thermostat day keys",
+        ),
+        (
+            lambda: writes.set_thermostat_prog(
+                "dev1", thm, {**week, "0": {"m": 360}}, "C"
+            ),  # type: ignore[dict-item]
+            "must be a list",
+        ),
+        (
+            lambda: writes.set_thermostat_prog("dev1", thm, {**week, "0": [19.0]}, "C"),  # type: ignore[list-item]
+            "segment must be a mapping",
+        ),
+        (
+            lambda: writes.set_thermostat_prog(
+                "dev1",
+                thm,
+                {**week, "0": [{"m": "360", "t": 19}]},
+                "C",  # type: ignore[list-item]
+            ),
+            "m must be an int",
+        ),
+        (
+            lambda: writes.set_thermostat_prog(
+                "dev1", thm, {**week, "0": [{"m": 1441, "t": 19}]}, "C"
+            ),
+            "0..1440",
+        ),
+        (
+            lambda: writes.set_thermostat_prog(
+                "dev1", thm, {**week, "0": [{"m": 360, "t": True}]}, "C"
+            ),
+            "t must be a number",
+        ),
+        (
+            lambda: writes.set_thermostat_prog(
+                "dev1", thm, {**week, "0": [{"m": 360, "t": "x"}]}, "C"
+            ),
+            "t must be a number",
+        ),
+        (
+            lambda: writes.set_charging_conf("dev1", NODE, active_days=[1] * 6),
+            "7 entries",
+        ),
+        (
+            lambda: writes.set_charging_conf(
+                "dev1",
+                NODE,
+                slot_1={"start": "0", "end": 10},  # type: ignore[dict-item]
+            ),
+            "integer start/end",
+        ),
+        (lambda: writes.set_storage_ui_mode("dev1", NODE, 3), "0/1/2"),
+        (
+            lambda: writes.set_boost_mode(
+                "dev1", NODE, active=True, mode="runback", time_minutes=-1
+            ),
+            ">= 0",
+        ),
+    ]
+    for call, message in cases:
+        with pytest.raises(ValueError, match=message):
+            await call()
+    assert session.calls == []

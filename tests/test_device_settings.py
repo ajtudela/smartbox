@@ -1,5 +1,7 @@
 """Neutral setting gates."""
 
+from typing import Any
+
 from smartbox.device.settings import (
     away_offset_available,
     boost_available,
@@ -13,7 +15,7 @@ from smartbox.device.settings import (
     window_mode_available,
 )
 
-BASE_SETUP = {
+BASE_SETUP: dict[str, Any] = {
     "units": "C",
     "away_offset": "2.0",
     "max_stemp_limit": "30.0",
@@ -86,3 +88,31 @@ def test_pir_gate_reads_the_extra_option() -> None:
     assert pir_enabled({"extra_options": {"pir_enabled": False}}) is False
     assert pir_enabled({"extra_options": {"pir_enabled": "true"}}) is False
     assert pir_enabled({}) is False
+
+
+def test_setting_gates_reject_unsupported_shapes() -> None:
+    assert window_mode_available("acm", "082A0000", BASE_SETUP) is False
+    assert true_radiant_available("acm", "082A0000", BASE_SETUP) is False
+    assert away_offset_available("htr_mod", "010A0000", BASE_SETUP) is False
+    assert away_offset_available("acm", "082A0000", BASE_SETUP) is False
+    assert away_offset_available("htr", "04020000", {}) is False
+
+
+def test_max_temp_gate_rejects_unknown_and_htr_mod() -> None:
+    assert max_temp_limit_available("htr", None, BASE_SETUP) is False
+    assert max_temp_limit_available("htr_mod", "010A0000", BASE_SETUP) is False
+    assert max_temp_limit_available("htr", "010A0100", BASE_SETUP) is False
+    assert max_temp_limit_available("thm", "01280000", BASE_SETUP) is False
+
+
+def test_duty_limit_options_returns_empty_without_the_gate_keys() -> None:
+    assert duty_limit_options(BASE_SETUP, None) == ()
+    assert duty_limit_options(BASE_SETUP, "04020000") == ()
+    assert duty_limit_options({"extra_options": {}}, "01320000") == ()
+    assert (
+        duty_limit_options(
+            {"power": "0", "extra_options": {"user_duty_limit": 0}},
+            "01320000",
+        )
+        == ()
+    )

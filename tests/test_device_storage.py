@@ -9,6 +9,7 @@ from smartbox.device.storage import (
     classic_accumulator,
     current_mode,
     is_elnur_stepped_storage,
+    lock_endpoint,
     ui_mode_available,
     ui_mode_options,
     write_for,
@@ -120,3 +121,47 @@ def test_e2_extra_energy_hides_auto_outside_confort() -> None:
 
     # Code 14 does not inherit the E2 override.
     assert StorageIntent.AUTO in available_modes("acm", "08140000", setup)
+
+
+def test_storage_current_mode_and_write_branches() -> None:
+    assert current_mode("htr", "04020000", {}, {}) is None
+    assert (
+        current_mode("acm", "08140000", CLASSIC, {"mode": "off"}) is StorageIntent.OFF
+    )
+    assert (
+        current_mode("acm", "08140000", CLASSIC, {"target_charge_per": 0})
+        is StorageIntent.OFF
+    )
+    assert (
+        current_mode("acm", "08140000", CLASSIC, {"target_charge_per": 50})
+        is StorageIntent.HEAT
+    )
+    assert current_mode("acm", "081C0000", HELKI_MANUAL, {}) is StorageIntent.OFF
+
+    assert write_for("htr", "04020000", {}, StorageIntent.HEAT) is None
+    heat = write_for("acm", "08140000", CLASSIC, StorageIntent.HEAT)
+    assert heat is not None
+    assert heat.target_charge == 100
+    off = write_for("acm", "08140000", CLASSIC, StorageIntent.OFF)
+    assert off is not None
+    assert off.target_charge == 0
+    assert write_for("acm", "08140000", CLASSIC, StorageIntent.AUTO) is None
+
+    water = {"extra_nrg_conf": {"enabled": True, "mode": 0}}
+    assert write_for("acm", "082A0000", water, StorageIntent.HEAT) is not None
+    water["extra_nrg_conf"] = {"enabled": True, "mode": 1}
+    assert write_for("acm", "082A0000", water, StorageIntent.HEAT) is None
+
+    assert boost_supported("htr", "04020000") is False
+    assert boost_supported("acm", "081C0000") is True
+    assert boost_supported("acm", "08140000") is False
+    assert lock_endpoint("acm") is True
+    assert lock_endpoint("htr") is False
+
+
+def test_non_storage_nodes_keep_the_plain_heater_modes() -> None:
+    assert available_modes("htr", "04020000", {}) == [
+        StorageIntent.HEAT,
+        StorageIntent.AUTO,
+        StorageIntent.OFF,
+    ]
