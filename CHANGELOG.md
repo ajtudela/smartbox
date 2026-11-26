@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.3.0
+## 3.3.0rc1
 
 ### Compatibility notes (3.3.0)
 
