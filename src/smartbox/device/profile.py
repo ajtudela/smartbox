@@ -200,6 +200,27 @@ def is_htr_mod_controller(pid: str | None, node_type: str | None = None) -> bool
     return is_htr_mod_code(product_code(pid), node_type)
 
 
+def diagnostic_fields(pid: str | None, node_type: str | None = None) -> frozenset[str]:
+    """Return the diagnostic status fields a heater controller reports.
+
+    ``pcb_temp``, ``error_code`` and ``true_radiant_active`` are common to the
+    htr/htr_mod status families. TRIAC controllers add ``act_duty`` and
+    ``power_pcb_temp``; the WiFi heater product also reports
+    ``power_fail_det``. Base relay heaters report none of those three.
+    """
+    if node_type not in ("htr", "htr_mod"):
+        return frozenset()
+    info = code_info(pid)
+    if info is None:
+        return frozenset()
+    fields = {"error_code", "pcb_temp", "true_radiant_active"}
+    if info.actuation == "TRIAC":
+        fields.update({"act_duty", "power_pcb_temp"})
+    if info.code == "32":
+        fields.add("power_fail_det")
+    return frozenset(fields)
+
+
 # ESensorModeValue.FLOOR_PROBE: the only sensor is the floor probe.
 SENSOR_MODE_FLOOR_PROBE = 2
 SENSOR_MODE_NO_PROBES = 3
@@ -534,6 +555,7 @@ __all__ = [
     "boost_temperature_bounds",
     "climate_bounds",
     "controller_limits",
+    "diagnostic_fields",
     "firmware_at_least",
     "htr_mod_policy",
     "is_heater_surface",
