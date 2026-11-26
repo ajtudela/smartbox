@@ -7,6 +7,7 @@ generated from this module.
 
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 from typing import Any
@@ -18,10 +19,15 @@ from smartbox.device.modes import (
     supports_runback,
 )
 from smartbox.device.profile import (
+    HAVERLAND_HTR_MOD_POLICY,
     diagnostic_fields,
+    firmware_at_least,
+    htr_mod_policy,
     is_heater_surface,
+    is_htr_mod_node,
     is_thermostat_surface,
     profile_bounds,
+    prog_bounds_c,
     resolve_profile,
     resolve_stored_profile,
 )
@@ -328,3 +334,34 @@ def test_diagnostic_fields_are_gated_by_controller_family() -> None:
     }
     assert diagnostic_fields(None, "htr") == frozenset()
     assert diagnostic_fields("01320000", "acm") == frozenset()
+
+
+def test_firmware_comparison_edges() -> None:
+    assert firmware_at_least(None, "1.8") is False
+    assert firmware_at_least("1.x", "1.8") is False
+    assert firmware_at_least("1.8.1", "1.8") is True
+
+
+def test_htr_mod_policy_and_node_fallback() -> None:
+    assert htr_mod_policy(None) is HAVERLAND_HTR_MOD_POLICY
+    assert htr_mod_policy("0a") is HAVERLAND_HTR_MOD_POLICY
+    assert htr_mod_policy("1a") is None
+    assert is_htr_mod_node("0A", "htr") is True
+    assert is_htr_mod_node("0199", "htr_mod") is True
+    assert is_htr_mod_node(None, "htr_mod") is True
+    assert is_htr_mod_node("0402", "htr") is False
+
+
+def test_profile_and_prog_bounds_edge_profiles() -> None:
+    limits = resolve_profile("htr", "04020000", "1.9", {}).limits
+    assert profile_bounds(limits, "off") is None
+    assert profile_bounds(replace(limits, ice_editable=False), "frost") is None
+    assert prog_bounds_c(replace(limits, htr_mod=True)) is None
+
+
+def test_unreadable_stored_bounds_keep_the_controller_defaults() -> None:
+    profile = resolve_profile(
+        "acm", "081C0000", "1.9", {"min_stemp": "abc", "max_stemp": None}
+    )
+    assert profile.limits.min_c == 5.0
+    assert profile.limits.max_c == 30.0

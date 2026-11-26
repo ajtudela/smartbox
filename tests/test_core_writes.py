@@ -1981,3 +1981,116 @@ async def test_legacy_boost_omits_extra_options_and_still_activates():
         assert host.posts[1][1] == {"boost": True}
     finally:
         await engine.stop()
+
+
+class RecordingWriteApi:
+    """Records the named WriteApi call each engine wrapper delegates to."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, tuple, dict]] = []
+
+    def __getattr__(self, name: str):
+        async def record(*args, **kwargs):
+            self.calls.append((name, args, kwargs))
+            return ("devs/x", {})
+
+        return record
+
+
+async def test_engine_write_wrappers_delegate_to_the_named_api_calls(monkeypatch):
+    """Every thin write wrapper reaches its WriteApi member with the arguments."""
+    engine = SmartboxEngine(AcceptingHost())
+    api = RecordingWriteApi()
+
+    async def record_write(dev_id, node, fn):
+        await fn(api)
+
+    monkeypatch.setattr(engine, "_write", record_write)
+
+    await engine.set_target_charge("dev1", NODE_REF, 100)
+    await engine.set_lock_endpoint("dev1", NODE_REF, 1)
+    await engine.set_charging_conf("dev1", NODE_REF, active_days=[1] * 7)
+    await engine.set_storage_ui_mode("dev1", NODE_REF, 1)
+    await engine.set_easy("dev1", NODE_REF, ON)
+    await engine.set_runback("dev1", NODE_REF, ON)
+    await engine.set_setup_value("dev1", NODE_REF, "window_mode_enabled", ON)
+    await engine.set_prog_resolution("dev1", NODE_REF, 1)
+    await engine.set_true_radiant("dev1", NODE_REF, ON)
+
+    assert [name for name, _args, _kwargs in api.calls] == [
+        "set_target_charge",
+        "set_lock_endpoint",
+        "set_charging_conf",
+        "set_storage_ui_mode",
+        "set_easy",
+        "set_runback",
+        "set_setup_value",
+        "set_prog_resolution",
+        "set_true_radiant",
+    ]
+    assert api.calls[0][1] == ("dev1", NODE_REF, 100)
+    assert api.calls[2][2] == {"active_days": [1] * 7, "slot_1": None, "slot_2": None}
+    assert api.calls[6][1] == ("dev1", NODE_REF, "window_mode_enabled", True)
+    assert api.calls[7][1] == ("dev1", NODE_REF, 1)
+
+
+@pytest.mark.parametrize(
+    ("status", "setup", "expected"),
+    [
+        (
+            {"sync_status": "ok"},
+            {"units": "C"},
+            {"stemp": "20.0", "boost_time": 60, "units": "C"},
+        ),
+        (
+            {"sync_status": "ok", "units": "F"},
+            {"units": "F"},
+            {"stemp": "68.0", "boost_time": 60, "units": "F"},
+        ),
+        (
+            {"sync_status": "ok", "units": "C"},
+            {"units": "C", "extra_options": {"boost_temp": "22.0", "boost_time": 45}},
+            {"stemp": "22.0", "boost_time": 45, "units": "C"},
+        ),
+        (
+            {"sync_status": "ok", "units": "F"},
+            {"units": "F", "extra_options": {"version": 2, "boost_temp": "71.6"}},
+            {"stemp": "22.0", "boost_time": 60, "units": "F"},
+        ),
+    ],
+)
+async def test_storage_boost_derives_missing_parameters(status, setup, expected):
+    """Storage activation falls back to status, extra_options and defaults."""
+    acm = NodeRef("acm", "1")
+    host = AcceptingHost()
+    engine, _recorder, _fake, _transport = await make_host_engine(
+        host, node=acm, status=status, setup=setup
+    )
+    try:
+        await engine.set_boost("dev1", acm, on=True)
+        assert host.posts[-1][1] == {"boost": True, **expected}
+    finally:
+        await engine.stop()
+
+
+async def test_optimistic_merges_skip_unknown_and_unchanged_payloads():
+    """Merge helpers return no change for unknown slots and equal payloads."""
+    engine, _recorder, _fake, transport = await make_engine()
+    try:
+        assert (
+            engine._optimistic_legacy_boost_merge("nope", "htr/2", {"boost": ON}) == []
+        )
+        assert (
+            engine._optimistic_legacy_boost_merge("dev1", "acm/9", {"boost": ON}) == []
+        )
+        assert engine._optimistic_away_merge("dev1", {"forced": ON}) == []
+        assert engine._optimistic_power_limit("dev1", {"power_limit": "bad"}) == []
+        assert engine._optimistic_power_limit("dev1", {"power_limit": "1500"})
+        assert engine._optimistic_power_limit("dev1", {"power_limit": "1500"}) == []
+        await deliver_status(transport, {**STATUS, "boost": False})
+        assert (
+            engine._optimistic_legacy_boost_merge("dev1", "htr/2", {"boost": False})
+            == []
+        )
+    finally:
+        await engine.stop()

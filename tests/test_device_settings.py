@@ -7,6 +7,7 @@ from smartbox.device.settings import (
     boost_available,
     duty_limit_available,
     duty_limit_options,
+    duty_limit_value,
     max_temp_limit_available,
     pir_enabled,
     priority_available,
@@ -115,4 +116,48 @@ def test_duty_limit_options_returns_empty_without_the_gate_keys() -> None:
             "01320000",
         )
         == ()
+    )
+
+
+def test_floor_thermostat_gates_follow_no_probes() -> None:
+    no_probes = {"extra_options": {"sensor_mode": 3}}
+    assert window_mode_available("thm", "01280000", no_probes) is False
+    assert true_radiant_available("thm", "01280000", no_probes) is False
+    assert boost_available(no_probes, node_type="thm", pid="01280000") is False
+
+
+def test_prog_temps_gate_rejects_htr_mod_and_no_probes() -> None:
+    assert prog_temps_available("htr", "010A0000", "1.9", {}) is False
+    no_probes = {"extra_options": {"sensor_mode": 3}}
+    assert prog_temps_available("thm", "01280000", "1.9", no_probes) is False
+
+
+def test_duty_limit_value_reads_the_stored_factor() -> None:
+    assert duty_limit_value({"extra_options": {"user_duty_limit": "50"}}) == 50
+    assert duty_limit_value({}) is None
+    assert duty_limit_value({"extra_options": {"user_duty_limit": "x"}}) is None
+
+
+def test_duty_limit_options_skip_unreadable_and_unavailable_presets() -> None:
+    setup = {
+        "power": "1500",
+        "extra_options": {"user_duty_limit": 0},
+        "factory_options": {"lst_available": True, "lst_value": 0},
+    }
+    assert duty_limit_options(setup, "01320000") == (("Off", 0),)
+    assert duty_limit_available(None, setup) is False
+    assert duty_limit_available("04020000", setup) is False
+
+
+def test_lhz_duty_choices_skip_duplicate_values() -> None:
+    setup = {
+        "power": "1500",
+        "extra_options": {"user_duty_limit": 0},
+        "factory_options": {"lst_available": True, "lst_value": 80},
+    }
+    assert duty_limit_options(setup, "01330000") == (
+        ("Off", 0),
+        ("70 %", 70),
+        ("80 %", 80),
+        ("90 %", 90),
     )

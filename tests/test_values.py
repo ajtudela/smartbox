@@ -16,6 +16,8 @@ from smartbox.protocol.values import (
     prog_days,
     require_number,
     same_wire_value,
+    thermostat_days_equal,
+    thermostat_prog_days,
     validate_prog_days,
 )
 
@@ -289,3 +291,33 @@ def test_node_units_to_celsius_snaps_fahrenheit_to_the_half_grid():
     assert node_units_to_celsius(75.0, "F") == 24.0
     assert node_units_to_celsius(86.0, "F") == 30.0
     assert node_units_to_celsius(70.0, "F") == 21.0
+
+
+@pytest.mark.parametrize(
+    "slot",
+    [
+        "nope",
+        {"7": []},
+        {"0": "x"},
+        {"0": [19.0]},
+        {"0": [{"m": True, "t": 19}]},
+        {"0": [{"m": 360, "t": True}]},
+    ],
+)
+def test_thermostat_prog_days_rejects_malformed_shapes(slot):
+    assert thermostat_prog_days(slot) is None
+
+
+def test_thermostat_prog_days_reads_both_shapes():
+    day = [{"m": 360, "t": 19}]
+    assert thermostat_prog_days({"prog": {"0": day}}) == {"0": day}
+    assert thermostat_prog_days({"0": day}) == {"0": day}
+
+
+def test_thermostat_days_equal_compares_segment_by_segment():
+    assert thermostat_days_equal("left", ["right"]) is False
+    assert thermostat_days_equal([1], [1, 2]) is False
+    assert thermostat_days_equal([1], ["1"]) is False
+    assert thermostat_days_equal([{"m": 1, "t": 19}], [{"m": 2, "t": 19}]) is False
+    assert thermostat_days_equal([{"m": 1, "t": 19}], [{"m": 1, "t": 20}]) is False
+    assert thermostat_days_equal([{"m": 1, "t": 19}], [{"m": 1, "t": "19"}]) is True
