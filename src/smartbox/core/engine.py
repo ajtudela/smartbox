@@ -1285,6 +1285,16 @@ class SmartboxEngine:
             dev_id, node, lambda api: api.set_setup_value(dev_id, node, key, value)
         )
 
+    async def set_prog_resolution(
+        self, dev_id: str, node: NodeRef, resolution: int
+    ) -> None:
+        """Write the programme resolution (0 hourly, 1 half-hourly)."""
+        await self._write(
+            dev_id,
+            node,
+            lambda api: api.set_prog_resolution(dev_id, node, resolution),
+        )
+
     async def set_window_mode(self, dev_id: str, node: NodeRef, enabled: bool) -> None:
         """Write the setup window-mode key (GET-merge-POST)."""
         await self._write(

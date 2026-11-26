@@ -795,6 +795,29 @@ class WriteApi:
         """
         return await self._setup_write(dev_id, node, key, value)
 
+    async def set_prog_resolution(
+        self, dev_id: str, node: NodeRef, resolution: int
+    ) -> tuple[str, dict[str, Any]]:
+        """GET-merge-POST both programme-resolution setup keys.
+
+        The app sends ``prog_resol`` and ``prog_resolution`` together; 0 is
+        hourly and 1 is half-hourly.
+        """
+        if isinstance(resolution, bool) or resolution not in (0, 1):
+            msg = f"resolution must be 0 or 1, got: {resolution!r}"
+            raise ValueError(msg)
+        current = await self._setup_base(dev_id, node)
+        body = {**current, "prog_resol": resolution, "prog_resolution": resolution}
+        if self._omit_extra_options(dev_id, node):
+            body.pop("extra_options", None)
+        return await self._post(
+            node_path(dev_id, node, "setup"),
+            body,
+            dev_id=dev_id,
+            node=node,
+            slot="setup",
+        )
+
     async def set_priority(
         self, dev_id: str, node: NodeRef, priority: str
     ) -> tuple[str, dict[str, Any]]:

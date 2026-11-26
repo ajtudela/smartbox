@@ -522,6 +522,25 @@ async def test_set_setup_value_merges_one_key(sleeps, session, client, writes):
     assert posts(session)[0]["json"] == {"priority": "low", "future_setting": 2}
 
 
+async def test_set_prog_resolution_merges_both_keys(sleeps, session, client, writes):
+    grant(session)
+    session.enqueue(FakeResponse(payload={"priority": "low"}))
+    session.enqueue(FakeResponse())
+    await writes.set_prog_resolution("dev1", NODE, 1)
+    assert posts(session)[0]["json"] == {
+        "priority": "low",
+        "prog_resol": 1,
+        "prog_resolution": 1,
+    }
+
+
+async def test_set_prog_resolution_rejects_other_values(
+    sleeps, session, client, writes
+):
+    with pytest.raises(ValueError, match="resolution"):
+        await writes.set_prog_resolution("dev1", NODE, 2)
+
+
 @pytest.mark.parametrize("priority", ["low", "medium", "high"])
 async def test_set_priority(sleeps, session, client, writes, priority):
     grant(session)

@@ -28,6 +28,9 @@
 * `smartbox.device.profile.diagnostic_fields()`: decoded status-field
   availability for the common htr/htr_mod telemetry, TRIAC act-duty and
   power-PCB temperatures, and the WiFi heater power-failure flag.
+* `WriteApi.set_prog_resolution()` and `SmartboxEngine.set_prog_resolution()`:
+  write the vendor app's `prog_resol`/`prog_resolution` setup pair for the
+  hourly/half-hourly schedule editor.
 * `smartbox.device.codes`: one reviewed product-code table (51 rows with
   family, actuation, limits family, surface, label and capability flags).
   `profile` and `control_modes` derive their code sets and maps from it. The
