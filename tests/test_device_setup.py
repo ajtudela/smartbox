@@ -14,7 +14,7 @@ def test_setup_view_accessors() -> None:
             "operational_mode": 1,
             "power_limit": "1000",
             "max_stemp_limit": "0.0",
-            "factory_options": {"ui_mode": 2, "boost_config": 3},
+            "factory_options": {"ui_mode": 2, "boost_config": 3, "model": 1},
             "extra_options": {"sensor_mode": 3, "user_duty_limit": 25},
             "extra_nrg_conf": {"enabled": True, "mode": 1},
         }
@@ -24,6 +24,7 @@ def test_setup_view_accessors() -> None:
     assert view.operational_mode == 1
     assert view.max_stemp_limit is None
     assert view.ui_mode == 2
+    assert view.elnur_model == 1
     assert view.sensor_mode == 3
     assert view.extra_options["user_duty_limit"] == 25
     assert view.extra_nrg_enabled is True
@@ -39,6 +40,8 @@ def test_setup_view_normalizes_non_mappings_and_bools() -> None:
     )
     assert view.control_mode is None
     assert view.ui_mode is None
+    assert view.elnur_model is None
+    assert SetupView({"factory_options": {"model": "1"}}).elnur_model is None
     assert SetupView({"operational_mode": 1.0}).operational_mode == 1
     assert SetupView({"operational_mode": 1.5}).operational_mode is None
 

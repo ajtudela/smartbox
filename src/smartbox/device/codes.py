@@ -68,12 +68,14 @@ class ProductCode:
     water: bool = False
     stepped_charge: bool = False
     extra_energy: bool = False
+    fan: bool = False
+    power_level_limit: bool = False
 
 
 PRODUCT_CODES: dict[str, ProductCode] = {
     # Row order: code, family, actuation, limits_family, surface, label,
     # supports_extra_options, then the optional lhz_duty/thm_heater/
-    # fixed_time_boost/water/stepped_charge flags.
+    # fixed_time_boost/water/stepped_charge/extra_energy/fan/power_level_limit flags.
     "00": ProductCode(
         "00", "htr", "TRIAC", "base", "heater", "Heater", supports_extra_options=True
     ),
@@ -317,6 +319,7 @@ PRODUCT_CODES: dict[str, ProductCode] = {
         "Storage heater",
         supports_extra_options=True,
         extra_energy=True,
+        power_level_limit=True,
     ),
     "21": ProductCode(
         "21",
@@ -357,6 +360,8 @@ PRODUCT_CODES: dict[str, ProductCode] = {
         "Storage heater",
         supports_extra_options=True,
         extra_energy=True,
+        fan=True,
+        power_level_limit=True,
     ),
     "27": ProductCode(
         "27", "htr", "TRIAC", "pir", "heater", "Heater", supports_extra_options=True

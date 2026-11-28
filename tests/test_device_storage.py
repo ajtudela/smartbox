@@ -3,6 +3,7 @@
 from smartbox.device.codes import PRODUCT_CODES
 from smartbox.device.profile import ELNUR_STORAGE_CODES
 from smartbox.device.storage import (
+    StorageActivity,
     StorageIntent,
     available_modes,
     boost_supported,
@@ -10,6 +11,7 @@ from smartbox.device.storage import (
     current_mode,
     is_elnur_stepped_storage,
     lock_endpoint,
+    storage_activity,
     ui_mode_available,
     ui_mode_options,
     write_for,
@@ -165,3 +167,62 @@ def test_non_storage_nodes_keep_the_plain_heater_modes() -> None:
         StorageIntent.AUTO,
         StorageIntent.OFF,
     ]
+
+
+def test_storage_activity_follows_the_controller_class() -> None:
+    """Elnur 14/20 use ACTIVE, the fan uses FAN/ACTIVE, Helki charging, water its level."""
+    assert storage_activity("htr", "04020000", {}) is None
+
+    assert (
+        storage_activity("acm", "08140000", {"active": True}) is StorageActivity.ACTIVE
+    )
+    assert (
+        storage_activity("acm", "08140000", {"heating": True}) is StorageActivity.ACTIVE
+    )
+    assert (
+        storage_activity("acm", "08140000", {"charging": True}) is StorageActivity.IDLE
+    )
+
+    assert (
+        storage_activity("acm", "08250000", {"venting": True, "heating": False})
+        is StorageActivity.FAN
+    )
+    assert (
+        storage_activity("acm", "08250000", {"venting": True, "heating": True})
+        is StorageActivity.ACTIVE
+    )
+    assert (
+        storage_activity("acm", "08250000", {"venting": False, "heating": True})
+        is StorageActivity.IDLE
+    )
+    assert (
+        storage_activity("acm", "08250000", {"active": True, "heating": False})
+        is StorageActivity.IDLE
+    )
+
+    assert (
+        storage_activity("acm", "081C0000", {"charging": True})
+        is StorageActivity.ACTIVE
+    )
+    assert storage_activity("acm", "081C0000", {"active": True}) is StorageActivity.IDLE
+
+    assert (
+        storage_activity("acm", "082A0000", {"charging": True, "charge_level": 40})
+        is StorageActivity.ACTIVE
+    )
+    assert (
+        storage_activity("acm", "082A0000", {"charging": True, "charge_level": 50})
+        is StorageActivity.IDLE
+    )
+    assert (
+        storage_activity("acm", "082A0000", {"charging": False, "charge_level": 40})
+        is StorageActivity.IDLE
+    )
+    assert (
+        storage_activity("acm", "082A0000", {"charging": "true", "charge_level": 40})
+        is StorageActivity.IDLE
+    )
+    assert (
+        storage_activity("acm", "082A0000", {"charging": True})
+        is StorageActivity.ACTIVE
+    )

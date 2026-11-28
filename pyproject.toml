@@ -1,6 +1,6 @@
 [project]
 name = "smartbox"
-version = "3.3.0rc1"
+version = "3.3.0rc2"
 requires-python = ">=3.14.2"
 authors = [
   { name="Alberto Tudela", email="ajtudela@gmail.com" },

@@ -22,6 +22,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 
+from smartbox.protocol.values import parse_number_or_none
+
 from .codes import PRODUCT_CODES, code_info
 from .profile import ELNUR_STORAGE_CODES, HELKI_STORAGE_CODES, product_code
 from .setup import SetupView
@@ -30,7 +32,14 @@ UI_MODE_ECOMBI = 0
 UI_MODE_CLASSIC_COMBINED = 1
 UI_MODE_CLASSIC_ACCUMULATOR = 2
 
+ELNUR_MODEL_ECOMBI = 0
+ELNUR_MODEL_PRO = 1
+ELNUR_MODEL_E2 = 2
+ELNUR_MODEL_ARC = 3
+
 WATER_STORAGE_CODE = next(code for code, info in PRODUCT_CODES.items() if info.water)
+WATER_READY_LEVEL = 50
+WATER_FULLY_READY_LEVEL = 100
 ELNUR_STEPPED_STORAGE_CODE = next(
     code for code, info in PRODUCT_CODES.items() if info.stepped_charge
 )
@@ -48,6 +57,14 @@ class StorageIntent(StrEnum):
     HEAT = "heat"
     AUTO = "auto"
     OFF = "off"
+
+
+class StorageActivity(StrEnum):
+    """Neutral storage-heater activity indicator."""
+
+    ACTIVE = "active"
+    FAN = "fan"
+    IDLE = "idle"
 
 
 @dataclass(frozen=True)
@@ -265,6 +282,47 @@ def write_for(  # noqa: PLR0911 - one return per mode
     return None
 
 
+def storage_activity(
+    node_type: str,
+    pid: str | None,
+    status: Mapping[str, object],
+) -> StorageActivity | None:
+    """Return the controller's ACTIVE indicator, or None off storage.
+
+    The indicator follows the decoded controller class: Elnur ``14``/``20``
+    inherit the base heater ``active || heating``; the Elnur fan removes ACTIVE
+    and reports ``FAN`` (``venting && !heating``) and ``FAN_AND_RESISTOR``
+    (``venting && heating``), with the neutral ``ACTIVE`` standing in for the
+    latter; Helki ``1C``/``2E`` (and an unknown ``acm``) use ``charging``;
+    water ``2A`` uses ``charging && charge_level != 50``
+    (docs/api-contract.md §3.4).
+    """
+    if node_type != "acm":
+        return None
+    info = code_info(pid)
+    if is_water_storage(pid):
+        active = status.get("charging") is True and (
+            parse_number_or_none(status.get("charge_level")) != WATER_READY_LEVEL
+        )
+        return StorageActivity.ACTIVE if active else StorageActivity.IDLE
+    if info is not None and info.fan:
+        if status.get("venting") is not True:
+            activity = StorageActivity.IDLE
+        elif status.get("heating") is True:
+            activity = StorageActivity.ACTIVE
+        else:
+            activity = StorageActivity.FAN
+        return activity
+    if is_elnur_storage(pid):
+        active = status.get("active") is True or status.get("heating") is True
+        return StorageActivity.ACTIVE if active else StorageActivity.IDLE
+    return (
+        StorageActivity.ACTIVE
+        if status.get("charging") is True
+        else StorageActivity.IDLE
+    )
+
+
 def boost_supported(node_type: str, pid: str | None) -> bool:
     """Storage boost is the Helki 1C/2E ``/boost`` path."""
     return node_type == "acm" and not is_elnur_storage(pid)
@@ -276,6 +334,7 @@ def lock_endpoint(node_type: str) -> bool:
 
 
 __all__ = [
+    "ELNUR_MODEL_PRO",
     "ELNUR_STEPPED_STORAGE_CODE",
     "EXTRA_ENERGY_MODE_COMBINED",
     "EXTRA_ENERGY_MODE_CONFORT",
@@ -285,7 +344,10 @@ __all__ = [
     "UI_MODE_CLASSIC_ACCUMULATOR",
     "UI_MODE_CLASSIC_COMBINED",
     "UI_MODE_ECOMBI",
+    "WATER_FULLY_READY_LEVEL",
+    "WATER_READY_LEVEL",
     "WATER_STORAGE_CODE",
+    "StorageActivity",
     "StorageIntent",
     "StorageWrite",
     "available_modes",
@@ -300,6 +362,7 @@ __all__ = [
     "lock_endpoint",
     "modes_for_intent",
     "operational_mode",
+    "storage_activity",
     "ui_mode",
     "ui_mode_available",
     "ui_mode_options",

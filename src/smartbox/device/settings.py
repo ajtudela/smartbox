@@ -17,7 +17,7 @@ from collections.abc import Mapping
 from smartbox.core.merging import boost_config
 from smartbox.protocol.values import BoostConfig, parse_number_or_none
 
-from .codes import accepts_extra_options
+from .codes import accepts_extra_options, code_info
 from .profile import (
     controller_limits,
     firmware_at_least,
@@ -34,10 +34,12 @@ from .profile import (
 )
 from .setup import SetupView
 from .storage import (
+    ELNUR_MODEL_PRO,
     UI_MODE_CLASSIC_ACCUMULATOR,
     UI_MODE_CLASSIC_COMBINED,
     boost_supported as storage_boost_supported,
     is_elnur_storage,
+    is_helki_storage,
     is_water_storage,
     ui_mode,
 )
@@ -98,6 +100,102 @@ def away_offset_available(
     if _floor_thermostat_no_probes(node_type, pid, setup) or is_water_storage(pid):
         return False
     return "away_offset" in setup
+
+
+def true_radiant_indicator_available(
+    node_type: str, pid: str | None, setup: Mapping[str, object]
+) -> bool:
+    """Whether the controller advertises the true-radiant status indicator.
+
+    The base ``ElectricHeaterController.getStatusIndicators`` reads
+    ``status.true_radiant_active`` for every heater surface, and the setup's
+    ``factory_options.true_radiant_available`` says whether the hardware has
+    the feature. The indicator predicate deliberately does not reuse the
+    switch gate: the classic Elnur UI hides the *setting* while the status
+    field can still be present.
+    """
+    if not is_heater_surface(node_type, pid):
+        return False
+    return bool(SetupView(setup).factory_options.get("true_radiant_available"))
+
+
+def extra_energy_indicator_available(
+    node_type: str, pid: str | None, setup: Mapping[str, object]
+) -> bool:
+    """Whether the E2 ``using_extra_nrg`` status indicator applies.
+
+    The Elnur E2 controllers (``20``/``25``) and the water controller (``2A``,
+    an E2 subclass) add E2_USAGE when the E2 capability is active; the app
+    disables that capability for the ``PRO`` model (docs/api-contract.md §3.4).
+    """
+    info = code_info(pid)
+    if node_type != "acm" or info is None or not (info.extra_energy or info.water):
+        return False
+    if info.fan:
+        # ElnurE2StorageHeaterFanController sets E2_USAGE unconditionally;
+        # the PRO gate belongs to the inherited E2 controller, not the fan.
+        return True
+    return SetupView(setup).elnur_model != ELNUR_MODEL_PRO
+
+
+def venting_indicator_available(node_type: str, pid: str | None) -> bool:
+    """Whether the controller reads ``status.venting``.
+
+    Only the Elnur E2 storage controller with the fan (code ``25``) reports
+    it; the Helki storage fan uses :func:`ventilation_indicator_available`.
+    """
+    info = code_info(pid)
+    return node_type == "acm" and bool(info and info.fan)
+
+
+def ventilation_indicator_available(
+    node_type: str, pid: str | None, setup: Mapping[str, object]
+) -> bool:
+    """Whether the Helki storage controller reads ``status.ventilation``.
+
+    ``HEATING_FAN_AVAILABLE`` and ``HEATING_VENTILATION_AVAILABLE`` both expose
+    the same field: the capability requires ``factory_options.
+    ventilation_available`` and a ``ventilation_type`` of fan (1) or fanless
+    (0) (docs/api-contract.md §3.4).
+    """
+    if node_type != "acm" or not is_helki_storage(pid):
+        return False
+    factory = SetupView(setup).factory_options
+    if not factory.get("ventilation_available"):
+        return False
+    ventilation_type = factory.get("ventilation_type")
+    return (
+        isinstance(ventilation_type, int)
+        and not isinstance(ventilation_type, bool)
+        and ventilation_type in (0, 1)
+    )
+
+
+def power_level_limit_available(node_type: str, pid: str | None) -> bool:
+    """Whether the controller lists the read-only ``setup.power_level_limit``.
+
+    The Elnur E2 controllers (``20``/``25``) list POWER_LEVEL_LIMIT in
+    ``getSettings``; the product table carries the flag so a future product
+    with the setting does not have to share the extra-energy flag.
+    """
+    info = code_info(pid)
+    return node_type == "acm" and bool(info and info.power_level_limit)
+
+
+def resistor_indicator_available(
+    node_type: str, pid: str | None, setup: Mapping[str, object]
+) -> bool:
+    """Whether the Helki storage controller reads ``status.heating`` as RESISTOR.
+
+    ``HelkiStorageHeaterController.getStatusIndicators`` adds ``RESISTOR`` from
+    ``status.heating`` when ``HEATING_RESISTOR_AVAILABLE`` is active, and the
+    web builds resolve that capability from ``factory_options.
+    resistor_available`` (docs/api-contract.md §3.4). The key is matched
+    strictly, mirroring the app's ``=== true`` comparison.
+    """
+    if node_type != "acm" or not is_helki_storage(pid):
+        return False
+    return SetupView(setup).factory_options.get("resistor_available") is True
 
 
 # The app's max-stemp gate also hides the setting for this exact full PID

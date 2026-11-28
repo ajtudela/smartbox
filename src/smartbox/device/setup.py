@@ -84,6 +84,11 @@ class SetupView(Mapping[str, object]):
         return _integer(self.factory_options.get("ui_mode"))
 
     @property
+    def elnur_model(self) -> int | None:
+        """Return ``factory_options.model`` (ECOMBI/PRO/E2/ARC) when present."""
+        return _integer(self.factory_options.get("model"))
+
+    @property
     def operational_mode(self) -> int | None:
         """Return the top-level ``operational_mode`` when present."""
         return _integer(self.raw.get("operational_mode"))

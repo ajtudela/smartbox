@@ -155,6 +155,8 @@ def test_fixture_columns_match_the_table() -> None:
         assert row["water"] is info.water
         assert row["stepped_charge"] is info.stepped_charge
         assert row["extra_energy"] is info.extra_energy
+        assert row["fan"] is info.fan
+        assert row["power_level_limit"] is info.power_level_limit
 
 
 def test_product_code_reads_only_strings() -> None:
