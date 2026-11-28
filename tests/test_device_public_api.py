@@ -25,6 +25,7 @@ EXPECTED = {
     "ProductCode",
     "Reason",
     "SetupView",
+    "StorageActivity",
     "StorageIntent",
     "StorageWrite",
     "accepts_extra_options",
@@ -52,13 +53,14 @@ EXPECTED = {
     "control_mode_label",
     "controller_limits",
     "current_mode",
-    "diagnostic_fields",
+    "controller_health_fields",
     "is_heater_surface",
     "is_thermostat_surface",
     "product_code",
     "resolve_profile",
     "resolve_stored_profile",
     "require",
+    "storage_activity",
     "write_for",
 }
 

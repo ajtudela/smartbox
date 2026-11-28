@@ -48,8 +48,8 @@ from .control_modes import (
 from .profile import (
     ControllerLimits,
     ControllerProfile,
+    controller_health_fields,
     controller_limits,
-    diagnostic_fields,
     is_heater_surface,
     is_thermostat_surface,
     resolve_profile,
@@ -57,10 +57,12 @@ from .profile import (
 )
 from .setup import SetupView
 from .storage import (
+    StorageActivity,
     StorageIntent,
     StorageWrite,
     available_modes,
     current_mode,
+    storage_activity,
     write_for,
 )
 
@@ -75,6 +77,7 @@ __all__ = [
     "ProductCode",
     "Reason",
     "SetupView",
+    "StorageActivity",
     "StorageIntent",
     "StorageWrite",
     "accepts_extra_options",
@@ -100,14 +103,15 @@ __all__ = [
     "control_mode_available",
     "control_mode_choices",
     "control_mode_label",
+    "controller_health_fields",
     "controller_limits",
     "current_mode",
-    "diagnostic_fields",
     "is_heater_surface",
     "is_thermostat_surface",
     "product_code",
     "require",
     "resolve_profile",
     "resolve_stored_profile",
+    "storage_activity",
     "write_for",
 ]

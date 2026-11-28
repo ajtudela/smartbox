@@ -8,11 +8,17 @@ from smartbox.device.settings import (
     duty_limit_available,
     duty_limit_options,
     duty_limit_value,
+    extra_energy_indicator_available,
     max_temp_limit_available,
     pir_enabled,
+    power_level_limit_available,
     priority_available,
     prog_temps_available,
+    resistor_indicator_available,
     true_radiant_available,
+    true_radiant_indicator_available,
+    ventilation_indicator_available,
+    venting_indicator_available,
     window_mode_available,
 )
 
@@ -160,4 +166,120 @@ def test_lhz_duty_choices_skip_duplicate_values() -> None:
         ("70 %", 70),
         ("80 %", 80),
         ("90 %", 90),
+    )
+
+
+def test_e2_status_indicator_and_power_level_gates() -> None:
+    """E2 20/25 add the extra-energy and fan indicators; water only the former."""
+    assert extra_energy_indicator_available("acm", "08200000", {}) is True
+    assert extra_energy_indicator_available("acm", "08250000", {}) is True
+    assert extra_energy_indicator_available("acm", "082A0000", {}) is True
+    assert extra_energy_indicator_available("acm", "08140000", {}) is False
+    # The app disables E2_USAGE for the PRO model; other/absent values keep it.
+    assert (
+        extra_energy_indicator_available(
+            "acm", "08200000", {"factory_options": {"model": 1}}
+        )
+        is False
+    )
+    # The fan controller sets E2_USAGE unconditionally, including model PRO.
+    assert (
+        extra_energy_indicator_available(
+            "acm", "08250000", {"factory_options": {"model": 1}}
+        )
+        is True
+    )
+    assert (
+        extra_energy_indicator_available(
+            "acm", "08200000", {"factory_options": {"model": 2}}
+        )
+        is True
+    )
+    assert (
+        extra_energy_indicator_available(
+            "acm", "08200000", {"factory_options": {"model": "1"}}
+        )
+        is True
+    )
+
+    assert venting_indicator_available("acm", "08250000") is True
+    assert venting_indicator_available("acm", "08200000") is False
+    assert venting_indicator_available("acm", "082A0000") is False
+    assert venting_indicator_available("htr", "08250000") is False
+
+    assert power_level_limit_available("acm", "08200000") is True
+    assert power_level_limit_available("acm", "08250000") is True
+    assert power_level_limit_available("acm", "082A0000") is False
+    assert power_level_limit_available("acm", "08140000") is False
+    assert power_level_limit_available("htr", "08200000") is False
+
+
+def test_true_radiant_indicator_needs_the_heater_surface_and_capability() -> None:
+    """The indicator is a base status field, gated by the decoded capability."""
+    capable = {"factory_options": {"true_radiant_available": True}}
+    assert true_radiant_indicator_available("htr", "04020000", capable) is True
+    assert true_radiant_indicator_available("htr_mod", "010A0000", capable) is True
+    assert true_radiant_indicator_available("acm", "08140000", capable) is True
+    assert true_radiant_indicator_available("thm", "01280000", capable) is True
+    assert true_radiant_indicator_available("thm", "01040000", capable) is False
+    assert true_radiant_indicator_available("pmo", "01030000", capable) is False
+
+    absent = {"factory_options": {"true_radiant_available": False}}
+    assert true_radiant_indicator_available("htr", "04020000", absent) is False
+    assert true_radiant_indicator_available("acm", "08140000", {}) is False
+
+
+def test_ventilation_indicator_is_helki_storage_only() -> None:
+    """The Helki fan/fanless capability exposes status.ventilation."""
+    fan = {"factory_options": {"ventilation_available": True, "ventilation_type": 1}}
+    fanless = {
+        "factory_options": {"ventilation_available": True, "ventilation_type": 0}
+    }
+    assert ventilation_indicator_available("acm", "081C0000", fan) is True
+    assert ventilation_indicator_available("acm", "082E0000", fanless) is True
+    assert ventilation_indicator_available("acm", "08140000", fan) is False
+    assert ventilation_indicator_available("acm", "08250000", fan) is False
+    assert ventilation_indicator_available("htr", "081C0000", fan) is False
+    assert ventilation_indicator_available("acm", "081C0000", {}) is False
+    assert (
+        ventilation_indicator_available(
+            "acm",
+            "081C0000",
+            {
+                "factory_options": {
+                    "ventilation_available": False,
+                    "ventilation_type": 1,
+                }
+            },
+        )
+        is False
+    )
+    assert (
+        ventilation_indicator_available(
+            "acm",
+            "081C0000",
+            {
+                "factory_options": {
+                    "ventilation_available": True,
+                    "ventilation_type": "1",
+                }
+            },
+        )
+        is False
+    )
+
+
+def test_resistor_indicator_is_helki_storage_with_the_capability() -> None:
+    """The Helki RESISTOR indicator needs the factory key, matched strictly."""
+    capable = {"factory_options": {"resistor_available": True}}
+    assert resistor_indicator_available("acm", "081C0000", capable) is True
+    assert resistor_indicator_available("acm", "082E0000", capable) is True
+    assert resistor_indicator_available("acm", "081C0000", {}) is False
+    assert resistor_indicator_available("acm", "08140000", capable) is False
+    assert resistor_indicator_available("htr", "081C0000", capable) is False
+    assert (
+        resistor_indicator_available(
+            "acm", "081C0000", {"factory_options": {"resistor_available": 1}}
+        )
+        is False
     )

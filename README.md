@@ -285,7 +285,7 @@ The storage and htr_mod commands read `version.pid` first and refuse a product t
 
 - `smartbox.protocol` — auth, REST client, `ws_user` transport, wire values and named writes.
 - `smartbox.core` — versioned state store, merges, write confirmation, deadlines and feed supervision.
-- `smartbox.device` — the reviewed product-code table, neutral controller profiles, control modes, lock/boost policy, storage intents, setting gates and the operation-eligibility checks (several entity gates are shared with the HA adapter; the rest back the CLI).
+- `smartbox.device` — the reviewed product-code table, neutral controller profiles, control modes, lock/boost policy, storage intents/activity, status-indicator availability, setting gates and the operation-eligibility checks (several entity gates are shared with the HA adapter; the rest back the CLI).
 - `smartbox.cli` — the optional debugging CLI.
 - `smartbox.token_cache` — the CLI/tool file cache for the token bundle.
 

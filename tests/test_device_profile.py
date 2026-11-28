@@ -20,7 +20,7 @@ from smartbox.device.modes import (
 )
 from smartbox.device.profile import (
     HAVERLAND_HTR_MOD_POLICY,
-    diagnostic_fields,
+    controller_health_fields,
     firmware_at_least,
     htr_mod_policy,
     is_heater_surface,
@@ -319,21 +319,21 @@ def test_max_limit_on_storage_and_triac_families() -> None:
     }
 
 
-def test_diagnostic_fields_are_gated_by_controller_family() -> None:
+def test_controller_health_fields_are_gated_by_controller_family() -> None:
     """The field availability follows the decoded controller classes."""
-    common = {"error_code", "pcb_temp", "true_radiant_active"}
-    assert diagnostic_fields("04020000", "htr") == common
-    assert diagnostic_fields("010A0000", "htr_mod") == common | {
+    common = {"error_code", "pcb_temp"}
+    assert controller_health_fields("04020000", "htr") == common
+    assert controller_health_fields("010A0000", "htr_mod") == common | {
         "act_duty",
         "power_pcb_temp",
     }
-    assert diagnostic_fields("01320000", "htr") == common | {
+    assert controller_health_fields("01320000", "htr") == common | {
         "act_duty",
         "power_pcb_temp",
         "power_fail_det",
     }
-    assert diagnostic_fields(None, "htr") == frozenset()
-    assert diagnostic_fields("01320000", "acm") == frozenset()
+    assert controller_health_fields(None, "htr") == frozenset()
+    assert controller_health_fields("01320000", "acm") == frozenset()
 
 
 def test_firmware_comparison_edges() -> None:

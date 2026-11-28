@@ -211,20 +211,25 @@ def is_htr_mod_node(code: str | None, node_type: str | None = None) -> bool:
     return node_type == "htr_mod"
 
 
-def diagnostic_fields(pid: str | None, node_type: str | None = None) -> frozenset[str]:
-    """Return the diagnostic status fields a heater controller reports.
+def controller_health_fields(
+    pid: str | None, node_type: str | None = None
+) -> frozenset[str]:
+    """Return the controller-health fields a heater controller reports.
 
-    ``pcb_temp``, ``error_code`` and ``true_radiant_active`` are common to the
-    htr/htr_mod status families. TRIAC controllers add ``act_duty`` and
-    ``power_pcb_temp``; the WiFi heater product also reports
-    ``power_fail_det``. Base relay heaters report none of those three.
+    ``pcb_temp`` and ``error_code`` are observed live on the htr/htr_mod
+    families; the decoded apps never read either field. TRIAC controllers add
+    ``act_duty`` and ``power_pcb_temp``; the WiFi heater product also reports
+    ``power_fail_det``. Base relay heaters report only the common health pair.
+    ``true_radiant_active`` is a base heater status indicator, not health
+    telemetry; use :func:`smartbox.device.settings.true_radiant_indicator_available`
+    for it.
     """
     if node_type not in ("htr", "htr_mod"):
         return frozenset()
     info = code_info(pid)
     if info is None:
         return frozenset()
-    fields = {"error_code", "pcb_temp", "true_radiant_active"}
+    fields = {"error_code", "pcb_temp"}
     if info.actuation == "TRIAC":
         fields.update({"act_duty", "power_pcb_temp"})
     if info.code == "32":
@@ -565,8 +570,8 @@ __all__ = [
     "HtrModPolicy",
     "boost_temperature_bounds",
     "climate_bounds",
+    "controller_health_fields",
     "controller_limits",
-    "diagnostic_fields",
     "firmware_at_least",
     "htr_mod_policy",
     "is_heater_surface",
