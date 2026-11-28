@@ -1,5 +1,39 @@
 # Changelog
 
+## 3.3.0rc2
+
+### Compatibility notes
+
+* `diagnostic_fields()` is renamed to `controller_health_fields()` and no
+  longer returns `true_radiant_active`. The field is a base heater status
+  indicator, not controller-health telemetry; consumers use
+  `settings.true_radiant_indicator_available()`. The change is RC-only.
+
+### Added
+
+* `smartbox.device.storage.StorageActivity` and `storage_activity()`: the
+  controller-specific active indicator for storage heaters. Elnur `14`/`20`
+  use the base `active || heating`; the Elnur fan uses `FAN`
+  (`venting && !heating`) and `ACTIVE` (`venting && heating`), with no
+  indicator for a resistor without venting; Helki `1C`/`2E` and an unknown
+  `acm` use `charging`; water `2A` uses `charging && charge_level != 50`.
+* `ProductCode.fan` marks the Elnur E2 storage fan (`25`);
+  `ProductCode.power_level_limit` marks the E2 controllers that list the
+  read-only setting (`20`/`25`). `SetupView.elnur_model` exposes the
+  E2/ECOMBI/PRO/ARC model enum.
+* `settings.extra_energy_indicator_available()`,
+  `settings.venting_indicator_available()`,
+  `settings.ventilation_indicator_available()` (Helki storage fan/fanless) and
+  `settings.power_level_limit_available()`: decoded status-indicator and
+  read-only-setting gates.
+* `settings.true_radiant_indicator_available()`: the base heater status
+  indicator applies to every heater surface. The app includes it whenever
+  `status.true_radiant_active` is present; the predicate uses
+  `factory_options.true_radiant_available` as a static entity-presence proxy.
+  The fan controller's `E2_USAGE` is unconditional, so
+  `extra_energy_indicator_available()` skips the `model != PRO` gate on fan
+  products.
+
 ## 3.3.0rc1
 
 ### Compatibility notes (3.3.0)
