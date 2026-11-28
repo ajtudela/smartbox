@@ -1,3477 +1,3477 @@
 {
-  "codes": {
-    "00": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
+    "codes": {
+        "00": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "01": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "02": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "03": {
+            "actuation": "POWER",
+            "boost_bounds": null,
+            "boost_cap": null,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": null,
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "power",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Power monitor",
+            "lhz_duty": false,
+            "limits_family": "power",
+            "lock": "bool",
+            "max_c": null,
+            "max_limit": false,
+            "max_limit_bounds": null,
+            "min_c": null,
+            "node_type": "pmo",
+            "power_level_limit": false,
+            "profiles": null,
+            "prog_bounds": null,
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "power",
+            "thm_heater": false,
+            "water": false
+        },
+        "04": {
+            "actuation": "THERMOSTAT",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "thermostat",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Thermostat",
+            "lhz_duty": false,
+            "limits_family": "thermostat",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "thm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "thermostat",
+            "thm_heater": false,
+            "water": false
+        },
+        "07": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "08": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "09": {
+            "actuation": "THERMOSTAT",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "thermostat",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Thermostat",
+            "lhz_duty": false,
+            "limits_family": "thermostat",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "thm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "thermostat",
+            "thm_heater": false,
+            "water": false
+        },
+        "0A": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                28.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                5.0,
+                28.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": false,
+            "label": "Heater module",
+            "lhz_duty": false,
+            "limits_family": "htr_mod",
+            "lock": "bool",
+            "max_c": 28.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                28.0
+            ],
+            "min_c": 5.0,
+            "node_type": "htr_mod",
+            "power_level_limit": false,
+            "profiles": [
+                "off",
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": null,
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "0B": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "0C": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "0D": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "0F": {
+            "actuation": "THERMOSTAT",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "thermostat",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Thermostatic valve",
+            "lhz_duty": false,
+            "limits_family": "thermostat",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "thm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "thermostat",
+            "thm_heater": false,
+            "water": false
+        },
+        "10": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "11": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "12": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "13": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "14": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [],
+            "climate_bounds": [
+                3.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": true,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Storage heater",
+            "lhz_duty": false,
+            "limits_family": "storage_elnur",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 3.0,
+            "node_type": "acm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    4.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    3.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    3.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": true,
+            "storage_ui_modes": [
+                [
+                    "Classic combined",
+                    1
+                ],
+                [
+                    "Classic accumulator",
+                    2
+                ]
+            ],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "16": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "17": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [],
+            "climate_bounds": [
+                5.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": true,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "haverland",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 5.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    9.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    7.0,
+                    28.0
+                ],
+                "ice_temp": [
+                    5.0,
+                    7.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "18": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "1A": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2,
+                3
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "triac",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "1B": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "1C": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "climate_bounds": [
+                5.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "storage",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Storage heater",
+            "lhz_duty": false,
+            "limits_family": "storage_helki",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 5.0,
+            "node_type": "acm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    6.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    5.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    5.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "1D": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                2,
+                3
+            ],
+            "boost_params": [],
+            "climate_bounds": [
+                5.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": true,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "haverland",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 5.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    9.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    7.0,
+                    28.0
+                ],
+                "ice_temp": [
+                    5.0,
+                    7.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "1E": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "relay",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "1F": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": false,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "20": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [],
+            "climate_bounds": [
+                3.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": true,
+            "extra_energy": true,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Storage heater",
+            "lhz_duty": false,
+            "limits_family": "storage_elnur",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 3.0,
+            "node_type": "acm",
+            "power_level_limit": true,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    4.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    3.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    3.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [
+                [
+                    "Ecombi",
+                    0
+                ],
+                [
+                    "Classic combined",
+                    1
+                ]
+            ],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "21": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2,
+                3
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Triac heater",
+            "lhz_duty": false,
+            "limits_family": "triac",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "22": {
+            "actuation": "POWER",
+            "boost_bounds": null,
+            "boost_cap": null,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": null,
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "power",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Power monitor",
+            "lhz_duty": false,
+            "limits_family": "power",
+            "lock": "bool",
+            "max_c": null,
+            "max_limit": false,
+            "max_limit_bounds": null,
+            "min_c": null,
+            "node_type": "pmo",
+            "power_level_limit": false,
+            "profiles": null,
+            "prog_bounds": null,
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "power",
+            "thm_heater": false,
+            "water": false
+        },
+        "23": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2,
+                3
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": false,
+            "limits_family": "triac",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "24": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "25": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [],
+            "climate_bounds": [
+                3.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": true,
+            "extra_energy": true,
+            "family": "htr",
+            "fan": true,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Storage heater",
+            "lhz_duty": false,
+            "limits_family": "storage_elnur",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 3.0,
+            "node_type": "acm",
+            "power_level_limit": true,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    4.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    3.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    3.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [
+                [
+                    "Ecombi",
+                    0
+                ],
+                [
+                    "Classic combined",
+                    1
+                ]
+            ],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "27": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": false,
+            "label": "Heater",
+            "lhz_duty": false,
+            "limits_family": "pir",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    11.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    31.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "28": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2,
+                3
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Thermostat",
+            "lhz_duty": false,
+            "limits_family": "thm28",
+            "lock": "bool",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "thm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": true,
+            "water": false
+        },
+        "2A": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [],
+            "climate_bounds": [
+                3.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": true,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Water storage heater",
+            "lhz_duty": false,
+            "limits_family": "water",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 3.0,
+            "node_type": "acm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    4.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    3.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    3.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": true
+        },
+        "2E": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "climate_bounds": [
+                5.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "storage",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Storage heater",
+            "lhz_duty": false,
+            "limits_family": "storage_helki",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 5.0,
+            "node_type": "acm",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    6.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    5.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    5.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "31": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "wifi",
+            "lock": "int",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [
+                1,
+                2
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "32": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                2
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [
+                [
+                    "Off",
+                    0
+                ],
+                [
+                    "LST",
+                    25
+                ],
+                [
+                    "Baby Care",
+                    50
+                ]
+            ],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "helki",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "33": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                2
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [
+                [
+                    "Off",
+                    0
+                ],
+                [
+                    "LST",
+                    25
+                ],
+                [
+                    "Baby Care",
+                    50
+                ],
+                [
+                    "70 %",
+                    70
+                ],
+                [
+                    "80 %",
+                    80
+                ],
+                [
+                    "90 %",
+                    90
+                ]
+            ],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": true,
+            "limits_family": "helki",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "34": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "wifi",
+            "lock": "int",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [
+                1,
+                2
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "35": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                2
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [
+                [
+                    "Off",
+                    0
+                ],
+                [
+                    "LST",
+                    25
+                ],
+                [
+                    "Baby Care",
+                    50
+                ],
+                [
+                    "70 %",
+                    70
+                ],
+                [
+                    "80 %",
+                    80
+                ],
+                [
+                    "90 %",
+                    90
+                ]
+            ],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": true,
+            "limits_family": "helki",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "36": {
+            "actuation": "RELAY",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [
+                [
+                    "Off",
+                    0
+                ],
+                [
+                    "LST",
+                    25
+                ],
+                [
+                    "Baby Care",
+                    50
+                ],
+                [
+                    "70 %",
+                    70
+                ],
+                [
+                    "80 %",
+                    80
+                ],
+                [
+                    "90 %",
+                    90
+                ]
+            ],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "Relay heater",
+            "lhz_duty": true,
+            "limits_family": "helki",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "38": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                2
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [
+                [
+                    "Off",
+                    0
+                ],
+                [
+                    "LST",
+                    25
+                ],
+                [
+                    "Baby Care",
+                    50
+                ],
+                [
+                    "70 %",
+                    70
+                ],
+                [
+                    "80 %",
+                    80
+                ],
+                [
+                    "90 %",
+                    90
+                ]
+            ],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": true,
+            "limits_family": "helki",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "39": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                35.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                7.0,
+                35.0
+            ],
+            "duty_options": [],
+            "easy": true,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "wifi",
+            "lock": "int",
+            "max_c": 35.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                35.0
+            ],
+            "min_c": 7.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    8.0,
+                    35.0
+                ],
+                "eco_temp": [
+                    7.5,
+                    34.5
+                ],
+                "ice_temp": [
+                    7.0,
+                    34.0
+                ]
+            },
+            "runback_configs": [
+                1,
+                2
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "3D": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 300,
+            "boost_configs": [
+                2
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "climastar",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "43": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                1.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "base",
+            "lock": "bool",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 0.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    1.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    0.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    0.0,
+                    29.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "47": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [
+                0,
+                2,
+                3
+            ],
+            "boost_params": [],
+            "climate_bounds": [
+                5.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": true,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "haverland",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 5.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort",
+                "off"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    9.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    7.0,
+                    28.0
+                ],
+                "ice_temp": [
+                    5.0,
+                    7.0
+                ]
+            },
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "4C": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 120,
+            "boost_configs": [
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                5.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "atc",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 5.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    6.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    5.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    5.0,
+                    10.0
+                ]
+            },
+            "runback_configs": [
+                1,
+                2
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "4D": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                30.0
+            ],
+            "boost_cap": 120,
+            "boost_configs": [
+                1,
+                2,
+                3
+            ],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                5.0,
+                30.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": true,
+            "label": "WiFi heater",
+            "lhz_duty": false,
+            "limits_family": "atc",
+            "lock": "int",
+            "max_c": 30.0,
+            "max_limit": true,
+            "max_limit_bounds": [
+                16.0,
+                30.0
+            ],
+            "min_c": 5.0,
+            "node_type": "htr",
+            "power_level_limit": false,
+            "profiles": [
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": {
+                "comf_temp": [
+                    6.0,
+                    30.0
+                ],
+                "eco_temp": [
+                    5.5,
+                    29.5
+                ],
+                "ice_temp": [
+                    5.0,
+                    10.0
+                ]
+            },
+            "runback_configs": [
+                1,
+                2
+            ],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        },
+        "FF": {
+            "actuation": "TRIAC",
+            "boost_bounds": [
+                5.0,
+                28.0
+            ],
+            "boost_cap": 1440,
+            "boost_configs": [],
+            "boost_params": [
+                2
+            ],
+            "climate_bounds": [
+                5.0,
+                28.0
+            ],
+            "duty_options": [],
+            "easy": false,
+            "elnur_storage": false,
+            "extra_energy": false,
+            "family": "htr",
+            "fan": false,
+            "fixed_time_boost": false,
+            "ice_editable": false,
+            "label": "Heater",
+            "lhz_duty": false,
+            "limits_family": "htr_mod",
+            "lock": "bool",
+            "max_c": 28.0,
+            "max_limit": false,
+            "max_limit_bounds": [
+                16.0,
+                28.0
+            ],
+            "min_c": 5.0,
+            "node_type": "htr_mod",
+            "power_level_limit": false,
+            "profiles": [
+                "off",
+                "frost",
+                "eco",
+                "comfort"
+            ],
+            "prog_bounds": null,
+            "runback_configs": [],
+            "stepped_charge": false,
+            "storage_ui_modes": [],
+            "supports_extra_options": true,
+            "surface": "heater",
+            "thm_heater": false,
+            "water": false
+        }
     },
-    "01": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
+    "control_modes": {
+        "htr_relay_ui": [
+            "PID_15",
+            "PID_30",
+            "HYSTERESIS_02",
+            "HYSTERESIS_03",
+            "HYSTERESIS_05",
+            "HYSTERESIS_07"
         ],
-        "eco_temp": [
-          0.5,
-          29.5
+        "htr_triac_ui": [
+            "PID",
+            "HYSTERESIS_02",
+            "HYSTERESIS_03",
+            "HYSTERESIS_05",
+            "HYSTERESIS_07"
         ],
-        "ice_temp": [
-          0.0,
-          29.0
+        "htr_wire": [
+            "HYSTERESIS_02",
+            "HYSTERESIS_03",
+            "HYSTERESIS_05",
+            "HYSTERESIS_07",
+            "PID",
+            "PID_15",
+            "PID_30"
+        ],
+        "hysteresis_only_ui": [
+            "HYSTERESIS_02",
+            "HYSTERESIS_03",
+            "HYSTERESIS_05",
+            "HYSTERESIS_07"
+        ],
+        "labels_c": {
+            "HYSTERESIS_02": "Hysteresis (0.2 \u00b0C)",
+            "HYSTERESIS_03": "Hysteresis (0.3 \u00b0C)",
+            "HYSTERESIS_04": "Hysteresis (0.4 \u00b0C)",
+            "HYSTERESIS_05": "Hysteresis (0.5 \u00b0C)",
+            "HYSTERESIS_07": "Hysteresis (0.7 \u00b0C)",
+            "HYSTERESIS_08": "Hysteresis (0.8 \u00b0C)",
+            "HYSTERESIS_16": "Hysteresis (1.6 \u00b0C)",
+            "PID": "PID",
+            "PID_10": "PID (10 min. period)",
+            "PID_15": "PID (15 min. period)",
+            "PID_20": "PID (20 min. period)",
+            "PID_25": "PID (25 min. period)",
+            "PID_30": "PID (30 min. period)",
+            "PID_45": "PID (45 min. period)",
+            "PID_60": "PID (60 min. period)"
+        },
+        "labels_f": {
+            "HYSTERESIS_02": "Hysteresis (0.4 \u00b0F)",
+            "HYSTERESIS_03": "Hysteresis (0.5 \u00b0F)",
+            "HYSTERESIS_04": "Hysteresis (0.7 \u00b0F)",
+            "HYSTERESIS_05": "Hysteresis (0.9 \u00b0F)",
+            "HYSTERESIS_07": "Hysteresis (1.2 \u00b0F)",
+            "HYSTERESIS_08": "Hysteresis (1.4 \u00b0F)",
+            "HYSTERESIS_16": "Hysteresis (2.9 \u00b0F)",
+            "PID": "PID",
+            "PID_10": "PID (10 min. period)",
+            "PID_15": "PID (15 min. period)",
+            "PID_20": "PID (20 min. period)",
+            "PID_25": "PID (25 min. period)",
+            "PID_30": "PID (30 min. period)",
+            "PID_45": "PID (45 min. period)",
+            "PID_60": "PID (60 min. period)"
+        },
+        "storage_wire": [
+            "OFF",
+            "HYSTERESIS_02",
+            "HYSTERESIS_03",
+            "HYSTERESIS_05",
+            "HYSTERESIS_07",
+            "PID_15",
+            "PID_30"
         ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
     },
-    "02": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "03": {
-      "actuation": "POWER",
-      "boost_bounds": null,
-      "boost_cap": null,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": null,
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "power",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Power monitor",
-      "lhz_duty": false,
-      "limits_family": "power",
-      "lock": "bool",
-      "max_c": null,
-      "max_limit": false,
-      "max_limit_bounds": null,
-      "min_c": null,
-      "node_type": "pmo",
-      "power_level_limit": false,
-      "profiles": null,
-      "prog_bounds": null,
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "power",
-      "thm_heater": false,
-      "water": false
-    },
-    "04": {
-      "actuation": "THERMOSTAT",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "thermostat",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Thermostat",
-      "lhz_duty": false,
-      "limits_family": "thermostat",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "thm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "thermostat",
-      "thm_heater": false,
-      "water": false
-    },
-    "07": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "08": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "09": {
-      "actuation": "THERMOSTAT",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "thermostat",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Thermostat",
-      "lhz_duty": false,
-      "limits_family": "thermostat",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "thm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "thermostat",
-      "thm_heater": false,
-      "water": false
-    },
-    "0A": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        28.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        5.0,
-        28.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": false,
-      "label": "Heater module",
-      "lhz_duty": false,
-      "limits_family": "htr_mod",
-      "lock": "bool",
-      "max_c": 28.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        28.0
-      ],
-      "min_c": 5.0,
-      "node_type": "htr_mod",
-      "power_level_limit": false,
-      "profiles": [
-        "off",
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": null,
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "0B": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "0C": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "0D": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "0F": {
-      "actuation": "THERMOSTAT",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "thermostat",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Thermostatic valve",
-      "lhz_duty": false,
-      "limits_family": "thermostat",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "thm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "thermostat",
-      "thm_heater": false,
-      "water": false
-    },
-    "10": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "11": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "12": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "13": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "14": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [],
-      "climate_bounds": [
-        3.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": true,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Storage heater",
-      "lhz_duty": false,
-      "limits_family": "storage_elnur",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 3.0,
-      "node_type": "acm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          4.0,
-          30.0
-        ],
-        "eco_temp": [
-          3.5,
-          29.5
-        ],
-        "ice_temp": [
-          3.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": true,
-      "storage_ui_modes": [
-        [
-          "Classic combined",
-          1
-        ],
-        [
-          "Classic accumulator",
-          2
-        ]
-      ],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "16": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "17": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [],
-      "climate_bounds": [
-        5.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": true,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "haverland",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 5.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          9.0,
-          30.0
-        ],
-        "eco_temp": [
-          7.0,
-          28.0
-        ],
-        "ice_temp": [
-          5.0,
-          7.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "18": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "1A": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2,
-        3
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "triac",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "1B": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "1C": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "climate_bounds": [
-        5.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "storage",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Storage heater",
-      "lhz_duty": false,
-      "limits_family": "storage_helki",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 5.0,
-      "node_type": "acm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          6.0,
-          30.0
-        ],
-        "eco_temp": [
-          5.5,
-          29.5
-        ],
-        "ice_temp": [
-          5.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "1D": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        2,
-        3
-      ],
-      "boost_params": [],
-      "climate_bounds": [
-        5.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": true,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "haverland",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 5.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          9.0,
-          30.0
-        ],
-        "eco_temp": [
-          7.0,
-          28.0
-        ],
-        "ice_temp": [
-          5.0,
-          7.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "1E": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "relay",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          35.0
-        ],
-        "eco_temp": [
-          0.5,
-          34.5
-        ],
-        "ice_temp": [
-          0.0,
-          34.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "1F": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": false,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "20": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [],
-      "climate_bounds": [
-        3.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": true,
-      "extra_energy": true,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Storage heater",
-      "lhz_duty": false,
-      "limits_family": "storage_elnur",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 3.0,
-      "node_type": "acm",
-      "power_level_limit": true,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          4.0,
-          30.0
-        ],
-        "eco_temp": [
-          3.5,
-          29.5
-        ],
-        "ice_temp": [
-          3.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [
-        [
-          "Ecombi",
-          0
-        ],
-        [
-          "Classic combined",
-          1
-        ]
-      ],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "21": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2,
-        3
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Triac heater",
-      "lhz_duty": false,
-      "limits_family": "triac",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "22": {
-      "actuation": "POWER",
-      "boost_bounds": null,
-      "boost_cap": null,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": null,
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "power",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Power monitor",
-      "lhz_duty": false,
-      "limits_family": "power",
-      "lock": "bool",
-      "max_c": null,
-      "max_limit": false,
-      "max_limit_bounds": null,
-      "min_c": null,
-      "node_type": "pmo",
-      "power_level_limit": false,
-      "profiles": null,
-      "prog_bounds": null,
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "power",
-      "thm_heater": false,
-      "water": false
-    },
-    "23": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2,
-        3
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": false,
-      "limits_family": "triac",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "24": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "25": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [],
-      "climate_bounds": [
-        3.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": true,
-      "extra_energy": true,
-      "family": "htr",
-      "fan": true,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Storage heater",
-      "lhz_duty": false,
-      "limits_family": "storage_elnur",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 3.0,
-      "node_type": "acm",
-      "power_level_limit": true,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          4.0,
-          30.0
-        ],
-        "eco_temp": [
-          3.5,
-          29.5
-        ],
-        "ice_temp": [
-          3.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [
-        [
-          "Ecombi",
-          0
-        ],
-        [
-          "Classic combined",
-          1
-        ]
-      ],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "27": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": false,
-      "label": "Heater",
-      "lhz_duty": false,
-      "limits_family": "pir",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          11.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          31.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "28": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2,
-        3
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Thermostat",
-      "lhz_duty": false,
-      "limits_family": "thm28",
-      "lock": "bool",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "thm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": true,
-      "water": false
-    },
-    "2A": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [],
-      "climate_bounds": [
-        3.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": true,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Water storage heater",
-      "lhz_duty": false,
-      "limits_family": "water",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 3.0,
-      "node_type": "acm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          4.0,
-          30.0
-        ],
-        "eco_temp": [
-          3.5,
-          29.5
-        ],
-        "ice_temp": [
-          3.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": true
-    },
-    "2E": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "climate_bounds": [
-        5.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "storage",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Storage heater",
-      "lhz_duty": false,
-      "limits_family": "storage_helki",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 5.0,
-      "node_type": "acm",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          6.0,
-          30.0
-        ],
-        "eco_temp": [
-          5.5,
-          29.5
-        ],
-        "ice_temp": [
-          5.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "31": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "wifi",
-      "lock": "int",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [
-        1,
-        2
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "32": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        2
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [
-        [
-          "Off",
-          0
-        ],
-        [
-          "LST",
-          25
-        ],
-        [
-          "Baby Care",
-          50
-        ]
-      ],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "helki",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "33": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        2
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [
-        [
-          "Off",
-          0
-        ],
-        [
-          "LST",
-          25
-        ],
-        [
-          "Baby Care",
-          50
-        ],
-        [
-          "70 %",
-          70
-        ],
-        [
-          "80 %",
-          80
-        ],
-        [
-          "90 %",
-          90
-        ]
-      ],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": true,
-      "limits_family": "helki",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "34": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "wifi",
-      "lock": "int",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [
-        1,
-        2
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "35": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        2
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [
-        [
-          "Off",
-          0
-        ],
-        [
-          "LST",
-          25
-        ],
-        [
-          "Baby Care",
-          50
-        ],
-        [
-          "70 %",
-          70
-        ],
-        [
-          "80 %",
-          80
-        ],
-        [
-          "90 %",
-          90
-        ]
-      ],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": true,
-      "limits_family": "helki",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "36": {
-      "actuation": "RELAY",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [
-        [
-          "Off",
-          0
-        ],
-        [
-          "LST",
-          25
-        ],
-        [
-          "Baby Care",
-          50
-        ],
-        [
-          "70 %",
-          70
-        ],
-        [
-          "80 %",
-          80
-        ],
-        [
-          "90 %",
-          90
-        ]
-      ],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "Relay heater",
-      "lhz_duty": true,
-      "limits_family": "helki",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "38": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        2
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [
-        [
-          "Off",
-          0
-        ],
-        [
-          "LST",
-          25
-        ],
-        [
-          "Baby Care",
-          50
-        ],
-        [
-          "70 %",
-          70
-        ],
-        [
-          "80 %",
-          80
-        ],
-        [
-          "90 %",
-          90
-        ]
-      ],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": true,
-      "limits_family": "helki",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "39": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        35.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        7.0,
-        35.0
-      ],
-      "duty_options": [],
-      "easy": true,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "wifi",
-      "lock": "int",
-      "max_c": 35.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        35.0
-      ],
-      "min_c": 7.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          8.0,
-          35.0
-        ],
-        "eco_temp": [
-          7.5,
-          34.5
-        ],
-        "ice_temp": [
-          7.0,
-          34.0
-        ]
-      },
-      "runback_configs": [
-        1,
-        2
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "3D": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 300,
-      "boost_configs": [
-        2
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "climastar",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "43": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        1.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "base",
-      "lock": "bool",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 0.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          1.0,
-          30.0
-        ],
-        "eco_temp": [
-          0.5,
-          29.5
-        ],
-        "ice_temp": [
-          0.0,
-          29.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "47": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [
-        0,
-        2,
-        3
-      ],
-      "boost_params": [],
-      "climate_bounds": [
-        5.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": true,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "haverland",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 5.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort",
-        "off"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          9.0,
-          30.0
-        ],
-        "eco_temp": [
-          7.0,
-          28.0
-        ],
-        "ice_temp": [
-          5.0,
-          7.0
-        ]
-      },
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "4C": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 120,
-      "boost_configs": [
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        5.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "atc",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 5.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          6.0,
-          30.0
-        ],
-        "eco_temp": [
-          5.5,
-          29.5
-        ],
-        "ice_temp": [
-          5.0,
-          10.0
-        ]
-      },
-      "runback_configs": [
-        1,
-        2
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "4D": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        30.0
-      ],
-      "boost_cap": 120,
-      "boost_configs": [
-        1,
-        2,
-        3
-      ],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        5.0,
-        30.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": true,
-      "label": "WiFi heater",
-      "lhz_duty": false,
-      "limits_family": "atc",
-      "lock": "int",
-      "max_c": 30.0,
-      "max_limit": true,
-      "max_limit_bounds": [
-        16.0,
-        30.0
-      ],
-      "min_c": 5.0,
-      "node_type": "htr",
-      "power_level_limit": false,
-      "profiles": [
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": {
-        "comf_temp": [
-          6.0,
-          30.0
-        ],
-        "eco_temp": [
-          5.5,
-          29.5
-        ],
-        "ice_temp": [
-          5.0,
-          10.0
-        ]
-      },
-      "runback_configs": [
-        1,
-        2
-      ],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    },
-    "FF": {
-      "actuation": "TRIAC",
-      "boost_bounds": [
-        5.0,
-        28.0
-      ],
-      "boost_cap": 1440,
-      "boost_configs": [],
-      "boost_params": [
-        2
-      ],
-      "climate_bounds": [
-        5.0,
-        28.0
-      ],
-      "duty_options": [],
-      "easy": false,
-      "elnur_storage": false,
-      "extra_energy": false,
-      "family": "htr",
-      "fan": false,
-      "fixed_time_boost": false,
-      "ice_editable": false,
-      "label": "Heater",
-      "lhz_duty": false,
-      "limits_family": "htr_mod",
-      "lock": "bool",
-      "max_c": 28.0,
-      "max_limit": false,
-      "max_limit_bounds": [
-        16.0,
-        28.0
-      ],
-      "min_c": 5.0,
-      "node_type": "htr_mod",
-      "power_level_limit": false,
-      "profiles": [
-        "off",
-        "frost",
-        "eco",
-        "comfort"
-      ],
-      "prog_bounds": null,
-      "runback_configs": [],
-      "stepped_charge": false,
-      "storage_ui_modes": [],
-      "supports_extra_options": true,
-      "surface": "heater",
-      "thm_heater": false,
-      "water": false
-    }
-  },
-  "control_modes": {
-    "htr_relay_ui": [
-      "PID_15",
-      "PID_30",
-      "HYSTERESIS_02",
-      "HYSTERESIS_03",
-      "HYSTERESIS_05",
-      "HYSTERESIS_07"
-    ],
-    "htr_triac_ui": [
-      "PID",
-      "HYSTERESIS_02",
-      "HYSTERESIS_03",
-      "HYSTERESIS_05",
-      "HYSTERESIS_07"
-    ],
-    "htr_wire": [
-      "HYSTERESIS_02",
-      "HYSTERESIS_03",
-      "HYSTERESIS_05",
-      "HYSTERESIS_07",
-      "PID",
-      "PID_15",
-      "PID_30"
-    ],
-    "hysteresis_only_ui": [
-      "HYSTERESIS_02",
-      "HYSTERESIS_03",
-      "HYSTERESIS_05",
-      "HYSTERESIS_07"
-    ],
-    "labels_c": {
-      "HYSTERESIS_02": "Hysteresis (0.2 \u00b0C)",
-      "HYSTERESIS_03": "Hysteresis (0.3 \u00b0C)",
-      "HYSTERESIS_04": "Hysteresis (0.4 \u00b0C)",
-      "HYSTERESIS_05": "Hysteresis (0.5 \u00b0C)",
-      "HYSTERESIS_07": "Hysteresis (0.7 \u00b0C)",
-      "HYSTERESIS_08": "Hysteresis (0.8 \u00b0C)",
-      "HYSTERESIS_16": "Hysteresis (1.6 \u00b0C)",
-      "PID": "PID",
-      "PID_10": "PID (10 min. period)",
-      "PID_15": "PID (15 min. period)",
-      "PID_20": "PID (20 min. period)",
-      "PID_25": "PID (25 min. period)",
-      "PID_30": "PID (30 min. period)",
-      "PID_45": "PID (45 min. period)",
-      "PID_60": "PID (60 min. period)"
-    },
-    "labels_f": {
-      "HYSTERESIS_02": "Hysteresis (0.4 \u00b0F)",
-      "HYSTERESIS_03": "Hysteresis (0.5 \u00b0F)",
-      "HYSTERESIS_04": "Hysteresis (0.7 \u00b0F)",
-      "HYSTERESIS_05": "Hysteresis (0.9 \u00b0F)",
-      "HYSTERESIS_07": "Hysteresis (1.2 \u00b0F)",
-      "HYSTERESIS_08": "Hysteresis (1.4 \u00b0F)",
-      "HYSTERESIS_16": "Hysteresis (2.9 \u00b0F)",
-      "PID": "PID",
-      "PID_10": "PID (10 min. period)",
-      "PID_15": "PID (15 min. period)",
-      "PID_20": "PID (20 min. period)",
-      "PID_25": "PID (25 min. period)",
-      "PID_30": "PID (30 min. period)",
-      "PID_45": "PID (45 min. period)",
-      "PID_60": "PID (60 min. period)"
-    },
-    "storage_wire": [
-      "OFF",
-      "HYSTERESIS_02",
-      "HYSTERESIS_03",
-      "HYSTERESIS_05",
-      "HYSTERESIS_07",
-      "PID_15",
-      "PID_30"
-    ]
-  },
-  "schema": 2,
-  "source": "vendor mobile 2.54.2 new_vendors.decoded.js sha256 f4687447d9cff9bd9c04c4651d320501bb3e28020091b463ac177e153797ea96 (5,856,496 bytes); EProductCodeValue + controller classes"
+    "schema": 2,
+    "source": "vendor mobile 2.54.2 new_vendors.decoded.js sha256 f4687447d9cff9bd9c04c4651d320501bb3e28020091b463ac177e153797ea96 (5,856,496 bytes); EProductCodeValue + controller classes"
 }
